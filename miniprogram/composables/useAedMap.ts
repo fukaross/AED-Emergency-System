@@ -6,12 +6,14 @@
  *
  * D-05 基线要求
  */
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAedStore } from '@/store/aed'
+import type { AedItem } from '@/types/aed'
 import { getCurrentLocation, shouldSkipInitialRealLocation } from '@/services/geo-service'
 import {
   aedListToMarkers,
   createActiveMarker,
+  createBreathingMarker,
   createRoutePolyline,
   fetchWalkingRoute,
   type MapMarker,
@@ -41,6 +43,34 @@ export function useAedMap() {
   const locationError = ref<string | null>(null)
   const isLocating = ref(false)
   const hasRealLocation = ref(false)
+
+  // ===== 呼吸动画（最近 AED 标注，CLAUDE.md §7.1） =====
+  const BREATHE_SIZES = [60, 66, 60, 54] as const
+  const BREATHE_STEP_MS = 500
+  let breatheTimer: ReturnType<typeof setInterval> | null = null
+  let breatheStep = 0
+
+  function startBreathAnimation(
+    nearest: AedItem,
+    markerId: number,
+    baseMarkers: MapMarker[],
+  ): void {
+    stopBreathAnimation()
+    breatheStep = 0
+    breatheTimer = setInterval(() => {
+      breatheStep = (breatheStep + 1) % BREATHE_SIZES.length
+      const size = BREATHE_SIZES[breatheStep]
+      const breathingMarker = createBreathingMarker(nearest, markerId, size)
+      markers.value = [...baseMarkers, breathingMarker]
+    }, BREATHE_STEP_MS)
+  }
+
+  function stopBreathAnimation(): void {
+    if (breatheTimer !== null) {
+      clearInterval(breatheTimer)
+      breatheTimer = null
+    }
+  }
 
   async function refreshAed(point: { lat: number; lng: number }): Promise<void> {
     aedStore.setUserLocation(point)
@@ -100,8 +130,9 @@ export function useAedMap() {
     }
   }
 
-  /** 找最近 AED + 路线规划 */
+  /** 找最近 AED + 路线规划 + 呼吸动画 */
   async function goToNearestAed(): Promise<void> {
+    stopBreathAnimation()
     aedStore.findNearest()
     const nearest = aedStore.nearestAed
     if (!nearest || !aedStore.userLocation) return
@@ -109,10 +140,16 @@ export function useAedMap() {
     // 地图聚焦
     mapCenter.value = { latitude: nearest.lat, longitude: nearest.lng }
 
-    // 更新 markers（高亮最近 AED）
+    // 移除原始 marker，替换为高亮态（避免两个 marker 叠加导致错位）
+    const nearestIdx = aedStore.aedList.findIndex(a => a.id === nearest.id)
+    const markerId = nearestIdx >= 0 ? nearestIdx : 999
     const baseMarkers = aedListToMarkers(aedStore.aedList)
-    const activeMarker = createActiveMarker(nearest, 999)
+      .filter((_, i) => i !== nearestIdx)
+    const activeMarker = createActiveMarker(nearest, markerId)
     markers.value = [...baseMarkers, activeMarker]
+
+    // 启动呼吸动画（尺寸 54↔66 循环，周期 2s）
+    startBreathAnimation(nearest, markerId, baseMarkers)
 
     // 路线规划
     const from = aedStore.userLocation
@@ -127,12 +164,14 @@ export function useAedMap() {
 
   /** 清除路线与高亮 */
   function clearRoute(): void {
+    stopBreathAnimation()
     polylines.value = []
     markers.value = aedListToMarkers(aedStore.aedList)
     aedStore.clearRoute()
   }
 
   onMounted(init)
+  onUnmounted(stopBreathAnimation)
 
   return {
     mapCenter,

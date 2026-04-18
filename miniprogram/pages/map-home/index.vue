@@ -24,39 +24,40 @@
       @error="handleMapError"
     />
 
-    <!-- ③ 寻求帮助浮动按钮（右上） -->
+    <!-- ③ 寻求帮助浮动按钮（右上）— 红色圆形，图标+文字均在按钮内 -->
     <view class="fab-help" :style="fabHelpStyle" @click="openHelpPage">
       <image
         class="fab-help__icon"
         :src="EMERGENCY_CALL_ICON"
         mode="aspectFit"
       />
+      <text class="fab-help__text">寻求帮助</text>
     </view>
 
-    <!-- ④ 附近 AED 按钮（左下） -->
+    <!-- ④ 附近 AED 按钮（左下）— 白色胶囊 + 列表图标 -->
     <view class="fab-nearby" @click="toggleNearbyPanel">
       <image
         class="fab-nearby__icon"
-        :src="NAVIGATE_ICON"
+        :src="LIST_ICON"
         mode="aspectFit"
       />
       <text class="fab-nearby__text">附近AED</text>
     </view>
 
-    <!-- ⑤ 定位按钮（右下偏上） -->
+    <!-- ⑤ 定位按钮（右下偏上）— 白色圆形 + 导航箭头 -->
     <view class="fab-locate" @click="handleRelocate">
       <image
         class="fab-locate__icon"
-        :src="MY_LOCATION_ICON"
+        :src="LOCATION_ICON"
         mode="aspectFit"
       />
     </view>
 
-    <!-- ⑥ 最近 AED 按钮（右下） -->
+    <!-- ⑥ 最近 AED 按钮（右下）— 红色圆角方形，图标+文字均在按钮内 -->
     <view class="fab-nearest" @click="handleNearest">
       <image
         class="fab-nearest__icon"
-        :src="NAVIGATE_ICON"
+        :src="NEAR_AED_ICON"
         mode="aspectFit"
       />
       <text class="fab-nearest__text">最近AED</text>
@@ -140,8 +141,9 @@ import {
 import type { AedItem } from '@/types/aed'
 
 const EMERGENCY_CALL_ICON = '/static/images/emergency-call.png'
-const NAVIGATE_ICON = '/static/images/navigate.png'
-const MY_LOCATION_ICON = '/static/images/my_location.png'
+const LIST_ICON = '/static/icons/list.svg'
+const LOCATION_ICON = '/static/icons/location.svg'
+const NEAR_AED_ICON = '/static/icons/near_AED.svg'
 
 // ===== Store =====
 const aedStore = useAedStore()
@@ -232,12 +234,27 @@ function navigateToAed(aed: AedItem): void {
   openNativeNavigation(aed.lat, aed.lng, aed.name, aed.address)
 }
 
-/** Marker 点击 — 地图移动到该点 */
+/** Marker 点击 — 展示 AED 设备信息弹窗（兼容 H5 callout 不工作的场景） */
 function handleMarkerTap(e: { markerId?: number; detail?: { markerId?: number } }): void {
   const markerId = e.markerId ?? e.detail?.markerId
   if (markerId == null) return
-  // callout 由 map 组件自动展示（display: 'BYCLICK'）
-  // 如需额外逻辑可在此扩展
+  const aed = aedStore.aedList[markerId]
+  if (!aed) return
+
+  const statusText = aed.status === 'online' ? '🟢 在线可用' : '⚫ 离线不可用'
+  const distText = aed.distance > 0 ? `距离约 ${aed.distance}m` : '距离未知'
+
+  uni.showModal({
+    title: aed.name,
+    content: `${statusText}\n${distText}`,
+    confirmText: '导航前往',
+    cancelText: '关闭',
+    success: (res) => {
+      if (res.confirm) {
+        navigateToAed(aed)
+      }
+    },
+  })
 }
 
 /** Callout 点击 — 打开导航 */
@@ -273,22 +290,36 @@ function handleMapError(event: Event): void {
 }
 
 // ===== ③ 寻求帮助浮动按钮（右上） =====
-// 设计稿位置：导航栏底部 + 20rpx，right: 24rpx
-// 规格：96×96rpx 红色圆形，emergency-call.svg
+// 设计稿：红色圆形 + 白色电话图标 + 下方"寻求帮助"文字
 .fab-help {
   position: fixed;
-  right: $spacing-md; // 24rpx
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: $radius-full;
-  background-color: $help-button-bg; // #E60000
-  box-shadow: 0 4rpx 16rpx rgba(229, 57, 53, 0.4);
+  right: $spacing-md;
   z-index: 100;
-  @include flex-center;
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: $radius-full;
+  background-color: $help-button-bg;
+  box-shadow: 0 4rpx 16rpx rgba(229, 57, 53, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: transform 150ms ease;
+
+  &:active {
+    transform: scale(0.88);
+  }
 
   &__icon {
-    width: 52rpx;
-    height: 52rpx;
+    width: 56rpx;
+    height: 56rpx;
+  }
+
+  &__text {
+    margin-top: 2rpx;
+    font-size: $font-size-xs;
+    color: $text-white;
+    font-weight: $font-weight-medium;
   }
 }
 
@@ -304,7 +335,12 @@ function handleMapError(event: Event): void {
   background-color: $background-white;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.15);
   z-index: 100;
+  transition: transform 150ms ease;
   @include flex-align-center;
+
+  &:active {
+    transform: scale(0.92);
+  }
 
   &__icon {
     width: 32rpx;
@@ -320,48 +356,61 @@ function handleMapError(event: Event): void {
 }
 
 // ===== ⑤ 定位按钮（右下偏上） =====
-// 设计稿位置：right: 24rpx，最近AED按钮上方 + 16rpx
+// 设计稿：白色圆形按钮 + 深色导航箭头（location.svg），放大版
+// 位于最近AED按钮上方（按钮120rpx + 间距16rpx）
 .fab-locate {
   position: fixed;
-  right: $spacing-md; // 24rpx
-  // 位于最近AED按钮上方：底部按钮bottom + 72rpx(按钮高) + 16rpx(间距)
-  bottom: calc(#{$tab-bar-height} + #{$spacing-md} + env(safe-area-inset-bottom) + 72rpx + #{$spacing-sm});
-  width: 80rpx;
-  height: 80rpx;
+  right: $spacing-md;
+  bottom: calc(#{$tab-bar-height} + #{$spacing-md} + env(safe-area-inset-bottom) + 120rpx + #{$spacing-sm});
+  width: 100rpx;
+  height: 100rpx;
   border-radius: $radius-full;
   background-color: $background-white;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.15);
   z-index: 100;
+  transition: transform 150ms ease;
   @include flex-center;
 
+  &:active {
+    transform: scale(0.88);
+  }
+
   &__icon {
-    width: 44rpx;
-    height: 44rpx;
+    width: 64rpx;
+    height: 64rpx;
   }
 }
 
 // ===== ⑥ 最近 AED 按钮（右下） =====
-// 设计稿位置：right: 24rpx，bottom: TabBar顶部 + 24rpx
+// 设计稿：红色圆角方形按钮，内含白色AED心形图标 + 白色"最近AED"文字
 .fab-nearest {
   position: fixed;
-  right: $spacing-md; // 24rpx
+  right: $spacing-md;
   bottom: calc(#{$tab-bar-height} + #{$spacing-md} + env(safe-area-inset-bottom));
-  height: 72rpx;
-  padding: 0 $spacing-md;
-  border-radius: $radius-pill; // 36rpx
-  background-color: $primary; // #E53935
-  box-shadow: 0 4rpx 16rpx rgba(229, 57, 53, 0.3);
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: $radius-lg; // 16rpx 圆角方形
+  background-color: $primary;
+  box-shadow: $shadow-primary;
   z-index: 100;
-  @include flex-align-center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: transform 150ms ease;
+
+  &:active {
+    transform: scale(0.88);
+  }
 
   &__icon {
-    width: 32rpx;
-    height: 32rpx;
-    margin-right: $spacing-xs;
+    width: 52rpx;
+    height: 52rpx;
   }
 
   &__text {
-    font-size: 26rpx;
+    margin-top: 4rpx;
+    font-size: $font-size-xs;
     color: $text-white;
     font-weight: $font-weight-medium;
   }

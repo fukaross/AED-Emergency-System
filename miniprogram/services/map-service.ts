@@ -19,9 +19,16 @@ export interface MapMarker {
   readonly iconPath: string
   readonly width: number
   readonly height: number
+  readonly anchor?: { readonly x: number; readonly y: number }
   readonly callout?: {
     readonly content: string
     readonly display: string
+    readonly color?: string
+    readonly fontSize?: number
+    readonly borderRadius?: number
+    readonly bgColor?: string
+    readonly padding?: number
+    readonly textAlign?: string
   }
 }
 
@@ -38,8 +45,35 @@ export interface MapPolyline {
 
 const MARKER_SIZE = 40
 const ACTIVE_MARKER_SIZE = 60
-const AED_MARKER_ONLINE_PNG = '/static/images/aed-marker-online.png'
-const AED_MARKER_OFFLINE_PNG = '/static/images/aed-marker-offline.png'
+const AED_MARKER_ONLINE = '/static/icons/aed-online.svg'
+const AED_MARKER_OFFLINE = '/static/icons/aed-offline.svg'
+
+/** 格式化距离文本 */
+function formatDistance(distance: number): string {
+  if (distance <= 0) return '距离未知'
+  if (distance >= 1000) return `约${(distance / 1000).toFixed(1)}km`
+  return `约${Math.round(distance)}m`
+}
+
+/** 构建 callout 配置 */
+function buildCallout(
+  aed: AedItem,
+  display: 'BYCLICK' | 'ALWAYS',
+): MapMarker['callout'] {
+  const statusLabel = aed.status === 'online' ? '✓ 可用' : '✗ 不可用'
+  const distText = formatDistance(aed.distance)
+  const content = `${aed.name}\n${statusLabel} · ${distText}\n点击导航前往`
+  return {
+    content,
+    display,
+    color: aed.status === 'online' ? '#333333' : '#999999',
+    fontSize: 13,
+    borderRadius: 8,
+    bgColor: '#FFFFFF',
+    padding: 10,
+    textAlign: 'left',
+  }
+}
 
 /** AED 列表转 markers */
 export function aedListToMarkers(aedList: readonly AedItem[]): MapMarker[] {
@@ -48,14 +82,12 @@ export function aedListToMarkers(aedList: readonly AedItem[]): MapMarker[] {
     latitude: aed.lat,
     longitude: aed.lng,
     iconPath: aed.status === 'online'
-      ? AED_MARKER_ONLINE_PNG
-      : AED_MARKER_OFFLINE_PNG,
+      ? AED_MARKER_ONLINE
+      : AED_MARKER_OFFLINE,
     width: MARKER_SIZE,
     height: MARKER_SIZE,
-    callout: {
-      content: `${aed.name}\n${aed.status === 'online' ? '可用' : '不可用'}`,
-      display: 'BYCLICK',
-    },
+    anchor: { x: 0.5, y: 0.5 },
+    callout: buildCallout(aed, 'BYCLICK'),
   }))
 }
 
@@ -68,13 +100,35 @@ export function createActiveMarker(
     id: markerId,
     latitude: aed.lat,
     longitude: aed.lng,
-    iconPath: AED_MARKER_ONLINE_PNG,
+    iconPath: AED_MARKER_ONLINE,
     width: ACTIVE_MARKER_SIZE,
     height: ACTIVE_MARKER_SIZE,
-    callout: {
-      content: `${aed.name}\n最近可用 AED`,
-      display: 'ALWAYS',
-    },
+    anchor: { x: 0.5, y: 0.5 },
+    callout: buildCallout(
+      { ...aed, name: `📍 ${aed.name}（最近）` },
+      'ALWAYS',
+    ),
+  }
+}
+
+/** 生成呼吸动画帧 marker（指定尺寸） */
+export function createBreathingMarker(
+  aed: AedItem,
+  markerId: number,
+  size: number,
+): MapMarker {
+  return {
+    id: markerId,
+    latitude: aed.lat,
+    longitude: aed.lng,
+    iconPath: AED_MARKER_ONLINE,
+    width: size,
+    height: size,
+    anchor: { x: 0.5, y: 0.5 },
+    callout: buildCallout(
+      { ...aed, name: `📍 ${aed.name}（最近）` },
+      'ALWAYS',
+    ),
   }
 }
 
