@@ -1,0 +1,106 @@
+/**
+ * AED 急救小程序 — 全局设计令牌
+ *
+ * [G-06] 本文件为设计令牌唯一来源。
+ *        页面和组件禁止硬编码色值、字号、间距。
+ *        所有视觉参数必须引用本文件中的变量。
+ *
+ * 来源：GEMINI.md §2 + CLAUDE.md §5
+ */
+
+// ===== 主色调 =====
+$primary: #E53935;           // 主红色（急救主题、主按钮、选中态）
+$primary-light: #FFCDD2;     // 浅红（禁用按钮底、浅色背景）
+$primary-dark: #C62828;      // 深红（按压态、强调色）
+
+// ===== 状态色 =====
+$status-online: #4CAF50;     // 在线/可用/已认证（绿）
+$status-offline: #9E9E9E;    // 离线/不可用/未认证（灰）
+$status-warning: #FFC107;    // 警告/注意（黄，问题报告按钮）
+$status-error: #F44336;      // 错误/过期（红）
+$status-info: #2196F3;       // 信息提示（蓝）
+
+// ===== 急救员级别色 =====
+$level-honor: #FFD700;       // 荣誉急救员 — 金底白字
+$level-trainee: #9E9E9E;     // 预备急救员 — 灰底白字
+$level-official: #4CAF50;    // 正式急救员 — 绿底白字
+$level-core: #2196F3;        // 骨干急救员 — 蓝底白字
+
+// ===== 功能色 =====
+$navigation-blue: #1890FF;   // 导航路线、polyline
+$link-blue: #4A90E2;         // 可点击链接
+$help-button-bg: #E60000;    // 紧急帮助按钮底色
+
+// ===== 中性色 =====
+$text-primary: #333333;
+$text-secondary: #666666;
+$text-tertiary: #999999;     // ⚠️ 白底对比度 2.9:1，辅助文字建议用 #757575 (4.6:1)
+$text-tertiary-a11y: #757575; // 无障碍合规替代色
+$text-placeholder: #808080;
+$text-disabled: #C0C0C0;
+$text-white: #FFFFFF;
+$background: #F5F5F5;
+$background-white: #FFFFFF;
+$background-hover: #F1F1F1;
+$background-card-disabled: #F0F0F0;
+$divider: #EEEEEE;
+$divider-light: #F0F0F0;
+$overlay-mask: rgba(0, 0, 0, 0.5);
+
+// ===== 字体大小 =====
+$font-size-xs: 20rpx;        // 辅助文字（标签内、TabBar 文字）
+$font-size-sm: 24rpx;        // 次要文字（距离、时间、副标签）
+$font-size-base: 28rpx;      // 正文（列表内容、弹窗正文）
+$font-size-lg: 30rpx;        // 列表标题、按钮文字
+$font-size-xl: 36rpx;        // 页面标题、大按钮、卡片主标题
+$font-size-xxl: 40rpx;       // 步骤标题
+$font-size-hero: 44rpx;      // 大标题（紧急场景）
+
+// ===== 字重 =====
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// ===== 行高 =====
+$line-height-tight: 1.2;
+$line-height-normal: 1.5;
+$line-height-relaxed: 1.8;
+
+// ===== 间距（8rpx 基准） =====
+$spacing-xs: 8rpx;
+$spacing-sm: 16rpx;
+$spacing-md: 24rpx;
+$spacing-lg: 32rpx;
+$spacing-xl: 48rpx;
+$spacing-xxl: 64rpx;
+
+// ===== 圆角 =====
+$radius-sm: 8rpx;
+$radius-md: 12rpx;
+$radius-lg: 16rpx;
+$radius-xl: 24rpx;
+$radius-pill: 36rpx;         // 胶囊按钮
+$radius-full: 50%;           // 圆形
+
+// ===== 阴影层级 =====
+$shadow-sm: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);       // 卡片
+$shadow-md: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);        // 浮动按钮
+$shadow-lg: 0 8rpx 32rpx rgba(0, 0, 0, 0.15);       // 弹窗
+$shadow-primary: 0 4rpx 16rpx rgba(229, 57, 53, 0.3); // 红色主按钮
+$shadow-warning: 0 4rpx 16rpx rgba(255, 193, 7, 0.4); // 黄色警告按钮
+
+// ===== 动画令牌 =====
+$duration-fast: 150ms;       // 按钮反馈
+$duration-normal: 200ms;     // Tab 选中
+$duration-slow: 300ms;       // 弹窗、步骤切换
+$duration-cycle: 2s;         // 呼吸、涟漪、浮动循环
+
+$ease-default: ease;
+$ease-out: ease-out;
+$ease-in-out: ease-in-out;
+
+// ===== 布局常量 =====
+$page-padding: $spacing-md;  // 页面默认左右边距 24rpx
+$tab-bar-height: 100rpx;     // TabBar 高度（不含安全区）
+$nav-bar-content-height: 44px; // 导航栏内容区高度

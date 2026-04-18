@@ -1,0 +1,96 @@
+/**
+ * AED 急救小程序 — 全局样式重置
+ *
+ * 在 App.vue 中通过 @import 引入
+ */
+
+/* ===== 基础重置 ===== */
+
+page {
+  box-sizing: border-box;
+  background-color: $background;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'Helvetica Neue',
+    Helvetica,
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  font-size: $font-size-base;
+  color: $text-primary;
+  line-height: $line-height-normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== 盒模型统一 ===== */
+
+view,
+text,
+image,
+scroll-view,
+swiper,
+swiper-item,
+navigator,
+button,
+input,
+textarea,
+picker,
+form,
+label,
+switch,
+slider,
+video,
+rich-text,
+cover-view,
+cover-image {
+  box-sizing: border-box;
+}
+
+/* ===== 按钮重置 ===== */
+
+button {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  line-height: inherit;
+  font-size: inherit;
+
+  &::after {
+    border: none;
+  }
+}
+
+/* ===== 图片默认行为 ===== */
+
+image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* ===== 输入框重置 ===== */
+
+input,
+textarea {
+  font-size: inherit;
+  font-family: inherit;
+}
+
+/* ===== 禁止长按弹出菜单 ===== */
+
+view,
+text,
+image {
+  -webkit-touch-callout: none;
+}
+
+/* ===== 滚动条隐藏（H5 调试用） ===== */
+
+::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}

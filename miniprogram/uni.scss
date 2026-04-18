@@ -1,0 +1,51 @@
+/**
+ * AED 急救小程序 — 全局 SCSS 变量入口
+ *
+ * 本文件由 uni-app 自动注入到每个 Vue SFC 的 <style lang="scss"> 中，
+ * 无需手动 @import。
+ *
+ * 自定义设计令牌定义在 common/styles/variables.scss，
+ * 将在 Phase 2 完善后通过此处引入。
+ */
+
+@import './common/styles/variables.scss';
+@import './common/styles/mixins.scss';
+
+/* ===== uni-app 内置样式变量（保留兼容） ===== */
+
+$uni-color-primary: $primary;
+$uni-color-success: $status-online;
+$uni-color-warning: $status-warning;
+$uni-color-error: $status-error;
+
+$uni-text-color: $text-primary;
+$uni-text-color-inverse: $text-white;
+$uni-text-color-grey: $text-tertiary;
+$uni-text-color-placeholder: $text-placeholder;
+$uni-text-color-disable: $text-disabled;
+
+$uni-bg-color: $background-white;
+$uni-bg-color-grey: $background;
+$uni-bg-color-hover: $background-hover;
+$uni-bg-color-mask: $overlay-mask;
+
+$uni-border-color: $divider;
+
+$uni-font-size-sm: 24rpx;
+$uni-font-size-base: 28rpx;
+$uni-font-size-lg: 30rpx;
+
+$uni-border-radius-sm: 8rpx;
+$uni-border-radius-base: 12rpx;
+$uni-border-radius-lg: 16rpx;
+$uni-border-radius-circle: 50%;
+
+$uni-spacing-row-sm: 8rpx;
+$uni-spacing-row-base: 16rpx;
+$uni-spacing-row-lg: 24rpx;
+
+$uni-spacing-col-sm: 8rpx;
+$uni-spacing-col-base: 16rpx;
+$uni-spacing-col-lg: 24rpx;
+
+$uni-opacity-disabled: 0.3;

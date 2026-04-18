@@ -1,0 +1,443 @@
+openapi: '3.0.3'
+info:
+  title: AED 急救小程序 API
+  version: '1.0.0'
+  description: |
+    REDACTED AED 急救小程序后端接口契约
+    来源：CLAUDE.md §8 + BackEnd.md v1.1
+  license:
+    name: Proprietary
+    url: https://www.qtnu.edu.cn
+
+servers:
+  - url: https://api.aed.qtnu.edu.cn
+    description: 生产环境
+
+paths:
+  /api/aed/nearby:
+    get:
+      summary: 获取附近 AED 列表
+      operationId: getNearbyAed
+      security: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: radius
+          in: query
+          schema:
+            type: number
+            default: 3000
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/aed/{id}:
+    get:
+      summary: 获取单个 AED 详情
+      operationId: getAedDetail
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/aed/{id}/report:
+    post:
+      summary: 提交 AED 问题报告
+      operationId: createAedReport
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AedReportRequest'
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/help/request:
+    post:
+      summary: 发布求助需求
+      operationId: createHelpRequest
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishHelpPayload'
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/help/guest/query:
+    post:
+      summary: 游客查询求助状态
+      operationId: queryGuestHelp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requestNo, followupCode]
+              properties:
+                requestNo:
+                  type: string
+                followupCode:
+                  type: string
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/help/guest/close:
+    post:
+      summary: 游客关闭误报
+      operationId: closeGuestHelp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requestNo, closeToken]
+              properties:
+                requestNo:
+                  type: string
+                closeToken:
+                  type: string
+                note:
+                  type: string
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/courses:
+    get:
+      summary: 获取课程列表
+      operationId: listCourses
+      security: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/courses/by-type:
+    get:
+      summary: 按类型获取预置课程
+      operationId: getCourseByType
+      security: []
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [cpr, aed, heimlich]
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/courses/{id}:
+    get:
+      summary: 获取课程详情
+      operationId: getCourseDetail
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/user/profile:
+    get:
+      summary: 获取用户信息
+      operationId: getUserProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    put:
+      summary: 更新用户信息
+      operationId: updateUserProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfilePayload'
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/user/archives:
+    get:
+      summary: 获取急救档案列表
+      operationId: listUserArchives
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: level
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/user/archives/{id}/phone:
+    get:
+      summary: 获取档案完整电话号码
+      operationId: getArchivePhone
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: purpose
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/banners:
+    get:
+      summary: 获取轮播横幅配置
+      operationId: listBanners
+      security: []
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/auth/login:
+    post:
+      summary: 微信登录
+      operationId: loginByWechatCode
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/upload/image:
+    post:
+      summary: 上传图片
+      operationId: uploadImage
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, scene]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                scene:
+                  type: string
+                  enum: [avatar, report, help]
+      responses:
+        '200':
+          description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+
+  schemas:
+    ApiResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: object
+
+    AedReportRequest:
+      type: object
+      required: [type, description]
+      properties:
+        type:
+          type: string
+          enum: [damaged, relocated, unusable, other]
+        description:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
+        contactPhone:
+          type: string
+        contactEmail:
+          type: string
+
+    PublishHelpPayload:
+      type: object
+      required: [lat, lng, address, content, type]
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        address:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [help_hand, call_120, call_school, general]
+        images:
+          type: array
+          items:
+            type: string
+        requestChannel:
+          type: string
+          enum: [user, guest]
+        guestName:
+          type: string
+        callbackAllowed:
+          type: boolean
+        privacyConsentAt:
+          type: string
+          format: date-time
+
+    UpdateUserProfilePayload:
+      type: object
+      properties:
+        name:
+          type: string
+        avatarUrl:
+          type: string
+        gender:
+          type: string
+          enum: [male, female, unknown]
+        phone:
+          type: string

@@ -28,7 +28,7 @@
     <view class="fab-help" :style="fabHelpStyle" @click="openHelpPage">
       <image
         class="fab-help__icon"
-        src="/static/images/emergency-call.png"
+        :src="EMERGENCY_CALL_ICON"
         mode="aspectFit"
       />
     </view>
@@ -37,7 +37,7 @@
     <view class="fab-nearby" @click="toggleNearbyPanel">
       <image
         class="fab-nearby__icon"
-        src="/static/images/navigate.png"
+        :src="NAVIGATE_ICON"
         mode="aspectFit"
       />
       <text class="fab-nearby__text">附近AED</text>
@@ -47,7 +47,7 @@
     <view class="fab-locate" @click="handleRelocate">
       <image
         class="fab-locate__icon"
-        src="/static/images/my_location.png"
+        :src="MY_LOCATION_ICON"
         mode="aspectFit"
       />
     </view>
@@ -56,7 +56,7 @@
     <view class="fab-nearest" @click="handleNearest">
       <image
         class="fab-nearest__icon"
-        src="/static/images/navigate.png"
+        :src="NAVIGATE_ICON"
         mode="aspectFit"
       />
       <text class="fab-nearest__text">最近AED</text>
@@ -139,6 +139,10 @@ import {
 } from '@/services/map-service'
 import type { AedItem } from '@/types/aed'
 
+const EMERGENCY_CALL_ICON = '/static/images/emergency-call.png'
+const NAVIGATE_ICON = '/static/images/navigate.png'
+const MY_LOCATION_ICON = '/static/images/my_location.png'
+
 // ===== Store =====
 const aedStore = useAedStore()
 
@@ -153,7 +157,6 @@ const {
   hasRealLocation,
   relocate,
   goToNearestAed,
-  clearRoute,
 } = useAedMap()
 
 // ===== 本页展示状态 =====

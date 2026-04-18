@@ -1,0 +1,99 @@
+{
+  "pages": [
+    {
+      "path": "pages/map-home/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/device-center/index",
+      "style": {
+        "navigationBarTitleText": "设备中心"
+      }
+    },
+    {
+      "path": "pages/knowledge/index",
+      "style": {
+        "navigationBarTitleText": "急救课堂"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "subPackages": [
+    {
+      "root": "pages-sub",
+      "pages": [
+        {
+          "path": "help/request",
+          "style": { "navigationBarTitleText": "寻求帮助" }
+        },
+        {
+          "path": "knowledge/detail",
+          "style": { "navigationBarTitleText": "课程详情" }
+        },
+        {
+          "path": "knowledge/steps",
+          "style": { "navigationBarTitleText": "急救步骤" }
+        },
+        {
+          "path": "profile/edit",
+          "style": { "navigationBarTitleText": "个人资料" }
+        },
+        {
+          "path": "profile/archives",
+          "style": { "navigationBarTitleText": "急救档案" }
+        },
+        {
+          "path": "profile/settings",
+          "style": { "navigationBarTitleText": "设置" }
+        },
+        {
+          "path": "emergency-guide/index",
+          "style": { "navigationBarTitleText": "急救教程" }
+        },
+        {
+          "path": "webview/index",
+          "style": { "navigationBarTitleText": "网页内容" }
+        }
+      ]
+    }
+  ],
+  "tabBar": {
+    "custom": true,
+    "color": "#999999",
+    "selectedColor": "#E53935",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/map-home/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/device-center/index",
+        "text": "设备"
+      },
+      {
+        "pagePath": "pages/knowledge/index",
+        "text": "课堂"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "个人"
+      }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F5F5F5"
+  }
+}
