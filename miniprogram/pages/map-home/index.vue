@@ -93,8 +93,11 @@
     </view>
 
     <!-- ⑦ 状态提示条（定位错误/加载中） -->
-    <view v-if="statusMessage" class="status-bar">
+    <view v-if="statusMessage && !statusBarDismissed" class="status-bar">
       <text class="status-bar__text">{{ statusMessage }}</text>
+      <view class="status-bar__close" @click="statusBarDismissed = true">
+        <text class="status-bar__close-icon">✕</text>
+      </view>
     </view>
 
     <!-- ⑧ 加载提示 -->
@@ -195,6 +198,7 @@ const {
   isLocating,
   hasRealLocation,
   isNearestActive,
+  focusAedById,
   relocate,
   goToNearestAed,
   clearRoute,
@@ -204,6 +208,7 @@ const {
 const mapErrorMessage = ref('')
 const showNearbyPanel = ref(false)
 const navbarBottom = ref(0)
+const statusBarDismissed = ref(false)
 
 // ===== 按钮按压反馈（:active 在 uni-app 不可靠，用 touch 事件替代） =====
 const helpPressed = ref(false)
@@ -295,6 +300,9 @@ function handleMarkerTap(e: { markerId?: number; detail?: { markerId?: number } 
   if (markerId == null) return
   const aed = aedStore.aedList[markerId]
   if (!aed) return
+
+  // 自动聚焦缩放到选中的 AED
+  focusAedById(aed.id)
 
   const statusText = aed.status === 'online' ? '🟢 在线可用' : '⚫ 离线不可用'
   const distText = formatDistance(aed.distance)
@@ -474,19 +482,35 @@ function handleMapError(event: Event): void {
 // ===== ⑦ 状态提示条 =====
 .status-bar {
   position: fixed;
-  left: $spacing-md;
   right: $spacing-md;
-  // 放在底部浮动按钮上方
-  bottom: calc(#{$tab-bar-height} + 160rpx + env(safe-area-inset-bottom));
+  // 定位按钮上方：tab-bar + nearest(120rpx) + gap + locate(100rpx) + gap
+  bottom: calc(#{$tab-bar-height} + #{$spacing-md} + env(safe-area-inset-bottom) + 120rpx + #{$spacing-sm} + 100rpx + #{$spacing-sm});
+  max-width: 480rpx;
   padding: $spacing-sm $spacing-md;
   border-radius: $radius-md;
   background-color: $background-white;
   box-shadow: $shadow-sm;
   z-index: 99;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
 
   &__text {
+    flex: 1;
     font-size: $font-size-sm; // 24rpx
     color: $status-error;
+  }
+
+  &__close {
+    flex-shrink: 0;
+    width: 40rpx;
+    height: 40rpx;
+    @include flex-center;
+  }
+
+  &__close-icon {
+    font-size: $font-size-sm;
+    color: $text-tertiary;
   }
 }
 

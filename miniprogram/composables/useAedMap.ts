@@ -6,7 +6,7 @@
  *
  * D-05 基线要求
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useAedStore } from '@/store/aed'
 import type { AedItem } from '@/types/aed'
@@ -107,6 +107,8 @@ export function useAedMap() {
     animMarkers.value = []
   }
 
+  const FOCUS_ZOOM = DEFAULT_MAP_ZOOM + 2
+
   function focusAedById(id: string): boolean {
     const target = aedStore.aedList.find((item) => item.id === id)
     if (!target) {
@@ -114,8 +116,20 @@ export function useAedMap() {
     }
 
     clearRoute()
-    mapCenter.value = { latitude: target.lat, longitude: target.lng }
-    mapZoom.value = DEFAULT_MAP_ZOOM + 2
+
+    // 先设微偏移值，强制 Vue 检测到变化并触发 <map> 更新
+    mapCenter.value = {
+      latitude: target.lat + 0.000001,
+      longitude: target.lng + 0.000001,
+    }
+    mapZoom.value = FOCUS_ZOOM - 1
+
+    // 下一帧设回精确值，完成聚焦
+    nextTick(() => {
+      mapCenter.value = { latitude: target.lat, longitude: target.lng }
+      mapZoom.value = FOCUS_ZOOM
+    })
+
     return true
   }
 
