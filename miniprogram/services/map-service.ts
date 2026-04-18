@@ -20,16 +20,6 @@ export interface MapMarker {
   readonly width: number
   readonly height: number
   readonly anchor?: { readonly x: number; readonly y: number }
-  readonly callout?: {
-    readonly content: string
-    readonly display: string
-    readonly color?: string
-    readonly fontSize?: number
-    readonly borderRadius?: number
-    readonly bgColor?: string
-    readonly padding?: number
-    readonly textAlign?: string
-  }
 }
 
 /** Polyline 数据结构 */
@@ -47,32 +37,13 @@ const MARKER_SIZE = 40
 const ACTIVE_MARKER_SIZE = 60
 const AED_MARKER_ONLINE = '/static/icons/aed-online.svg'
 const AED_MARKER_OFFLINE = '/static/icons/aed-offline.svg'
+const RIPPLE_RING_ICON = '/static/icons/ripple-ring.svg'
 
 /** 格式化距离文本 */
-function formatDistance(distance: number): string {
+export function formatDistance(distance: number): string {
   if (distance <= 0) return '距离未知'
   if (distance >= 1000) return `约${(distance / 1000).toFixed(1)}km`
   return `约${Math.round(distance)}m`
-}
-
-/** 构建 callout 配置 */
-function buildCallout(
-  aed: AedItem,
-  display: 'BYCLICK' | 'ALWAYS',
-): MapMarker['callout'] {
-  const statusLabel = aed.status === 'online' ? '✓ 可用' : '✗ 不可用'
-  const distText = formatDistance(aed.distance)
-  const content = `${aed.name}\n${statusLabel} · ${distText}\n点击导航前往`
-  return {
-    content,
-    display,
-    color: aed.status === 'online' ? '#333333' : '#999999',
-    fontSize: 13,
-    borderRadius: 8,
-    bgColor: '#FFFFFF',
-    padding: 10,
-    textAlign: 'left',
-  }
 }
 
 /** AED 列表转 markers */
@@ -87,7 +58,6 @@ export function aedListToMarkers(aedList: readonly AedItem[]): MapMarker[] {
     width: MARKER_SIZE,
     height: MARKER_SIZE,
     anchor: { x: 0.5, y: 0.5 },
-    callout: buildCallout(aed, 'BYCLICK'),
   }))
 }
 
@@ -104,10 +74,6 @@ export function createActiveMarker(
     width: ACTIVE_MARKER_SIZE,
     height: ACTIVE_MARKER_SIZE,
     anchor: { x: 0.5, y: 0.5 },
-    callout: buildCallout(
-      { ...aed, name: `📍 ${aed.name}（最近）` },
-      'ALWAYS',
-    ),
   }
 }
 
@@ -125,11 +91,59 @@ export function createBreathingMarker(
     width: size,
     height: size,
     anchor: { x: 0.5, y: 0.5 },
-    callout: buildCallout(
-      { ...aed, name: `📍 ${aed.name}（最近）` },
-      'ALWAYS',
-    ),
   }
+}
+
+// ===== 呼吸动画辅助 =====
+const BREATHE_BASE = 60
+const BREATHE_AMPLITUDE = 8
+
+/** 正弦波平滑呼吸尺寸（step / totalSteps 为一个周期） */
+export function getBreathSize(step: number, totalSteps: number): number {
+  const phase = ((step % totalSteps) / totalSteps) * 2 * Math.PI
+  return Math.round(BREATHE_BASE + BREATHE_AMPLITUDE * Math.sin(phase))
+}
+
+// ===== 涟漪动画辅助 =====
+const RIPPLE_MIN_SIZE = 48
+const RIPPLE_MAX_SIZE = 112
+const RIPPLE_ID_BASE = 990
+
+function easeOutCubic(progress: number): number {
+  return 1 - (1 - progress) ** 3
+}
+
+/** 生成涟漪环 marker */
+export function createRippleMarker(
+  lat: number,
+  lng: number,
+  ringIndex: number,
+  size: number,
+): MapMarker {
+  return {
+    id: RIPPLE_ID_BASE + ringIndex,
+    latitude: lat,
+    longitude: lng,
+    iconPath: RIPPLE_RING_ICON,
+    width: size,
+    height: size,
+    anchor: { x: 0.5, y: 0.5 },
+  }
+}
+
+/** 计算涟漪环在 step 时的尺寸（按 ringIndex 错开相位） */
+export function getRippleSize(
+  step: number,
+  totalSteps: number,
+  ringIndex: number,
+  ringCount: number,
+): number {
+  const offset = ringIndex * (totalSteps / ringCount)
+  const phase = ((step + offset) % totalSteps) / totalSteps
+  const easedPhase = easeOutCubic(phase)
+  return Math.round(
+    RIPPLE_MIN_SIZE + (RIPPLE_MAX_SIZE - RIPPLE_MIN_SIZE) * easedPhase,
+  )
 }
 
 /** 构建导航 polyline */

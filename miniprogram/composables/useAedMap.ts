@@ -6,7 +6,8 @@
  *
  * D-05 基线要求
  */
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useAedStore } from '@/store/aed'
 import type { AedItem } from '@/types/aed'
 import { getCurrentLocation, shouldSkipInitialRealLocation } from '@/services/geo-service'
@@ -14,8 +15,11 @@ import {
   aedListToMarkers,
   createActiveMarker,
   createBreathingMarker,
+  createRippleMarker,
   createRoutePolyline,
   fetchWalkingRoute,
+  getBreathSize,
+  getRippleSize,
   type MapMarker,
   type MapPolyline,
 } from '@/services/map-service'
@@ -38,37 +42,60 @@ export function useAedMap() {
     longitude: MAP_CENTER.longitude,
   })
   const mapZoom = ref(DEFAULT_MAP_ZOOM)
-  const markers = ref<MapMarker[]>([])
+  const baseMarkers = ref<MapMarker[]>([])
+  const animMarkers = ref<MapMarker[]>([])
+  const markers = computed<MapMarker[]>(() =>
+    [...baseMarkers.value, ...animMarkers.value],
+  )
   const polylines = ref<MapPolyline[]>([])
   const locationError = ref<string | null>(null)
   const isLocating = ref(false)
   const hasRealLocation = ref(false)
+  const isNearestActive = computed(
+    () => animMarkers.value.length > 0 || polylines.value.length > 0,
+  )
 
-  // ===== 呼吸动画（最近 AED 标注，CLAUDE.md §7.1） =====
-  const BREATHE_SIZES = [60, 66, 60, 54] as const
-  const BREATHE_STEP_MS = 500
-  let breatheTimer: ReturnType<typeof setInterval> | null = null
-  let breatheStep = 0
+  // ===== 动画（呼吸 + 涟漪，CLAUDE.md §7.1 §7.2） =====
+  const ANIM_INTERVAL_MS = 90
+  const ANIM_CYCLE_STEPS = 22
+  const RIPPLE_RING_COUNT = 3
+  let animTimer: ReturnType<typeof setInterval> | null = null
+  let animStep = 0
 
-  function startBreathAnimation(
+  function buildNearestAnimationMarkers(
     nearest: AedItem,
     markerId: number,
-    baseMarkers: MapMarker[],
-  ): void {
-    stopBreathAnimation()
-    breatheStep = 0
-    breatheTimer = setInterval(() => {
-      breatheStep = (breatheStep + 1) % BREATHE_SIZES.length
-      const size = BREATHE_SIZES[breatheStep]
-      const breathingMarker = createBreathingMarker(nearest, markerId, size)
-      markers.value = [...baseMarkers, breathingMarker]
-    }, BREATHE_STEP_MS)
+    step: number,
+  ): MapMarker[] {
+    const breathSize = getBreathSize(step, ANIM_CYCLE_STEPS)
+    const breathMarker = createBreathingMarker(nearest, markerId, breathSize)
+    const ripples: MapMarker[] = []
+
+    for (let i = 0; i < RIPPLE_RING_COUNT; i++) {
+      const size = getRippleSize(step, ANIM_CYCLE_STEPS, i, RIPPLE_RING_COUNT)
+      ripples.push(createRippleMarker(nearest.lat, nearest.lng, i, size))
+    }
+
+    return [...ripples, breathMarker]
   }
 
-  function stopBreathAnimation(): void {
-    if (breatheTimer !== null) {
-      clearInterval(breatheTimer)
-      breatheTimer = null
+  function startNearestAnimation(
+    nearest: AedItem,
+    markerId: number,
+  ): void {
+    stopNearestAnimation()
+    animStep = 0
+    animMarkers.value = buildNearestAnimationMarkers(nearest, markerId, animStep)
+    animTimer = setInterval(() => {
+      animStep++
+      animMarkers.value = buildNearestAnimationMarkers(nearest, markerId, animStep)
+    }, ANIM_INTERVAL_MS)
+  }
+
+  function stopNearestAnimation(): void {
+    if (animTimer !== null) {
+      clearInterval(animTimer)
+      animTimer = null
     }
   }
 
@@ -76,13 +103,38 @@ export function useAedMap() {
     aedStore.setUserLocation(point)
     mapCenter.value = { latitude: point.lat, longitude: point.lng }
     await aedStore.loadNearbyAed(point.lat, point.lng)
-    markers.value = aedListToMarkers(aedStore.aedList)
+    baseMarkers.value = aedListToMarkers(aedStore.aedList)
+    animMarkers.value = []
+  }
+
+  function focusAedById(id: string): boolean {
+    const target = aedStore.aedList.find((item) => item.id === id)
+    if (!target) {
+      return false
+    }
+
+    clearRoute()
+    mapCenter.value = { latitude: target.lat, longitude: target.lng }
+    mapZoom.value = DEFAULT_MAP_ZOOM + 2
+    return true
+  }
+
+  function applyPendingFocus(): void {
+    const pendingId = aedStore.pendingFocusAedId
+    if (!pendingId) {
+      return
+    }
+
+    if (focusAedById(pendingId)) {
+      aedStore.consumePendingFocusAed()
+    }
   }
 
   async function useInitialFallbackLocation(): Promise<void> {
     hasRealLocation.value = false
     locationError.value = INITIAL_LOCATION_TIP
     await refreshAed({ lat: MAP_CENTER.latitude, lng: MAP_CENTER.longitude })
+    applyPendingFocus()
   }
 
   /** 初始化：定位 + 加载 AED */
@@ -110,6 +162,7 @@ export function useAedMap() {
       locationError.value = null
     }
     await refreshAed(loc.point)
+    applyPendingFocus()
   }
 
   /** 回到我的位置 */
@@ -122,6 +175,7 @@ export function useAedMap() {
     if (loc.success) {
       locationError.value = null
       await refreshAed(loc.point)
+      applyPendingFocus()
       return
     }
 
@@ -132,7 +186,7 @@ export function useAedMap() {
 
   /** 找最近 AED + 路线规划 + 呼吸动画 */
   async function goToNearestAed(): Promise<void> {
-    stopBreathAnimation()
+    stopNearestAnimation()
     aedStore.findNearest()
     const nearest = aedStore.nearestAed
     if (!nearest || !aedStore.userLocation) return
@@ -143,13 +197,12 @@ export function useAedMap() {
     // 移除原始 marker，替换为高亮态（避免两个 marker 叠加导致错位）
     const nearestIdx = aedStore.aedList.findIndex(a => a.id === nearest.id)
     const markerId = nearestIdx >= 0 ? nearestIdx : 999
-    const baseMarkers = aedListToMarkers(aedStore.aedList)
+    baseMarkers.value = aedListToMarkers(aedStore.aedList)
       .filter((_, i) => i !== nearestIdx)
-    const activeMarker = createActiveMarker(nearest, markerId)
-    markers.value = [...baseMarkers, activeMarker]
+    animMarkers.value = [createActiveMarker(nearest, markerId)]
 
-    // 启动呼吸动画（尺寸 54↔66 循环，周期 2s）
-    startBreathAnimation(nearest, markerId, baseMarkers)
+    // 启动呼吸 + 涟漪动画（正弦波 2s 周期 + 3 环扩散）
+    startNearestAnimation(nearest, markerId)
 
     // 路线规划
     const from = aedStore.userLocation
@@ -164,14 +217,16 @@ export function useAedMap() {
 
   /** 清除路线与高亮 */
   function clearRoute(): void {
-    stopBreathAnimation()
+    stopNearestAnimation()
+    animMarkers.value = []
     polylines.value = []
-    markers.value = aedListToMarkers(aedStore.aedList)
+    baseMarkers.value = aedListToMarkers(aedStore.aedList)
     aedStore.clearRoute()
   }
 
   onMounted(init)
-  onUnmounted(stopBreathAnimation)
+  onShow(applyPendingFocus)
+  onUnmounted(stopNearestAnimation)
 
   return {
     mapCenter,
@@ -181,7 +236,9 @@ export function useAedMap() {
     locationError,
     isLocating,
     hasRealLocation,
+    isNearestActive,
     init,
+    focusAedById,
     relocate,
     goToNearestAed,
     clearRoute,

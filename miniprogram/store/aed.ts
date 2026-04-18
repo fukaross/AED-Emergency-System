@@ -12,6 +12,7 @@ import type { AedItem } from '@/types/aed'
 import type { GeoPoint } from '@/types/common'
 import { fetchNearbyAed } from '@/api/aed'
 import { findNearestOnlineAed } from '@/services/geo-service'
+import { AED_MOCK_DATA } from '@/mock/aed'
 
 export const useAedStore = defineStore('aed', () => {
   // ===== State =====
@@ -19,6 +20,7 @@ export const useAedStore = defineStore('aed', () => {
   const nearestAed = ref<AedItem | null>(null)
   const userLocation = ref<GeoPoint | null>(null)
   const routePolyline = ref<GeoPoint[]>([])
+  const pendingFocusAedId = ref<string | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -45,6 +47,10 @@ export const useAedStore = defineStore('aed', () => {
       aedList.value = await fetchNearbyAed({ lat, lng })
     } catch (err) {
       error.value = (err as Error).message
+      // 后端未就绪时回退 mock 数据
+      if (aedList.value.length === 0) {
+        aedList.value = [...AED_MOCK_DATA]
+      }
     } finally {
       loading.value = false
     }
@@ -68,11 +74,22 @@ export const useAedStore = defineStore('aed', () => {
     nearestAed.value = null
   }
 
+  function setPendingFocusAed(id: string): void {
+    pendingFocusAedId.value = id
+  }
+
+  function consumePendingFocusAed(): string | null {
+    const id = pendingFocusAedId.value
+    pendingFocusAedId.value = null
+    return id
+  }
+
   return {
     aedList,
     nearestAed,
     userLocation,
     routePolyline,
+    pendingFocusAedId,
     loading,
     error,
     onlineAedList,
@@ -82,5 +99,7 @@ export const useAedStore = defineStore('aed', () => {
     findNearest,
     setRoutePolyline,
     clearRoute,
+    setPendingFocusAed,
+    consumePendingFocusAed,
   }
 })

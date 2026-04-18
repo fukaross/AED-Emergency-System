@@ -1,10 +1,14 @@
 <template>
-  <view v-if="visible" class="bottom-sheet-wrapper">
+  <view
+    v-if="visible"
+    class="bottom-sheet-wrapper"
+    :class="{ 'bottom-sheet-wrapper--respect-tab-bar': respectTabBar }"
+  >
     <view class="bottom-sheet-overlay" @click="handleOverlayClick" />
     <view
       class="bottom-sheet"
       :class="{ 'bottom-sheet--visible': showContent }"
-      :style="{ maxHeight: maxHeight }"
+      :style="sheetStyle"
     >
       <view class="bottom-sheet-handle">
         <view class="bottom-sheet-handle-bar" />
@@ -17,8 +21,9 @@
       </view>
       <scroll-view
         class="bottom-sheet-body"
+        :class="{ 'bottom-sheet-body--respect-tab-bar': respectTabBar }"
+        :style="bodyStyle"
         scroll-y
-        :style="{ maxHeight: bodyMaxHeight }"
       >
         <slot />
       </scroll-view>
@@ -37,19 +42,21 @@
  *
  * 详细设计见 CLAUDE.md §5.6 + GEMINI.md §3.3
  */
-import { ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 
 interface Props {
   modelValue: boolean
   title?: string
   maxHeight?: string
   closeOnOverlay?: boolean
+  respectTabBar?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   title: '',
   maxHeight: '70vh',
   closeOnOverlay: true,
+  respectTabBar: false,
 })
 
 const emit = defineEmits<{
@@ -58,7 +65,18 @@ const emit = defineEmits<{
 
 const visible = ref(false)
 const showContent = ref(false)
-const bodyMaxHeight = 'calc(70vh - 120rpx)'
+
+const SHEET_HANDLE_HEIGHT = '28rpx'
+const SHEET_HEADER_HEIGHT = '64rpx'
+
+const sheetStyle = computed(() => ({
+  height: props.maxHeight,
+  maxHeight: props.maxHeight,
+}))
+
+const bodyStyle = computed(() => ({
+  height: `calc(${props.maxHeight} - ${SHEET_HANDLE_HEIGHT} - ${props.title ? SHEET_HEADER_HEIGHT : '0rpx'})`,
+}))
 
 watch(() => props.modelValue, (val) => {
   if (val) {
@@ -88,7 +106,12 @@ function handleOverlayClick() {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 998;
+  z-index: 1200;
+}
+
+.bottom-sheet-wrapper--respect-tab-bar {
+  bottom: calc(#{$tab-bar-height} + constant(safe-area-inset-bottom));
+  bottom: calc(#{$tab-bar-height} + env(safe-area-inset-bottom));
 }
 
 .bottom-sheet-overlay {
@@ -105,11 +128,14 @@ function handleOverlayClick() {
   left: 0;
   right: 0;
   bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background-color: $background-white;
   border-radius: $radius-xl $radius-xl 0 0;
   transform: translateY(100%);
   transition: transform $duration-slow $ease-out;
-  z-index: 999;
+  z-index: 1201;
 }
 
 .bottom-sheet--visible {
@@ -151,6 +177,13 @@ function handleOverlayClick() {
 }
 
 .bottom-sheet-body {
-  padding: 0 $spacing-md $spacing-md;
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 0 $spacing-md calc(#{$tab-bar-height} + env(safe-area-inset-bottom) + #{$spacing-lg});
+}
+
+.bottom-sheet-body--respect-tab-bar {
+  padding-bottom: $spacing-lg;
 }
 </style>

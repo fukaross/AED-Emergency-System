@@ -20,12 +20,20 @@
       :polyline="polylines"
       :show-location="hasRealLocation"
       @markertap="handleMarkerTap"
-      @callouttap="handleCalloutTap"
+      @tap="handleMapTap"
       @error="handleMapError"
     />
 
     <!-- ③ 寻求帮助浮动按钮（右上）— 红色圆形，图标+文字均在按钮内 -->
-    <view class="fab-help" :style="fabHelpStyle" @click="openHelpPage">
+    <view
+      class="fab-help"
+      :class="{ 'is-pressed': helpPressed }"
+      :style="fabHelpStyle"
+      @click="openHelpPage"
+      @touchstart.passive="helpPressed = true"
+      @touchend="helpPressed = false"
+      @touchcancel="helpPressed = false"
+    >
       <image
         class="fab-help__icon"
         :src="EMERGENCY_CALL_ICON"
@@ -35,7 +43,14 @@
     </view>
 
     <!-- ④ 附近 AED 按钮（左下）— 白色胶囊 + 列表图标 -->
-    <view class="fab-nearby" @click="toggleNearbyPanel">
+    <view
+      class="fab-nearby"
+      :class="{ 'is-pressed': nearbyPressed }"
+      @click="toggleNearbyPanel"
+      @touchstart.passive="nearbyPressed = true"
+      @touchend="nearbyPressed = false"
+      @touchcancel="nearbyPressed = false"
+    >
       <image
         class="fab-nearby__icon"
         :src="LIST_ICON"
@@ -45,7 +60,14 @@
     </view>
 
     <!-- ⑤ 定位按钮（右下偏上）— 白色圆形 + 导航箭头 -->
-    <view class="fab-locate" @click="handleRelocate">
+    <view
+      class="fab-locate"
+      :class="{ 'is-pressed': locatePressed }"
+      @click="handleRelocate"
+      @touchstart.passive="locatePressed = true"
+      @touchend="locatePressed = false"
+      @touchcancel="locatePressed = false"
+    >
       <image
         class="fab-locate__icon"
         :src="LOCATION_ICON"
@@ -54,7 +76,14 @@
     </view>
 
     <!-- ⑥ 最近 AED 按钮（右下）— 红色圆角方形，图标+文字均在按钮内 -->
-    <view class="fab-nearest" @click="handleNearest">
+    <view
+      class="fab-nearest"
+      :class="{ 'is-pressed': nearestPressed }"
+      @click="handleNearest"
+      @touchstart.passive="nearestPressed = true"
+      @touchend="nearestPressed = false"
+      @touchcancel="nearestPressed = false"
+    >
       <image
         class="fab-nearest__icon"
         :src="NEAR_AED_ICON"
@@ -78,6 +107,7 @@
       v-model="showNearbyPanel"
       title=""
       max-height="50vh"
+      :respect-tab-bar="true"
     >
       <!-- 面板标题栏 -->
       <view class="nearby-header">
@@ -116,6 +146,9 @@
         </view>
       </view>
     </BottomSheet>
+
+    <AppTabBar current-path="/pages/map-home/index" />
+
   </view>
 </template>
 
@@ -129,6 +162,8 @@
  * 设计规格：CLAUDE.md §4.1 + page-Instrument.md
  */
 import { computed, ref, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import AppTabBar from '@/components/app-tab-bar/index.vue'
 import CustomNavbar from '@/components/custom-navbar/index.vue'
 import BottomSheet from '@/components/bottom-sheet/index.vue'
 import { useAedMap } from '@/composables/useAedMap'
@@ -137,8 +172,10 @@ import {
   createMapCtx,
   moveToUserLocation,
   openNativeNavigation,
+  formatDistance,
 } from '@/services/map-service'
 import type { AedItem } from '@/types/aed'
+import { MAP_CENTER } from '@/utils/constants'
 
 const EMERGENCY_CALL_ICON = '/static/images/emergency-call.png'
 const LIST_ICON = '/static/icons/list.svg'
@@ -157,8 +194,10 @@ const {
   locationError,
   isLocating,
   hasRealLocation,
+  isNearestActive,
   relocate,
   goToNearestAed,
+  clearRoute,
 } = useAedMap()
 
 // ===== 本页展示状态 =====
@@ -166,8 +205,15 @@ const mapErrorMessage = ref('')
 const showNearbyPanel = ref(false)
 const navbarBottom = ref(0)
 
+// ===== 按钮按压反馈（:active 在 uni-app 不可靠，用 touch 事件替代） =====
+const helpPressed = ref(false)
+const nearbyPressed = ref(false)
+const locatePressed = ref(false)
+const nearestPressed = ref(false)
+
 // ===== 地图上下文 =====
 let mapCtx: UniApp.MapContext | null = null
+let lastMarkerTapAt = 0
 
 onMounted(() => {
   mapCtx = createMapCtx('aedMap')
@@ -187,6 +233,14 @@ onMounted(() => {
   // #endif
 
   navbarBottom.value = statusBarHeight + navBarHeight
+})
+
+onShow(() => {
+  const loc = aedStore.userLocation
+  aedStore.loadNearbyAed(
+    loc?.lat ?? MAP_CENTER.latitude,
+    loc?.lng ?? MAP_CENTER.longitude,
+  )
 })
 
 // ===== 计算属性 =====
@@ -236,13 +290,14 @@ function navigateToAed(aed: AedItem): void {
 
 /** Marker 点击 — 展示 AED 设备信息弹窗（兼容 H5 callout 不工作的场景） */
 function handleMarkerTap(e: { markerId?: number; detail?: { markerId?: number } }): void {
+  lastMarkerTapAt = Date.now()
   const markerId = e.markerId ?? e.detail?.markerId
   if (markerId == null) return
   const aed = aedStore.aedList[markerId]
   if (!aed) return
 
   const statusText = aed.status === 'online' ? '🟢 在线可用' : '⚫ 离线不可用'
-  const distText = aed.distance > 0 ? `距离约 ${aed.distance}m` : '距离未知'
+  const distText = formatDistance(aed.distance)
 
   uni.showModal({
     title: aed.name,
@@ -257,14 +312,14 @@ function handleMarkerTap(e: { markerId?: number; detail?: { markerId?: number } 
   })
 }
 
-/** Callout 点击 — 打开导航 */
-function handleCalloutTap(e: { markerId?: number; detail?: { markerId?: number } }): void {
-  const markerId = e.markerId ?? e.detail?.markerId
-  if (markerId == null) return
-  const aed = aedStore.aedList[markerId]
-  if (aed) {
-    navigateToAed(aed)
+/** 点击地图空白区域时，取消最近 AED 高亮与路线 */
+function handleMapTap(): void {
+  const isMarkerFollowTap = Date.now() - lastMarkerTapAt < 250
+  if (isMarkerFollowTap || !isNearestActive.value) {
+    return
   }
+
+  clearRoute()
 }
 
 /** 地图加载错误 */
@@ -306,7 +361,7 @@ function handleMapError(event: Event): void {
   justify-content: center;
   transition: transform 150ms ease;
 
-  &:active {
+  &.is-pressed {
     transform: scale(0.88);
   }
 
@@ -338,7 +393,7 @@ function handleMapError(event: Event): void {
   transition: transform 150ms ease;
   @include flex-align-center;
 
-  &:active {
+  &.is-pressed {
     transform: scale(0.92);
   }
 
@@ -371,7 +426,7 @@ function handleMapError(event: Event): void {
   transition: transform 150ms ease;
   @include flex-center;
 
-  &:active {
+  &.is-pressed {
     transform: scale(0.88);
   }
 
@@ -399,7 +454,7 @@ function handleMapError(event: Event): void {
   justify-content: center;
   transition: transform 150ms ease;
 
-  &:active {
+  &.is-pressed {
     transform: scale(0.88);
   }
 
