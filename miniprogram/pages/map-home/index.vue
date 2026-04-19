@@ -182,7 +182,7 @@ import { MAP_CENTER } from '@/utils/constants'
 
 const EMERGENCY_CALL_ICON = '/static/images/emergency-call.png'
 const LIST_ICON = '/static/icons/list.svg'
-const LOCATION_ICON = '/static/icons/my_location.svg'
+const LOCATION_ICON = '/static/icons/location.svg'
 const NEAR_AED_ICON = '/static/icons/near_AED.svg'
 
 // ===== Store =====

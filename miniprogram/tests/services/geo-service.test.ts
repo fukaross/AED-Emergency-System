@@ -55,8 +55,8 @@ describe('devtools location routing', () => {
 describe('calculateDistance (Haversine)', () => {
   it('returns 0 for same point', () => {
     const d = calculateDistance(
-      { lat: 19.976547, lng: 110.513460 },
-      { lat: 19.976547, lng: 110.513460 },
+      { lat: 19.974394, lng: 110.517669 },
+      { lat: 19.974394, lng: 110.517669 },
     )
     expect(d).toBe(0)
   })
@@ -64,8 +64,8 @@ describe('calculateDistance (Haversine)', () => {
   it('calculates distance between two campus AEDs', () => {
     // AED-01 to AED-02 (roughly 140m)
     const d = calculateDistance(
-      { lat: 19.976722, lng: 110.513617 },
-      { lat: 19.977875, lng: 110.512867 },
+      { lat: 19.974447, lng: 110.517041 },
+      { lat: 19.975735, lng: 110.517149 },
     )
     expect(d).toBeGreaterThan(100)
     expect(d).toBeLessThan(200)
@@ -74,16 +74,16 @@ describe('calculateDistance (Haversine)', () => {
   it('calculates reasonable distance for campus diagonal', () => {
     // AED-09 (south) to AED-12 (north-east), roughly 300m
     const d = calculateDistance(
-      { lat: 19.974922, lng: 110.513606 },
-      { lat: 19.977417, lng: 110.514642 },
+      { lat: 19.972782, lng: 110.517886 },
+      { lat: 19.975272, lng: 110.518919 },
     )
     expect(d).toBeGreaterThan(250)
     expect(d).toBeLessThan(400)
   })
 
   it('is symmetric', () => {
-    const a = { lat: 19.976722, lng: 110.513617 }
-    const b = { lat: 19.977875, lng: 110.512867 }
+    const a = { lat: 19.974447, lng: 110.517041 }
+    const b = { lat: 19.975735, lng: 110.517149 }
     expect(calculateDistance(a, b)).toBeCloseTo(calculateDistance(b, a), 2)
   })
 })

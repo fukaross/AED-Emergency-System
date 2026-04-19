@@ -54,8 +54,8 @@ export const ERROR_MESSAGES: Record<number, string> = {
 
 // ===== 地图常量 =====
 export const MAP_CENTER = {
-  latitude: 19.976547,
-  longitude: 110.513460,
+  latitude: 19.974394,
+  longitude: 110.517669,
 } as const
 
 export const DEFAULT_MAP_ZOOM = 16
