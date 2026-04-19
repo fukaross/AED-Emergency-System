@@ -16,6 +16,7 @@ import type { ApiResponse } from '@/types/common'
 import {
   API_BASE_URL,
   IS_PLACEHOLDER_API_BASE_URL,
+  USE_MOCK,
   shouldWarnPlaceholderApiBaseUrl,
 } from '@/utils/runtime-env'
 
@@ -38,6 +39,11 @@ interface RequestOptions {
   /** 是否跳过自动错误处理 */
   readonly skipErrorHandler?: boolean
   readonly timeout?: number
+}
+
+interface ApiError extends Error {
+  readonly code?: number
+  readonly statusCode?: number
 }
 
 // ===== 令牌读取 =====
@@ -67,6 +73,23 @@ function warnPlaceholderApiBaseUrlOnce(): void {
 
   console.warn(`[Request] ${PLACEHOLDER_API_BASE_URL_MESSAGE}`)
   hasWarnedPlaceholderApiBaseUrl = true
+}
+
+function createApiError(message: string, code?: number, statusCode?: number): ApiError {
+  return Object.assign(new Error(message), { code, statusCode })
+}
+
+function extractApiResponse<T>(payload: unknown): ApiResponse<T> | null {
+  if (!payload || typeof payload !== 'object') {
+    return null
+  }
+
+  const candidate = payload as Partial<ApiResponse<T>>
+  if (typeof candidate.code !== 'number' || typeof candidate.message !== 'string') {
+    return null
+  }
+
+  return candidate as ApiResponse<T>
 }
 
 // ===== 错误提示分级 =====
@@ -140,22 +163,39 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
         logResponse(url, res.data)
 
         const statusCode = res.statusCode
+        const body = extractApiResponse<T>(res.data)
+
         if (statusCode < 200 || statusCode >= 300) {
+          if (body) {
+            if (!skipErrorHandler) {
+              handleErrorCode(body.code, body.message)
+            }
+            reject(createApiError(body.message, body.code, statusCode))
+            return
+          }
+
           const errMsg = `HTTP ${statusCode}`
           if (!skipErrorHandler) {
             uni.showToast({ title: `网络错误 (${statusCode})`, icon: 'none' })
           }
-          reject(new Error(errMsg))
+          reject(createApiError(errMsg, undefined, statusCode))
           return
         }
 
-        const body = res.data as ApiResponse<T>
+        if (!body) {
+          const message = '接口响应格式不正确'
+          if (!skipErrorHandler) {
+            uni.showToast({ title: message, icon: 'none' })
+          }
+          reject(createApiError(message, undefined, statusCode))
+          return
+        }
 
         if (body.code !== ERROR_CODES.SUCCESS) {
           if (!skipErrorHandler) {
             handleErrorCode(body.code, body.message)
           }
-          reject(Object.assign(new Error(body.message), { code: body.code }))
+          reject(createApiError(body.message, body.code, statusCode))
           return
         }
 
@@ -213,6 +253,16 @@ export function uploadFile(
 ): Promise<{ url: string; thumbnail: string; fileId: string }> {
   const token = getToken()
 
+  if (USE_MOCK) {
+    const fileId = `mock-file-${Date.now()}`
+    console.log(`[Mock Upload API] ${scene}`, filePath)
+    return Promise.resolve({
+      url: filePath,
+      thumbnail: filePath,
+      fileId,
+    })
+  }
+
   if (IS_PLACEHOLDER_API_BASE_URL) {
     warnPlaceholderApiBaseUrlOnce()
     return Promise.reject(new Error(PLACEHOLDER_API_BASE_URL_MESSAGE))
@@ -226,19 +276,27 @@ export function uploadFile(
       formData: { scene },
       header: token ? { Authorization: `Bearer ${token}` } : {},
       success: (res) => {
-        if (res.statusCode !== 200) {
-          reject(new Error(`Upload HTTP ${res.statusCode}`))
-          return
-        }
         try {
-          const body = JSON.parse(res.data) as ApiResponse<{
+          const body = extractApiResponse<{
             url: string
             thumbnail: string
             fileId: string
-          }>
+          }>(JSON.parse(res.data))
+
+          if (!body) {
+            reject(new Error('上传响应解析失败'))
+            return
+          }
+
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            handleErrorCode(body.code, body.message)
+            reject(createApiError(body.message, body.code, res.statusCode))
+            return
+          }
+
           if (body.code !== ERROR_CODES.SUCCESS) {
             handleErrorCode(body.code, body.message)
-            reject(new Error(body.message))
+            reject(createApiError(body.message, body.code, res.statusCode))
             return
           }
           resolve(body.data)

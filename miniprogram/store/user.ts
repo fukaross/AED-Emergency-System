@@ -3,7 +3,7 @@
  *
  * 管理用户资料、学校档案摘要
  * 不管 token/登录状态（由 auth store 管理）
- * 后端未就绪时回退 mock 数据
+ * Mock 与真实接口分流统一在 API 层处理
  *
  * 来源：CLAUDE.md §6.3
  */
@@ -11,7 +11,6 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserProfile, UpdateUserProfilePayload } from '@/types/user'
 import { fetchUserProfile, updateUserProfile } from '@/api/user'
-import { USER_MOCK_DATA } from '@/mock/user'
 
 export const useUserStore = defineStore('user', () => {
   // ===== State =====
@@ -24,14 +23,7 @@ export const useUserStore = defineStore('user', () => {
 
   // ===== Actions =====
   async function loadProfile(): Promise<void> {
-    try {
-      userInfo.value = await fetchUserProfile()
-    } catch {
-      // 后端未就绪时回退 mock 数据
-      if (!userInfo.value) {
-        userInfo.value = { ...USER_MOCK_DATA }
-      }
-    }
+    userInfo.value = await fetchUserProfile()
   }
 
   async function saveProfile(payload: UpdateUserProfilePayload): Promise<void> {

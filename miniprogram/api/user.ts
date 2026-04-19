@@ -15,9 +15,19 @@ import type {
   ArchiveListParams,
   ArchiveListResponse,
 } from '@/types/user'
+import {
+  getMockArchivePhone,
+  loadMockUserProfile,
+  queryMockArchives,
+  saveMockUserProfile,
+} from '@/mock/user'
+import { USE_MOCK } from '@/utils/runtime-env'
 
 /** 获取用户信息 */
 export function fetchUserProfile(): Promise<UserProfile> {
+  if (USE_MOCK) {
+    return Promise.resolve(loadMockUserProfile())
+  }
   return get<UserProfile>('/api/user/profile')
 }
 
@@ -25,6 +35,10 @@ export function fetchUserProfile(): Promise<UserProfile> {
 export function updateUserProfile(
   payload: UpdateUserProfilePayload,
 ): Promise<void> {
+  if (USE_MOCK) {
+    saveMockUserProfile(payload)
+    return Promise.resolve()
+  }
   return put('/api/user/profile', payload as unknown as Record<string, unknown>)
 }
 
@@ -32,6 +46,9 @@ export function updateUserProfile(
 export function fetchArchives(
   params?: ArchiveListParams,
 ): Promise<ArchiveListResponse> {
+  if (USE_MOCK) {
+    return Promise.resolve(queryMockArchives(params))
+  }
   return get<ArchiveListResponse>(
     '/api/user/archives',
     params as unknown as Record<string, unknown>,
@@ -46,6 +63,19 @@ export function fetchArchivePhone(
   archiveId: string,
   purpose: string,
 ): Promise<{ phone: string }> {
+  if (USE_MOCK) {
+    if (!purpose.trim()) {
+      return Promise.reject(new Error('查看用途不能为空'))
+    }
+
+    const phone = getMockArchivePhone(archiveId)
+    if (!phone) {
+      return Promise.reject(new Error('档案不存在'))
+    }
+
+    return Promise.resolve({ phone })
+  }
+
   return get<{ phone: string }>(
     `/api/user/archives/${archiveId}/phone`,
     { purpose },

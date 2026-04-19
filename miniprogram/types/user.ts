@@ -11,12 +11,20 @@ export type Gender = 'male' | 'female' | 'unknown'
 /** 急救员级别 */
 export type RescuerLevel = 'honor' | 'trainee' | 'official' | 'core'
 
+/** 用户与学校档案绑定状态 */
+export type BindingStatus =
+  | 'pending'
+  | 'active'
+  | 'rejected'
+  | 'replaced'
+  | 'unbound'
+
 /** 学校档案摘要 (只读) */
 export interface SchoolProfile {
   readonly college: string
   readonly studentId?: string
   readonly staffId?: string
-  readonly bindingStatus: string
+  readonly bindingStatus: BindingStatus
 }
 
 /** 用户信息 (GET /api/user/profile 响应) */
@@ -56,7 +64,7 @@ export interface ArchiveItem {
   readonly college: string
   readonly certExpiry: string
   readonly certExpired: boolean
-  readonly bindingStatus?: string
+  readonly bindingStatus?: BindingStatus
 }
 
 /** 急救档案列表响应 */
@@ -74,20 +82,31 @@ export interface CourseSummary {
   readonly type: 'article' | 'video'
   readonly category: string
   readonly createdAt: string
+  readonly pinned?: boolean
+  readonly sortOrder?: number
+  readonly isEmergency?: boolean
+  readonly cacheVersion?: string
+  readonly estimatedTime?: string
 }
 
 /** 课程详情 */
 export interface CourseDetail extends CourseSummary {
   readonly content: string
-  readonly videoUrl: string
+  readonly videoUrl: string | null
+  readonly disclaimer?: string
+  readonly cacheVersion?: string
+  readonly estimatedTime?: string
+  readonly viewCount?: number
   readonly steps: readonly CourseStep[]
 }
 
 /** 课程步骤数据 */
 export interface CourseStep {
+  readonly order?: number
   readonly title: string
   readonly description: string
   readonly image: string
+  readonly keyPoints?: readonly string[]
 }
 
 /** 课程筛选参数 */

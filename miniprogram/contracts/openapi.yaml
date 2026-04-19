@@ -103,6 +103,79 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PublishHelpResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/help/list:
+    get:
+      summary: 获取当前登录用户的求助历史
+      operationId: listHelpRequests
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [published, closed, false_alarm]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/HelpListPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/help/{id}:
+    get:
+      summary: 获取求助详情
+      operationId: getHelpRequestDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/HelpRequestDetail'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -116,16 +189,19 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [requestNo, followupCode]
-              properties:
-                requestNo:
-                  type: string
-                followupCode:
-                  type: string
+              $ref: '#/components/schemas/GuestLookupPayload'
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GuestHelpLookupResult'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -139,18 +215,75 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [requestNo, closeToken]
-              properties:
-                requestNo:
-                  type: string
-                closeToken:
-                  type: string
-                note:
-                  type: string
+              $ref: '#/components/schemas/GuestClosePayload'
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GuestCloseResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/help/{id}/respond:
+    post:
+      summary: 响应求助
+      operationId: respondToHelpRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RespondToHelpPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/help/{id}/close:
+    put:
+      summary: 关闭求助或标记误报
+      operationId: closeHelpRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseHelpPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -327,6 +460,22 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /api/auth/refresh:
+    post:
+      summary: 刷新 Token
+      operationId: refreshAuthToken
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /api/upload/image:
     post:
       summary: 上传图片
@@ -351,6 +500,29 @@ paths:
       responses:
         '200':
           description: 成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/audit/batch:
+    post:
+      summary: 批量提交审计事件
+      operationId: createAuditEventsBatch
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuditBatchRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -379,7 +551,7 @@ components:
         message:
           type: string
         data:
-          type: object
+          description: 响应数据，具体结构由各接口定义
 
     AedReportRequest:
       type: object
@@ -394,6 +566,9 @@ components:
           type: array
           items:
             type: string
+        reporterSource:
+          type: string
+          enum: [login, guest]
         contactPhone:
           type: string
         contactEmail:
@@ -429,6 +604,226 @@ components:
           type: string
           format: date-time
 
+    PublishHelpResponse:
+      type: object
+      required: [id, requestNo, status, createdAt]
+      properties:
+        id:
+          type: string
+        requestNo:
+          type: string
+        status:
+          type: string
+          enum: [published, closed, false_alarm]
+        createdAt:
+          type: string
+          format: date-time
+        followupCode:
+          type: string
+        closeToken:
+          type: string
+
+    HelpListItem:
+      type: object
+      required: [id, content, type, status, address, createdAt, respondersCount, latestEta]
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [help_hand, call_120, call_school, general]
+        status:
+          type: string
+          enum: [published, closed, false_alarm]
+        address:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        respondersCount:
+          type: integer
+        latestEta:
+          type: string
+
+    HelpListPage:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/HelpListItem'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    HelpResponder:
+      type: object
+      required: [name, role, distance, estimatedArrivalTime]
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+        distance:
+          type: number
+        estimatedArrivalTime:
+          type: string
+
+    HelpTimelineEntry:
+      type: object
+      required: [action, timestamp]
+      properties:
+        action:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        note:
+          type: string
+
+    HelpRequestDetail:
+      type: object
+      required:
+        - id
+        - content
+        - type
+        - status
+        - address
+        - createdAt
+        - images
+        - responders
+        - estimatedArrivalTime
+        - timeline
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [help_hand, call_120, call_school, general]
+        status:
+          type: string
+          enum: [published, closed, false_alarm]
+        address:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        respondersCount:
+          type: integer
+        latestEta:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
+        responders:
+          type: array
+          items:
+            $ref: '#/components/schemas/HelpResponder'
+        estimatedArrivalTime:
+          type: string
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/HelpTimelineEntry'
+
+    GuestLookupPayload:
+      type: object
+      required: [requestNo, followupCode]
+      properties:
+        requestNo:
+          type: string
+        followupCode:
+          type: string
+
+    GuestHelpLookupResult:
+      type: object
+      required:
+        - requestNo
+        - status
+        - content
+        - address
+        - createdAt
+        - respondersCount
+        - canClose
+      properties:
+        requestNo:
+          type: string
+        status:
+          type: string
+          enum: [published, closed, false_alarm]
+        content:
+          type: string
+        address:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        respondersCount:
+          type: integer
+        latestEta:
+          type: string
+        canClose:
+          type: boolean
+        closedAt:
+          type: string
+          format: date-time
+
+    GuestClosePayload:
+      type: object
+      required: [requestNo, closeToken]
+      properties:
+        requestNo:
+          type: string
+        closeToken:
+          type: string
+        note:
+          type: string
+
+    GuestCloseResult:
+      type: object
+      required: [requestNo, status, closedAt]
+      properties:
+        requestNo:
+          type: string
+        status:
+          type: string
+          enum: [false_alarm]
+        closedAt:
+          type: string
+          format: date-time
+
+    RespondToHelpPayload:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        eta:
+          type: integer
+
+    CloseHelpPayload:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [closed, false_alarm]
+        note:
+          type: string
+
     UpdateUserProfilePayload:
       type: object
       properties:
@@ -440,4 +835,58 @@ components:
           type: string
           enum: [male, female, unknown]
         phone:
+          type: string
+
+    AuditBatchRequest:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogEntry'
+
+    AuditLogEntry:
+      type: object
+      required: [eventType, eventName, userId, timestamp, clientInfo]
+      properties:
+        eventType:
+          type: string
+        eventName:
+          type: string
+        userId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        location:
+          $ref: '#/components/schemas/AuditLocation'
+        targetId:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        clientInfo:
+          $ref: '#/components/schemas/AuditClientInfo'
+
+    AuditLocation:
+      type: object
+      required: [lat, lng, accuracy]
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        accuracy:
+          type: number
+
+    AuditClientInfo:
+      type: object
+      required: [platform, version, deviceModel]
+      properties:
+        platform:
+          type: string
+        version:
+          type: string
+        deviceModel:
           type: string

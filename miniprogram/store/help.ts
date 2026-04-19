@@ -24,10 +24,34 @@ import {
   guestCloseHelp,
 } from '@/api/help'
 
+const GUEST_HELP_SESSION_STORAGE_KEY = 'aed_guest_help_session'
+
+function loadGuestSession(): GuestHelpSession | null {
+  try {
+    const raw = uni.getStorageSync(GUEST_HELP_SESSION_STORAGE_KEY) as string
+    return raw ? (JSON.parse(raw) as GuestHelpSession) : null
+  } catch {
+    return null
+  }
+}
+
+function persistGuestSession(session: GuestHelpSession | null): void {
+  try {
+    if (!session) {
+      uni.removeStorageSync(GUEST_HELP_SESSION_STORAGE_KEY)
+      return
+    }
+
+    uni.setStorageSync(GUEST_HELP_SESSION_STORAGE_KEY, JSON.stringify(session))
+  } catch {
+    console.warn('[HelpStore] 游客会话持久化失败')
+  }
+}
+
 export const useHelpStore = defineStore('help', () => {
   // ===== State =====
   const currentRequest = ref<HelpRequestDetail | null>(null)
-  const guestSession = ref<GuestHelpSession | null>(null)
+  const guestSession = ref<GuestHelpSession | null>(loadGuestSession())
   const lookupResult = ref<GuestHelpLookupResult | null>(null)
   const publishing = ref(false)
 
@@ -46,6 +70,10 @@ export const useHelpStore = defineStore('help', () => {
           followupCode: result.followupCode,
           closeToken: result.closeToken,
         }
+        persistGuestSession(guestSession.value)
+      } else {
+        guestSession.value = null
+        persistGuestSession(null)
       }
 
       return result
@@ -69,6 +97,7 @@ export const useHelpStore = defineStore('help', () => {
   ): Promise<GuestCloseResult> {
     const result = await guestCloseHelp(payload)
     guestSession.value = null
+    persistGuestSession(null)
     return result
   }
 
@@ -76,6 +105,7 @@ export const useHelpStore = defineStore('help', () => {
     currentRequest.value = null
     guestSession.value = null
     lookupResult.value = null
+    persistGuestSession(null)
   }
 
   return {

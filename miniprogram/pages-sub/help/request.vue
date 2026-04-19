@@ -315,6 +315,13 @@ async function submitHelp(): Promise<void> {
   line-height: $line-height-normal;
 }
 
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  margin-top: $spacing-sm;
+}
+
 .result-hint {
   display: block;
   margin-top: $spacing-sm;

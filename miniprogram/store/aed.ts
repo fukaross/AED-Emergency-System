@@ -12,7 +12,6 @@ import type { AedItem } from '@/types/aed'
 import type { GeoPoint } from '@/types/common'
 import { fetchNearbyAed } from '@/api/aed'
 import { findNearestOnlineAed } from '@/services/geo-service'
-import { AED_MOCK_DATA } from '@/mock/aed'
 
 export const useAedStore = defineStore('aed', () => {
   // ===== State =====
@@ -32,9 +31,11 @@ export const useAedStore = defineStore('aed', () => {
   const sortedAedList = computed(() => {
     const list = [...aedList.value]
     list.sort((a, b) => {
+      const aDistance = a.distance ?? Number.MAX_SAFE_INTEGER
+      const bDistance = b.distance ?? Number.MAX_SAFE_INTEGER
       if (a.status === 'online' && b.status !== 'online') return -1
       if (a.status !== 'online' && b.status === 'online') return 1
-      return a.distance - b.distance
+      return aDistance - bDistance
     })
     return list
   })
@@ -47,10 +48,7 @@ export const useAedStore = defineStore('aed', () => {
       aedList.value = await fetchNearbyAed({ lat, lng })
     } catch (err) {
       error.value = (err as Error).message
-      // 后端未就绪时回退 mock 数据
-      if (aedList.value.length === 0) {
-        aedList.value = [...AED_MOCK_DATA]
-      }
+      aedList.value = []
     } finally {
       loading.value = false
     }

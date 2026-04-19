@@ -15,7 +15,7 @@ export interface AedItem {
   readonly lat: number
   readonly lng: number
   readonly status: AedStatus
-  readonly distance: number
+  readonly distance?: number
   readonly image: string
   readonly address: string
   readonly lastMaintenance: string

@@ -82,6 +82,7 @@
     <AedReportSheet
       v-model="showReport"
       :devices="reportDevices"
+      :require-contact="!authStore.isLoggedIn"
       @submit="handleReport"
     />
 
@@ -103,7 +104,9 @@
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useAedStore } from '@/store/aed'
+import { useAuthStore } from '@/store/auth'
 import { submitAedReport } from '@/api/aed'
+import { uploadImage } from '@/api/common'
 import { formatDate } from '@/utils/format'
 import { MAP_CENTER } from '@/utils/constants'
 import type { AedItem, AedReportType } from '@/types/aed'
@@ -117,6 +120,7 @@ const NO_AED_ICON = '/static/icons/NO_AED.svg'
 const REPORT_ICON = '/static/icons/report.svg'
 
 const aedStore = useAedStore()
+const authStore = useAuthStore()
 
 const showEmpty = computed(() =>
   !aedStore.loading && aedStore.aedList.length === 0,
@@ -144,14 +148,22 @@ interface ReportPayload {
   type: AedReportType
   description: string
   images: string[]
+  contactPhone?: string
+  contactEmail?: string
 }
 
 async function handleReport(payload: ReportPayload) {
   try {
+    const images = await Promise.all(
+      payload.images.map((path) => uploadImage(path, 'report').then((file) => file.url)),
+    )
+
     await submitAedReport(payload.deviceId, {
       type: payload.type,
       description: payload.description,
-      images: payload.images,
+      images,
+      contactPhone: payload.contactPhone,
+      contactEmail: payload.contactEmail,
     })
     uni.showToast({ title: '提交成功', icon: 'success' })
     showReport.value = false

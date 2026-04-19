@@ -33,6 +33,7 @@ export interface PublishHelpResponse {
   readonly id: string
   readonly requestNo: string
   readonly status: HelpStatus
+  readonly createdAt: string
   readonly followupCode?: string
   readonly closeToken?: string
 }
@@ -55,6 +56,19 @@ export interface HelpResponder {
   readonly role: string
   readonly distance: number
   readonly estimatedArrivalTime: string
+}
+
+/** 响应求助请求 */
+export interface RespondToHelpPayload {
+  readonly lat: number
+  readonly lng: number
+  readonly eta?: number
+}
+
+/** 关闭求助请求 */
+export interface CloseHelpPayload {
+  readonly status: 'closed' | 'false_alarm'
+  readonly note?: string
 }
 
 /** 求助详情 */

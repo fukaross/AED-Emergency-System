@@ -132,7 +132,7 @@
           <view class="nearby-item__info">
             <text class="nearby-item__name">{{ aed.name }}</text>
             <text class="nearby-item__distance">
-              {{ aed.distance > 0 ? aed.distance + 'm' : '距离未知' }}
+              {{ (aed.distance ?? 0) > 0 ? (aed.distance ?? 0) + 'm' : '距离未知' }}
             </text>
           </view>
         </view>
@@ -182,7 +182,7 @@ import { MAP_CENTER } from '@/utils/constants'
 
 const EMERGENCY_CALL_ICON = '/static/images/emergency-call.png'
 const LIST_ICON = '/static/icons/list.svg'
-const LOCATION_ICON = '/static/icons/location.svg'
+const LOCATION_ICON = '/static/icons/my_location.svg'
 const NEAR_AED_ICON = '/static/icons/near_AED.svg'
 
 // ===== Store =====
@@ -314,7 +314,7 @@ function handleMarkerTap(e: { markerId?: number; detail?: { markerId?: number } 
   focusAedById(targetAed.id)
 
   const statusText = targetAed.status === 'online' ? '🟢 在线可用' : '⚫ 离线不可用'
-  const distText = formatDistance(targetAed.distance)
+  const distText = formatDistance(targetAed.distance ?? 0)
 
   uni.showModal({
     title: targetAed.name,

@@ -47,7 +47,7 @@ const LOCATION_ICON = '/static/icons/location.svg'
 interface Props {
   id: string
   name: string
-  distance: number
+  distance?: number
   status: 'online' | 'offline'
   image: string
 }
@@ -62,10 +62,14 @@ const emit = defineEmits<{
 const isOnline = computed(() => props.status === 'online')
 
 const formattedDistance = computed(() => {
-  if (props.distance >= 1000) {
-    return `${(props.distance / 1000).toFixed(1)}km`
+  const distance = props.distance ?? 0
+  if (distance <= 0) {
+    return '距离未知'
   }
-  return `${Math.round(props.distance)}m`
+  if (distance >= 1000) {
+    return `${(distance / 1000).toFixed(1)}km`
+  }
+  return `${Math.round(distance)}m`
 })
 
 function previewImage() {

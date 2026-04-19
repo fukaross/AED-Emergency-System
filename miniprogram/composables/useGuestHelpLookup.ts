@@ -43,9 +43,16 @@ export function useGuestHelpLookup() {
   }
 
   /** 游客关闭误报 */
-  async function closeFalseAlarm(note?: string): Promise<void> {
+  async function closeFalseAlarm(options?: {
+    requestNo?: string
+    closeToken?: string
+    note?: string
+  }): Promise<void> {
     const session = helpStore.guestSession
-    if (!session) {
+    const requestNoValue = options?.requestNo || session?.requestNo
+    const closeTokenValue = options?.closeToken || session?.closeToken
+
+    if (!requestNoValue || !closeTokenValue) {
       uni.showToast({ title: '无可关闭的求助会话', icon: 'none' })
       return
     }
@@ -54,9 +61,9 @@ export function useGuestHelpLookup() {
     error.value = null
     try {
       const result = await helpStore.guestClose({
-        requestNo: session.requestNo,
-        closeToken: session.closeToken,
-        note,
+        requestNo: requestNoValue,
+        closeToken: closeTokenValue,
+        note: options?.note,
       })
       closeResult.value = result
       uni.showToast({ title: '已关闭', icon: 'success' })

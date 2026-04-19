@@ -53,6 +53,25 @@
         </view>
       </view>
 
+      <template v-if="requireContact">
+        <text class="rf-label">联系方式（至少填写一项）</text>
+        <input
+          class="rf-input"
+          :value="contactPhone"
+          type="number"
+          maxlength="11"
+          placeholder="手机号"
+          @input="onPhoneInput"
+        />
+        <input
+          class="rf-input"
+          :value="contactEmail"
+          maxlength="50"
+          placeholder="邮箱"
+          @input="onEmailInput"
+        />
+      </template>
+
       <view
         class="rf-submit"
         :class="{ 'is-disabled': !canSubmit }"
@@ -91,6 +110,7 @@ const REPORT_TYPE_OPTIONS: readonly { value: AedReportType; label: string }[] = 
 const props = defineProps<{
   modelValue: boolean
   devices: readonly { id: string; name: string }[]
+  requireContact?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -100,6 +120,8 @@ const emit = defineEmits<{
     type: AedReportType
     description: string
     images: string[]
+    contactPhone?: string
+    contactEmail?: string
   }]
 }>()
 
@@ -107,9 +129,21 @@ const devIdx = ref(0)
 const reportType = ref<AedReportType>('damaged')
 const description = ref('')
 const images = ref<string[]>([])
+const contactPhone = ref('')
+const contactEmail = ref('')
 
 const deviceNames = computed(() => props.devices.map(d => d.name))
-const canSubmit = computed(() => description.value.trim().length > 0)
+const canSubmit = computed(() => {
+  if (!description.value.trim()) {
+    return false
+  }
+
+  if (!props.requireContact) {
+    return true
+  }
+
+  return Boolean(contactPhone.value.trim() || contactEmail.value.trim())
+})
 
 // 关闭时重置表单
 watch(() => props.modelValue, (visible) => {
@@ -118,6 +152,8 @@ watch(() => props.modelValue, (visible) => {
     reportType.value = 'damaged'
     description.value = ''
     images.value = []
+    contactPhone.value = ''
+    contactEmail.value = ''
   }
 })
 
@@ -128,6 +164,16 @@ function onDeviceChange(e: { detail: { value: number } }) {
 function onDescInput(e: InputEvent) {
   const detail = e.detail as unknown as { value?: string }
   description.value = detail.value ?? ''
+}
+
+function onPhoneInput(e: InputEvent) {
+  const detail = e.detail as unknown as { value?: string }
+  contactPhone.value = detail.value ?? ''
+}
+
+function onEmailInput(e: InputEvent) {
+  const detail = e.detail as unknown as { value?: string }
+  contactEmail.value = detail.value ?? ''
 }
 
 function chooseImage() {
@@ -146,7 +192,10 @@ function removeImage(index: number) {
 
 function handleSubmit() {
   if (!canSubmit.value) {
-    uni.showToast({ title: '请填写问题描述', icon: 'none' })
+    uni.showToast({
+      title: props.requireContact ? '请填写描述和联系方式' : '请填写问题描述',
+      icon: 'none',
+    })
     return
   }
   const device = props.devices[devIdx.value]
@@ -156,6 +205,8 @@ function handleSubmit() {
     type: reportType.value,
     description: description.value.trim(),
     images: [...images.value],
+    contactPhone: contactPhone.value.trim() || undefined,
+    contactEmail: contactEmail.value.trim() || undefined,
   })
 }
 </script>
@@ -214,6 +265,18 @@ function handleSubmit() {
   width: 100%;
   min-height: 160rpx;
   padding: $spacing-sm;
+  background: $background;
+  border-radius: $radius-md;
+  font-size: $font-size-base;
+  color: $text-primary;
+  box-sizing: border-box;
+}
+
+.rf-input {
+  width: 100%;
+  height: 80rpx;
+  margin-top: $spacing-sm;
+  padding: 0 $spacing-sm;
   background: $background;
   border-radius: $radius-md;
   font-size: $font-size-base;

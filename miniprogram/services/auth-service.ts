@@ -7,17 +7,41 @@
 import { post } from '@/services/request'
 import { TOKEN_STORAGE_KEY, TOKEN_EXPIRE_KEY } from '@/utils/constants'
 import type { LoginResponse } from '@/types/common'
+import { loadMockUserProfile } from '@/mock/user'
+import { USE_MOCK } from '@/utils/runtime-env'
+
+const MOCK_TOKEN = 'mock-token'
+const MOCK_EXPIRES_IN = 7 * 24 * 60 * 60
+
+function persistToken(token: string, expiresIn: number): void {
+  uni.setStorageSync(TOKEN_STORAGE_KEY, token)
+  uni.setStorageSync(TOKEN_EXPIRE_KEY, Date.now() + expiresIn * 1000)
+}
 
 /** 微信登录并获取 Token */
 export async function wxLogin(): Promise<LoginResponse> {
+  if (USE_MOCK) {
+    const userInfo = loadMockUserProfile()
+    const result: LoginResponse = {
+      token: MOCK_TOKEN,
+      expiresIn: MOCK_EXPIRES_IN,
+      userInfo: {
+        id: userInfo.id,
+        name: userInfo.name,
+        avatarUrl: userInfo.avatarUrl,
+        isNewUser: false,
+      },
+    }
+
+    persistToken(result.token, result.expiresIn)
+    console.log('[Mock Auth API] login success')
+    return result
+  }
+
   const { code } = await uni.login({ provider: 'weixin' })
   const result = await post<LoginResponse>('/api/auth/login', { code })
 
-  uni.setStorageSync(TOKEN_STORAGE_KEY, result.token)
-  uni.setStorageSync(
-    TOKEN_EXPIRE_KEY,
-    Date.now() + result.expiresIn * 1000,
-  )
+  persistToken(result.token, result.expiresIn)
 
   return result
 }

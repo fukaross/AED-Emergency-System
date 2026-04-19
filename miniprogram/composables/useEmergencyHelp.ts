@@ -40,7 +40,11 @@ export function useEmergencyHelp() {
     if (loc.success) {
       form.lat = loc.point.lat
       form.lng = loc.point.lng
-      form.address = loc.address || loc.name || ''
+      form.address =
+        loc.address ||
+        loc.name ||
+        form.address ||
+        '定位成功，请补充具体楼栋/楼层信息'
       return
     }
 
@@ -86,6 +90,10 @@ export function useEmergencyHelp() {
 
   /** 发布求助 */
   async function submit(): Promise<PublishHelpResponse | null> {
+    if (!form.address.trim()) {
+      uni.showToast({ title: '请填写详细位置', icon: 'none' })
+      return null
+    }
     if (!form.content.trim()) {
       uni.showToast({ title: '请填写帮助内容', icon: 'none' })
       return null

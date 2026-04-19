@@ -30,9 +30,11 @@ function buildMockNearbyAed(params: NearbyAedParams): AedItem[] {
       ),
     }))
     .sort((a, b) => {
+      const aDistance = a.distance ?? Number.MAX_SAFE_INTEGER
+      const bDistance = b.distance ?? Number.MAX_SAFE_INTEGER
       if (a.status === 'online' && b.status !== 'online') return -1
       if (a.status !== 'online' && b.status === 'online') return 1
-      return a.distance - b.distance
+      return aDistance - bDistance
     })
 }
 

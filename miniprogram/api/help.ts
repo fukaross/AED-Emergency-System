@@ -17,6 +17,7 @@
  */
 import { get, post, put } from '@/services/request'
 import type {
+  CloseHelpPayload,
   PublishHelpPayload,
   PublishHelpResponse,
   HelpListItem,
@@ -25,13 +26,28 @@ import type {
   GuestHelpLookupResult,
   GuestClosePayload,
   GuestCloseResult,
+  RespondToHelpPayload,
 } from '@/types/help'
 import type { PaginatedData } from '@/types/common'
+import {
+  closeMockHelpRequest,
+  closeMockGuestHelpRequest,
+  getMockHelpDetail,
+  listMockHelpRequests,
+  publishMockHelpRequest,
+  queryMockGuestHelp,
+  respondMockHelpRequest,
+} from '@/mock/help'
+import { USE_MOCK } from '@/utils/runtime-env'
 
 /** 发布求助 */
 export function publishHelp(
   payload: PublishHelpPayload,
 ): Promise<PublishHelpResponse> {
+  if (USE_MOCK) {
+    return Promise.resolve(publishMockHelpRequest(payload))
+  }
+
   return post<PublishHelpResponse>(
     '/api/help/request',
     payload as unknown as Record<string, unknown>,
@@ -43,11 +59,19 @@ export function fetchHelpList(
   page = 1,
   pageSize = 20,
 ): Promise<PaginatedData<HelpListItem>> {
+  if (USE_MOCK) {
+    return Promise.resolve(listMockHelpRequests(page, pageSize))
+  }
+
   return get<PaginatedData<HelpListItem>>('/api/help/list', { page, pageSize })
 }
 
 /** 获取求助详情 */
 export function fetchHelpDetail(id: string): Promise<HelpRequestDetail> {
+  if (USE_MOCK) {
+    return Promise.resolve(getMockHelpDetail(id))
+  }
+
   return get<HelpRequestDetail>(`/api/help/${id}`)
 }
 
@@ -57,19 +81,36 @@ export function fetchHelpDetail(id: string): Promise<HelpRequestDetail> {
  * [G-04] 仅值班老师或学校导入且 status=active 的急救员可调用。
  * 其他登录用户返回错误码 1003 (FORBIDDEN)。
  */
-export function respondToHelp(id: string): Promise<void> {
-  return post(`/api/help/${id}/respond`)
+export function respondToHelp(
+  id: string,
+  payload: RespondToHelpPayload,
+): Promise<void> {
+  if (USE_MOCK) {
+    respondMockHelpRequest(id, payload)
+    return Promise.resolve()
+  }
+
+  return post(`/api/help/${id}/respond`, payload as unknown as Record<string, unknown>)
 }
 
 /** 关闭求助 */
-export function closeHelp(id: string): Promise<void> {
-  return put(`/api/help/${id}/close`)
+export function closeHelp(id: string, payload: CloseHelpPayload): Promise<void> {
+  if (USE_MOCK) {
+    closeMockHelpRequest(id, payload)
+    return Promise.resolve()
+  }
+
+  return put(`/api/help/${id}/close`, payload as unknown as Record<string, unknown>)
 }
 
 /** 游客查询求助状态 */
 export function guestQueryHelp(
   payload: GuestLookupPayload,
 ): Promise<GuestHelpLookupResult> {
+  if (USE_MOCK) {
+    return Promise.resolve(queryMockGuestHelp(payload))
+  }
+
   return post<GuestHelpLookupResult>(
     '/api/help/guest/query',
     payload as unknown as Record<string, unknown>,
@@ -80,6 +121,10 @@ export function guestQueryHelp(
 export function guestCloseHelp(
   payload: GuestClosePayload,
 ): Promise<GuestCloseResult> {
+  if (USE_MOCK) {
+    return Promise.resolve(closeMockGuestHelpRequest(payload))
+  }
+
   return post<GuestCloseResult>(
     '/api/help/guest/close',
     payload as unknown as Record<string, unknown>,

@@ -74,6 +74,7 @@ import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/store/auth'
 import { useUserStore } from '@/store/user'
+import { uploadImage } from '@/api/common'
 import AppTabBar from '@/components/app-tab-bar/index.vue'
 import LevelBadge from '@/components/level-badge/index.vue'
 
@@ -133,10 +134,16 @@ function changeAvatar() {
   uni.chooseImage({
     count: 1,
     sizeType: ['compressed'],
-    success: (res) => {
+    success: async (res) => {
       const path = res.tempFilePaths[0]
       if (path) {
-        userStore.saveProfile({ avatarUrl: path })
+        try {
+          const uploaded = await uploadImage(path, 'avatar')
+          await userStore.saveProfile({ avatarUrl: uploaded.url })
+          uni.showToast({ title: '头像已更新', icon: 'success' })
+        } catch {
+          uni.showToast({ title: '头像上传失败', icon: 'none' })
+        }
       }
     },
   })
@@ -164,7 +171,9 @@ function handleMenuClick(item: MenuItem) {
 onShow(() => {
   authStore.checkAuth()
   if (authStore.isLoggedIn) {
-    userStore.loadProfile()
+    userStore.loadProfile().catch(() => {
+      uni.showToast({ title: '用户资料加载失败', icon: 'none' })
+    })
   }
 })
 </script>
