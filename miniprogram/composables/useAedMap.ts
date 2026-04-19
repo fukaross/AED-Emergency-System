@@ -7,7 +7,7 @@
  * D-05 基线要求
  */
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onHide } from '@dcloudio/uni-app'
 import { useAedStore } from '@/store/aed'
 import type { AedItem } from '@/types/aed'
 import { getCurrentLocation, shouldSkipInitialRealLocation } from '@/services/geo-service'
@@ -20,6 +20,7 @@ import {
   fetchWalkingRoute,
   getBreathSize,
   getRippleSize,
+  RIPPLE_ID_BASE,
   type MapMarker,
   type MapPolyline,
 } from '@/services/map-service'
@@ -32,7 +33,7 @@ import {
 } from '@/utils/runtime-env'
 
 const INITIAL_LOCATION_TIP =
-  '预览模式首次进入不自动定位，点击“重新定位”手动选择调试位置'
+  '预览模式首次进入不自动定位，点击“重新定位”获取当前位置'
 
 export function useAedMap() {
   const aedStore = useAedStore()
@@ -56,11 +57,13 @@ export function useAedMap() {
   )
 
   // ===== 动画（呼吸 + 涟漪，CLAUDE.md §7.1 §7.2） =====
-  const ANIM_INTERVAL_MS = 90
-  const ANIM_CYCLE_STEPS = 22
-  const RIPPLE_RING_COUNT = 3
+  const ANIM_INTERVAL_MS = 200
+  const ANIM_CYCLE_STEPS = 10
+  const RIPPLE_RING_COUNT = 2
   let animTimer: ReturnType<typeof setInterval> | null = null
   let animStep = 0
+  let activeNearestAed: AedItem | null = null
+  let activeMarkerId = -1
 
   function buildNearestAnimationMarkers(
     nearest: AedItem,
@@ -84,11 +87,16 @@ export function useAedMap() {
     markerId: number,
   ): void {
     stopNearestAnimation()
+    activeNearestAed = nearest
+    activeMarkerId = markerId
     animStep = 0
     animMarkers.value = buildNearestAnimationMarkers(nearest, markerId, animStep)
     animTimer = setInterval(() => {
       animStep++
-      animMarkers.value = buildNearestAnimationMarkers(nearest, markerId, animStep)
+      if (!activeNearestAed) return
+      animMarkers.value = buildNearestAnimationMarkers(
+        activeNearestAed, activeMarkerId, animStep,
+      )
     }, ANIM_INTERVAL_MS)
   }
 
@@ -97,6 +105,13 @@ export function useAedMap() {
       clearInterval(animTimer)
       animTimer = null
     }
+    activeNearestAed = null
+    activeMarkerId = -1
+  }
+
+  /** 获取当前动画对应的 AED（供 marker 点击判定） */
+  function getActiveNearestAed(): AedItem | null {
+    return activeNearestAed
   }
 
   async function refreshAed(point: { lat: number; lng: number }): Promise<void> {
@@ -117,18 +132,22 @@ export function useAedMap() {
 
     clearRoute()
 
-    // 先设微偏移值，强制 Vue 检测到变化并触发 <map> 更新
+    const FOCUS_DELAY_MS = 150
+    // 先设微偏移 + 缩小一级，强制 Vue 检测到变化
     mapCenter.value = {
       latitude: target.lat + 0.000001,
       longitude: target.lng + 0.000001,
     }
     mapZoom.value = FOCUS_ZOOM - 1
 
-    // 下一帧设回精确值，完成聚焦
+    // 第一阶段：平移到精确目标
     nextTick(() => {
       mapCenter.value = { latitude: target.lat, longitude: target.lng }
-      mapZoom.value = FOCUS_ZOOM
     })
+    // 第二阶段：延迟后放大
+    setTimeout(() => {
+      mapZoom.value = FOCUS_ZOOM
+    }, FOCUS_DELAY_MS)
 
     return true
   }
@@ -182,7 +201,7 @@ export function useAedMap() {
   /** 回到我的位置 */
   async function relocate(): Promise<void> {
     isLocating.value = true
-    const loc = await getCurrentLocation({ mode: 'interactive' })
+    const loc = await getCurrentLocation({ mode: 'auto' })
     isLocating.value = false
     hasRealLocation.value = loc.showSystemLocation
 
@@ -205,8 +224,21 @@ export function useAedMap() {
     const nearest = aedStore.nearestAed
     if (!nearest || !aedStore.userLocation) return
 
-    // 地图聚焦
-    mapCenter.value = { latitude: nearest.lat, longitude: nearest.lng }
+    // 地图聚焦 — 两阶段平滑：先平移+缩小一级，延迟后再放大
+    const FOCUS_DELAY_MS = 150
+    mapCenter.value = {
+      latitude: nearest.lat + 0.000001,
+      longitude: nearest.lng + 0.000001,
+    }
+    mapZoom.value = FOCUS_ZOOM - 1
+    // 第一阶段：平移到精确目标
+    nextTick(() => {
+      mapCenter.value = { latitude: nearest.lat, longitude: nearest.lng }
+    })
+    // 第二阶段：延迟后放大，形成"平移 → 放大"的视觉节奏
+    setTimeout(() => {
+      mapZoom.value = FOCUS_ZOOM
+    }, FOCUS_DELAY_MS)
 
     // 移除原始 marker，替换为高亮态（避免两个 marker 叠加导致错位）
     const nearestIdx = aedStore.aedList.findIndex(a => a.id === nearest.id)
@@ -234,13 +266,38 @@ export function useAedMap() {
     stopNearestAnimation()
     animMarkers.value = []
     polylines.value = []
-    baseMarkers.value = aedListToMarkers(aedStore.aedList)
+    // 下一帧恢复基础 markers，避免与动画清理冲突
+    nextTick(() => {
+      baseMarkers.value = aedListToMarkers(aedStore.aedList)
+    })
     aedStore.clearRoute()
   }
 
+  // ===== 页面生命周期 =====
+
   onMounted(init)
-  onShow(applyPendingFocus)
-  onUnmounted(stopNearestAnimation)
+
+  onShow(() => {
+    applyPendingFocus()
+    // 从其他 Tab 返回时，如果动画之前在播放，重新启动
+    if (activeNearestAed && activeMarkerId >= 0 && animTimer === null) {
+      startNearestAnimation(activeNearestAed, activeMarkerId)
+    }
+  })
+
+  onHide(() => {
+    // Tab 切走时暂停动画并清理视觉 marker，防止 native map 状态残留
+    if (animTimer !== null) {
+      clearInterval(animTimer)
+      animTimer = null
+      animMarkers.value = []
+    }
+  })
+
+  onUnmounted(() => {
+    stopNearestAnimation()
+    animMarkers.value = []
+  })
 
   return {
     mapCenter,
@@ -256,5 +313,6 @@ export function useAedMap() {
     relocate,
     goToNearestAed,
     clearRoute,
+    getActiveNearestAed,
   }
 }

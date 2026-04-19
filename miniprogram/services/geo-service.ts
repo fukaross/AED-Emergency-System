@@ -16,13 +16,22 @@ import { APP_ENV, USE_MOCK, USE_REAL_LOCATION } from '@/utils/runtime-env'
 
 const EARTH_RADIUS_M = 6371000
 const DEVTOOLS_PLATFORM = 'devtools'
-const DEVTOOLS_LOCATION_MESSAGE =
-  '开发者工具中不直接调用 getLocation，请点击“重新定位”手动选择调试位置'
+const LOCATION_SCOPE = 'scope.userLocation'
+const HIGH_ACCURACY_EXPIRE_MS = 5000
 
 type GetCurrentLocationMode = 'auto' | 'interactive'
 
 interface DeviceInfoLike {
   readonly platform?: string
+}
+
+interface AuthSettingResult {
+  readonly authSetting?: Partial<Record<typeof LOCATION_SCOPE, boolean>>
+}
+
+type GetLocationWithAccuracyOptions = UniApp.GetLocationOptions & {
+  readonly isHighAccuracy?: boolean
+  readonly highAccuracyExpireTime?: number
 }
 
 export function shouldUseDefaultLocation(
@@ -112,6 +121,77 @@ function getRuntimePlatform(): string {
   return platform || ''
 }
 
+function buildLocationFailureMessage(errMsg: string): string {
+  if (errMsg.includes('auth deny')) {
+    return '定位权限被拒绝，已使用校园中心点'
+  }
+
+  if (errMsg.includes('timeout')) {
+    return '定位超时，已使用校园中心点'
+  }
+
+  return '定位失败，已使用校园中心点'
+}
+
+async function ensureLocationPermission(): Promise<boolean> {
+  const setting = (await uni.getSetting()) as AuthSettingResult
+  const authorized = setting.authSetting?.[LOCATION_SCOPE]
+
+  if (authorized === true) {
+    return true
+  }
+
+  try {
+    await uni.authorize({ scope: LOCATION_SCOPE })
+    return true
+  } catch (err) {
+    const errMsg = (err as { errMsg?: string })?.errMsg || ''
+    console.warn('[GeoService] authorize failed:', errMsg)
+
+    if (errMsg.includes('auth deny') || errMsg.includes('authorize')) {
+      showLocationPermissionGuide()
+    }
+
+    return false
+  }
+}
+
+async function requestCurrentLocation(): Promise<LocationResult> {
+  const hasPermission = await ensureLocationPermission()
+  if (!hasPermission) {
+    return createDefaultLocation('定位权限被拒绝，已使用校园中心点')
+  }
+
+  try {
+    const options: GetLocationWithAccuracyOptions = {
+      type: 'gcj02',
+      isHighAccuracy: true,
+      highAccuracyExpireTime: HIGH_ACCURACY_EXPIRE_MS,
+    }
+    const res = await uni.getLocation(options)
+
+    console.log(
+      `[GeoService] 定位成功 lat=${res.latitude} lng=${res.longitude} accuracy=${(res as { accuracy?: number }).accuracy ?? '未知'}m`,
+    )
+
+    return {
+      success: true,
+      point: { lat: res.latitude, lng: res.longitude },
+      isDefault: false,
+      showSystemLocation: true,
+    }
+  } catch (err) {
+    const errMsg = (err as { errMsg?: string })?.errMsg || ''
+    console.warn('[GeoService] getLocation failed:', errMsg)
+
+    if (errMsg.includes('auth deny') || errMsg.includes('authorize')) {
+      showLocationPermissionGuide()
+    }
+
+    return createDefaultLocation(buildLocationFailureMessage(errMsg))
+  }
+}
+
 async function chooseDebugLocation(): Promise<LocationResult> {
   try {
     const res = await uni.chooseLocation({
@@ -150,10 +230,10 @@ async function chooseDebugLocation(): Promise<LocationResult> {
 /**
  * 获取当前位置 (GCJ-02)
  * 降级策略：
- * 1. 开发者工具中的交互式定位使用 chooseLocation 手动选点
- * 2. 非开发者工具环境尝试 uni.getLocation
- * 2. 权限拒绝 → 引导开启，回退校园中心
- * 3. 超时/失败 → 回退校园中心
+ * 1. 开发者工具中的 interactive 模式使用 chooseLocation 手动选点
+ * 2. 其他场景尝试 uni.getLocation
+ * 3. 权限拒绝 → 引导开启，回退校园中心
+ * 4. 超时/失败 → 回退校园中心
  */
 export async function getCurrentLocation(
   options: GetCurrentLocationOptions = {},
@@ -169,32 +249,7 @@ export async function getCurrentLocation(
     return chooseDebugLocation()
   }
 
-  if (isWechatDevtoolsPlatform(platform)) {
-    return createDefaultLocation(DEVTOOLS_LOCATION_MESSAGE)
-  }
-
-  try {
-    const res = await uni.getLocation({ type: 'gcj02' })
-    return {
-      success: true,
-      point: { lat: res.latitude, lng: res.longitude },
-      isDefault: false,
-      showSystemLocation: true,
-    }
-  } catch (err) {
-    const errMsg = (err as { errMsg?: string })?.errMsg || ''
-    console.warn('[GeoService] getLocation failed:', errMsg)
-
-    if (errMsg.includes('auth deny') || errMsg.includes('authorize')) {
-      showLocationPermissionGuide()
-    }
-
-    return createDefaultLocation(
-      errMsg.includes('auth deny')
-        ? '定位权限被拒绝，已使用校园中心点'
-        : '定位失败，已使用校园中心点',
-    )
-  }
+  return requestCurrentLocation()
 }
 
 /** 引导用户开启定位权限 */

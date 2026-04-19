@@ -173,9 +173,9 @@ import { useAedMap } from '@/composables/useAedMap'
 import { useAedStore } from '@/store/aed'
 import {
   createMapCtx,
-  moveToUserLocation,
   openNativeNavigation,
   formatDistance,
+  RIPPLE_ID_BASE,
 } from '@/services/map-service'
 import type { AedItem } from '@/types/aed'
 import { MAP_CENTER } from '@/utils/constants'
@@ -202,6 +202,7 @@ const {
   relocate,
   goToNearestAed,
   clearRoute,
+  getActiveNearestAed,
 } = useAedMap()
 
 // ===== 本页展示状态 =====
@@ -274,9 +275,10 @@ function toggleNearbyPanel(): void {
 
 /** 重新定位 */
 async function handleRelocate(): Promise<void> {
+  statusBarDismissed.value = false
   await relocate()
-  if (mapCtx && hasRealLocation.value) {
-    moveToUserLocation(mapCtx)
+  if (hasRealLocation.value) {
+    uni.showToast({ title: '已更新当前位置', icon: 'success' })
   }
 }
 
@@ -298,7 +300,14 @@ function handleMarkerTap(e: { markerId?: number; detail?: { markerId?: number } 
   lastMarkerTapAt = Date.now()
   const markerId = e.markerId ?? e.detail?.markerId
   if (markerId == null) return
-  const aed = aedStore.aedList[markerId]
+
+  // 涟漪 marker（ID >= RIPPLE_ID_BASE）→ 映射到当前动画对应的 AED
+  let aed: AedItem | undefined
+  if (markerId >= RIPPLE_ID_BASE) {
+    aed = getActiveNearestAed() ?? undefined
+  } else {
+    aed = aedStore.aedList[markerId]
+  }
   if (!aed) return
 
   // 自动聚焦缩放到选中的 AED

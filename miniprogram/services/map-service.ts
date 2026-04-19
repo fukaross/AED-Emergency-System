@@ -35,9 +35,9 @@ export interface MapPolyline {
 
 const MARKER_SIZE = 40
 const ACTIVE_MARKER_SIZE = 60
-const AED_MARKER_ONLINE = '/static/icons/aed-online.svg'
-const AED_MARKER_OFFLINE = '/static/icons/aed-offline.svg'
-const RIPPLE_RING_ICON = '/static/icons/ripple-ring.svg'
+const AED_MARKER_ONLINE = '/static/images/aed-marker-online.png'
+const AED_MARKER_OFFLINE = '/static/images/aed-marker-offline.png'
+const RIPPLE_RING_ICON = '/static/images/ripple-ring.png'
 
 /** 格式化距离文本 */
 export function formatDistance(distance: number): string {
@@ -96,7 +96,7 @@ export function createBreathingMarker(
 
 // ===== 呼吸动画辅助 =====
 const BREATHE_BASE = 60
-const BREATHE_AMPLITUDE = 8
+const BREATHE_AMPLITUDE = 5
 
 /** 正弦波平滑呼吸尺寸（step / totalSteps 为一个周期） */
 export function getBreathSize(step: number, totalSteps: number): number {
@@ -105,9 +105,9 @@ export function getBreathSize(step: number, totalSteps: number): number {
 }
 
 // ===== 涟漪动画辅助 =====
-const RIPPLE_MIN_SIZE = 48
-const RIPPLE_MAX_SIZE = 112
-const RIPPLE_ID_BASE = 990
+const RIPPLE_MIN_SIZE = 50
+const RIPPLE_MAX_SIZE = 96
+export const RIPPLE_ID_BASE = 990
 
 function easeOutCubic(progress: number): number {
   return 1 - (1 - progress) ** 3

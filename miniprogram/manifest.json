@@ -8,9 +8,12 @@
   "mp-weixin": {
     "appid": "REDACTED",
     "setting": {
-      "urlCheck": false
+      "urlCheck": false,
+      "minified": true,
+      "postcss": true
     },
     "usingComponents": true,
+    "lazyCodeLoading": "requiredComponents",
     "permission": {
       "scope.userLocation": {
         "desc": "你的位置信息将用于查找附近的 AED 设备"
