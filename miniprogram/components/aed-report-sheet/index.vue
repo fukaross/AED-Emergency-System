@@ -31,9 +31,9 @@
       <textarea
         class="rf-textarea"
         :value="description"
-        @input="onDescInput"
         placeholder="请描述遇到的问题..."
         :maxlength="200"
+        @input="onDescInput"
       />
 
       <text class="rf-label">现场图片（可选）</text>
@@ -125,8 +125,9 @@ function onDeviceChange(e: { detail: { value: number } }) {
   devIdx.value = e.detail.value
 }
 
-function onDescInput(e: any) {
-  description.value = e.detail.value as string
+function onDescInput(e: InputEvent) {
+  const detail = e.detail as unknown as { value?: string }
+  description.value = detail.value ?? ''
 }
 
 function chooseImage() {

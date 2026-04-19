@@ -13,10 +13,18 @@
  */
 import { ERROR_CODES, ERROR_MESSAGES, REQUEST_TIMEOUT, TOKEN_STORAGE_KEY } from '@/utils/constants'
 import type { ApiResponse } from '@/types/common'
+import {
+  API_BASE_URL,
+  IS_PLACEHOLDER_API_BASE_URL,
+  shouldWarnPlaceholderApiBaseUrl,
+} from '@/utils/runtime-env'
 
 // ===== 基地址 =====
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+const BASE_URL = API_BASE_URL
 const IS_DEV = import.meta.env.VITE_APP_ENV === 'development'
+const PLACEHOLDER_API_BASE_URL_MESSAGE =
+  '当前接口基址仍是占位地址 api.example.com，请切换到开发/预览构建，或配置真实后端地址。'
+let hasWarnedPlaceholderApiBaseUrl = false
 
 // ===== 类型 =====
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -50,6 +58,15 @@ function logRequest(method: string, url: string, data?: unknown): void {
 function logResponse(url: string, res: unknown): void {
   if (!IS_DEV) return
   console.log(`[Response] ${url}`, res)
+}
+
+function warnPlaceholderApiBaseUrlOnce(): void {
+  if (!shouldWarnPlaceholderApiBaseUrl() || hasWarnedPlaceholderApiBaseUrl) {
+    return
+  }
+
+  console.warn(`[Request] ${PLACEHOLDER_API_BASE_URL_MESSAGE}`)
+  hasWarnedPlaceholderApiBaseUrl = true
 }
 
 // ===== 错误提示分级 =====
@@ -103,6 +120,14 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
   }
 
   logRequest(method, fullUrl, data)
+
+  if (IS_PLACEHOLDER_API_BASE_URL) {
+    warnPlaceholderApiBaseUrlOnce()
+    if (!skipErrorHandler) {
+      uni.showToast({ title: '接口地址未配置', icon: 'none' })
+    }
+    return Promise.reject(new Error(PLACEHOLDER_API_BASE_URL_MESSAGE))
+  }
 
   return new Promise<T>((resolve, reject) => {
     uni.request({
@@ -187,6 +212,11 @@ export function uploadFile(
   scene: string,
 ): Promise<{ url: string; thumbnail: string; fileId: string }> {
   const token = getToken()
+
+  if (IS_PLACEHOLDER_API_BASE_URL) {
+    warnPlaceholderApiBaseUrlOnce()
+    return Promise.reject(new Error(PLACEHOLDER_API_BASE_URL_MESSAGE))
+  }
 
   return new Promise((resolve, reject) => {
     uni.uploadFile({

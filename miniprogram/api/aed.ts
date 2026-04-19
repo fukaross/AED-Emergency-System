@@ -11,7 +11,13 @@ import { get, post } from '@/services/request'
 import type { AedItem, NearbyAedParams, AedReportRequest } from '@/types/aed'
 import { AED_MOCK_DATA } from '@/mock/aed'
 import { calculateDistance } from '@/services/geo-service'
-import { USE_MOCK, IS_DEV_LIKE } from '@/utils/runtime-env'
+import {
+  USE_MOCK,
+  IS_DEV_LIKE,
+  shouldWarnPlaceholderApiBaseUrl,
+} from '@/utils/runtime-env'
+
+let hasWarnedPlaceholderPublicApi = false
 
 function buildMockNearbyAed(params: NearbyAedParams): AedItem[] {
   const userPoint = { lat: params.lat, lng: params.lng }
@@ -31,6 +37,10 @@ function buildMockNearbyAed(params: NearbyAedParams): AedItem[] {
 }
 
 function logMockUsage(action: string): void {
+  if (shouldWarnPlaceholderApiBaseUrl() && !hasWarnedPlaceholderPublicApi) {
+    console.warn('[Mock AED API] 检测到占位接口地址，公开内容已切换为 Mock 数据')
+    hasWarnedPlaceholderPublicApi = true
+  }
   if (!IS_DEV_LIKE || !USE_MOCK) return
   console.log(`[Mock AED API] ${action}`)
 }

@@ -20,7 +20,6 @@ import {
   fetchWalkingRoute,
   getBreathSize,
   getRippleSize,
-  RIPPLE_ID_BASE,
   type MapMarker,
   type MapPolyline,
 } from '@/services/map-service'

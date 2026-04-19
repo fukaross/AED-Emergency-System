@@ -10,9 +10,14 @@
 import { get } from '@/services/request'
 import { uploadFile } from '@/services/request'
 import type { BannerItem, UploadImageResponse, UploadScene } from '@/types/common'
+import { BANNER_MOCK_DATA } from '@/mock/banner'
+import { USE_MOCK } from '@/utils/runtime-env'
 
 /** 获取轮播横幅列表 */
 export function fetchBanners(): Promise<BannerItem[]> {
+  if (USE_MOCK) {
+    return Promise.resolve([...BANNER_MOCK_DATA])
+  }
   return get<BannerItem[]>('/api/banners')
 }
 

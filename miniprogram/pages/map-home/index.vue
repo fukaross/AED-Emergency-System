@@ -218,11 +218,10 @@ const locatePressed = ref(false)
 const nearestPressed = ref(false)
 
 // ===== 地图上下文 =====
-let mapCtx: UniApp.MapContext | null = null
 let lastMarkerTapAt = 0
 
 onMounted(() => {
-  mapCtx = createMapCtx('aedMap')
+  createMapCtx('aedMap')
 
   const windowInfo =
     typeof uni.getWindowInfo === 'function'
@@ -309,21 +308,22 @@ function handleMarkerTap(e: { markerId?: number; detail?: { markerId?: number } 
     aed = aedStore.aedList[markerId]
   }
   if (!aed) return
+  const targetAed = aed
 
   // 自动聚焦缩放到选中的 AED
-  focusAedById(aed.id)
+  focusAedById(targetAed.id)
 
-  const statusText = aed.status === 'online' ? '🟢 在线可用' : '⚫ 离线不可用'
-  const distText = formatDistance(aed.distance)
+  const statusText = targetAed.status === 'online' ? '🟢 在线可用' : '⚫ 离线不可用'
+  const distText = formatDistance(targetAed.distance)
 
   uni.showModal({
-    title: aed.name,
+    title: targetAed.name,
     content: `${statusText}\n${distText}`,
     confirmText: '导航前往',
     cancelText: '关闭',
     success: (res) => {
       if (res.confirm) {
-        navigateToAed(aed)
+        navigateToAed(targetAed)
       }
     },
   })

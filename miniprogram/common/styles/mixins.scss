@@ -4,6 +4,8 @@
  * 来源：GEMINI.md §3 + CLAUDE.md §11.1
  */
 
+@use './variables.scss' as *;
+
 // ===== 布局 =====
 
 /// Flex 居中（水平 + 垂直）
@@ -110,7 +112,6 @@
     background-color: $primary-dark;
   }
 
-  &[disabled],
   &.is-disabled {
     background-color: $primary-light;
     box-shadow: none;

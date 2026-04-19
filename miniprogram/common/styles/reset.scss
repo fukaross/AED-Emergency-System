@@ -1,8 +1,10 @@
 /**
  * AED 急救小程序 — 全局样式重置
  *
- * 在 App.vue 中通过 @import 引入
+ * 在 App.vue 中通过 @use 引入
  */
+
+@use './variables.scss' as *;
 
 /* ===== 基础重置 ===== */
 

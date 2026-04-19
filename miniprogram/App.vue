@@ -19,5 +19,5 @@ onHide(() => {
 </script>
 
 <style lang="scss">
-@import './common/styles/reset.scss';
+@use './common/styles/reset.scss';
 </style>

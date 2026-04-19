@@ -8,8 +8,8 @@
  * 将在 Phase 2 完善后通过此处引入。
  */
 
-@import './common/styles/variables.scss';
-@import './common/styles/mixins.scss';
+@use './common/styles/variables.scss' as *;
+@use './common/styles/mixins.scss' as *;
 
 /* ===== uni-app 内置样式变量（保留兼容） ===== */
 
