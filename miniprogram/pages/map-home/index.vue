@@ -324,6 +324,7 @@ async function handleRelocate(): Promise<void> {
 
 /** 找最近 AED */
 async function handleNearest(): Promise<void> {
+  uni.vibrateLong()
   await goToNearestAed()
   if (!aedStore.nearestAed) {
     uni.showToast({ title: '未找到可用 AED', icon: 'none' })
