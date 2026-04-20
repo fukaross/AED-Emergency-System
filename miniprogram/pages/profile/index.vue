@@ -21,6 +21,7 @@
         </view>
         <view class="pf-tags">
           <view class="pf-cert" :class="certClass">
+            <image class="pf-cert-icon" :src="certIcon" mode="aspectFit" />
             <text class="pf-cert-text">{{ certText }}</text>
           </view>
           <level-badge
@@ -127,6 +128,12 @@ const certText = computed(() =>
 
 const certClass = computed(() =>
   userStore.isCertified ? 'pf-cert--yes' : 'pf-cert--no',
+)
+
+const certIcon = computed(() =>
+  userStore.isCertified
+    ? '/static/icons/verified.svg'
+    : '/static/icons/unverified.svg',
 )
 
 // ===== 操作 =====
@@ -256,10 +263,17 @@ onShow(() => {
 }
 
 .pf-cert {
-  height: 36rpx;
+  height: 40rpx;
   padding: 0 16rpx;
-  border-radius: 18rpx;
+  border-radius: 20rpx;
   @include flex-center;
+  gap: 6rpx;
+}
+
+.pf-cert-icon {
+  width: 24rpx;
+  height: 24rpx;
+  flex-shrink: 0;
 }
 
 .pf-cert--yes { background: $status-online; }
