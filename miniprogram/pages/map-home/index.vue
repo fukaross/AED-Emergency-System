@@ -159,6 +159,13 @@
       @confirm="handleModalNavigate"
     >
       <view v-if="selectedAed" class="aed-detail">
+        <image
+          v-if="selectedAed.image"
+          class="aed-detail__image"
+          :src="selectedAed.image"
+          mode="aspectFill"
+          @tap="handlePreviewAedImage"
+        />
         <text class="aed-detail__name">{{ selectedAed.name }}</text>
         <view v-if="selectedAed.address" class="aed-detail__address">
           <view class="aed-detail__address-icon" />
@@ -358,6 +365,13 @@ function handleModalNavigate(): void {
   if (!aed) return
   showAedModal.value = false
   navigateToAed(aed)
+}
+
+/** AED 弹窗内图片点击放大预览 */
+function handlePreviewAedImage(): void {
+  const imageUrl = selectedAed.value?.image
+  if (!imageUrl) return
+  uni.previewImage({ current: imageUrl, urls: [imageUrl] })
 }
 
 /** 点击地图空白区域时，取消最近 AED 高亮与路线 */
@@ -676,6 +690,13 @@ function handleMapError(event: Event): void {
   flex-direction: column;
   align-items: center;
   gap: $spacing-sm;
+
+  &__image {
+    width: 100%;
+    height: 300rpx;
+    border-radius: $radius-md;
+    background-color: $background; // 加载占位底色
+  }
 
   &__name {
     font-size: $font-size-xl; // 36rpx
