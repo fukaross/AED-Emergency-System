@@ -150,6 +150,35 @@
       </view>
     </BottomSheet>
 
+    <!-- ⑩ AED 设备信息弹窗（替代 uni.showModal，支持地址展示） -->
+    <Modal
+      v-model="showAedModal"
+      title="AED 设备信息"
+      cancel-text="关闭"
+      confirm-text="导航前往"
+      @confirm="handleModalNavigate"
+    >
+      <view v-if="selectedAed" class="aed-detail">
+        <text class="aed-detail__name">{{ selectedAed.name }}</text>
+        <view v-if="selectedAed.address" class="aed-detail__address">
+          <view class="aed-detail__address-icon" />
+          <text class="aed-detail__address-text">{{ selectedAed.address }}</text>
+        </view>
+        <view class="aed-detail__status-row">
+          <view
+            class="aed-detail__dot"
+            :class="selectedAed.status === 'online' ? 'dot--online' : 'dot--offline'"
+          />
+          <text class="aed-detail__status-text">
+            {{ selectedAed.status === 'online' ? '在线可用' : '离线不可用' }}
+          </text>
+          <text class="aed-detail__distance">
+            {{ formatDistance(selectedAed.distance ?? 0) }}
+          </text>
+        </view>
+      </view>
+    </Modal>
+
     <AppTabBar current-path="/pages/map-home/index" />
 
   </view>
@@ -169,6 +198,7 @@ import { onShow } from '@dcloudio/uni-app'
 import AppTabBar from '@/components/app-tab-bar/index.vue'
 import CustomNavbar from '@/components/custom-navbar/index.vue'
 import BottomSheet from '@/components/bottom-sheet/index.vue'
+import Modal from '@/components/modal/index.vue'
 import { useAedMap } from '@/composables/useAedMap'
 import { useAedStore } from '@/store/aed'
 import {
@@ -210,6 +240,10 @@ const mapErrorMessage = ref('')
 const showNearbyPanel = ref(false)
 const navbarBottom = ref(0)
 const statusBarDismissed = ref(false)
+
+// ===== AED 信息弹窗状态 =====
+const showAedModal = ref(false)
+const selectedAed = ref<AedItem | null>(null)
 
 // ===== 按钮按压反馈（:active 在 uni-app 不可靠，用 touch 事件替代） =====
 const helpPressed = ref(false)
@@ -313,20 +347,17 @@ function handleMarkerTap(e: { markerId?: number; detail?: { markerId?: number } 
   // 自动聚焦缩放到选中的 AED
   focusAedById(targetAed.id)
 
-  const statusText = targetAed.status === 'online' ? '🟢 在线可用' : '⚫ 离线不可用'
-  const distText = formatDistance(targetAed.distance ?? 0)
+  // 打开自定义 AED 信息弹窗（展示名称 + 地址 + 状态 + 距离）
+  selectedAed.value = targetAed
+  showAedModal.value = true
+}
 
-  uni.showModal({
-    title: targetAed.name,
-    content: `${statusText}\n${distText}`,
-    confirmText: '导航前往',
-    cancelText: '关闭',
-    success: (res) => {
-      if (res.confirm) {
-        navigateToAed(targetAed)
-      }
-    },
-  })
+/** AED 弹窗点击"导航前往" */
+function handleModalNavigate(): void {
+  const aed = selectedAed.value
+  if (!aed) return
+  showAedModal.value = false
+  navigateToAed(aed)
 }
 
 /** 点击地图空白区域时，取消最近 AED 高亮与路线 */
@@ -637,5 +668,68 @@ function handleMapError(event: Event): void {
 .status--offline {
   background-color: rgba(158, 158, 158, 0.1);
   color: $status-offline;
+}
+
+// ===== ⑩ AED 设备信息弹窗内容 =====
+.aed-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-sm;
+
+  &__name {
+    font-size: $font-size-xl; // 36rpx
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+    text-align: center;
+  }
+
+  &__address {
+    display: flex;
+    align-items: flex-start;
+    max-width: 100%;
+  }
+
+  &__address-icon {
+    width: 28rpx;
+    height: 28rpx;
+    flex-shrink: 0;
+    margin-top: 2rpx;
+    margin-right: $spacing-xs;
+    background-image: url('/static/icons/AED-location@3x.png');
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+  }
+
+  &__address-text {
+    font-size: $font-size-sm; // 24rpx
+    color: $text-secondary; // #666
+    line-height: $line-height-normal;
+    @include multi-line-ellipsis(2);
+  }
+
+  &__status-row {
+    @include flex-align-center;
+    gap: $spacing-xs;
+  }
+
+  &__dot {
+    width: 16rpx;
+    height: 16rpx;
+    border-radius: $radius-full;
+    flex-shrink: 0;
+  }
+
+  &__status-text {
+    font-size: $font-size-base; // 28rpx
+    color: $text-primary;
+  }
+
+  &__distance {
+    font-size: $font-size-base;
+    color: $text-tertiary;
+    margin-left: $spacing-xs;
+  }
 }
 </style>
