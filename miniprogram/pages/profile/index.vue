@@ -276,8 +276,8 @@ onShow(() => {
   flex-shrink: 0;
 }
 
-.pf-cert--yes { background: $status-online; }
-.pf-cert--no { background: $status-offline; }
+.pf-cert--yes { background: #22C55E; }
+.pf-cert--no { background: #9CA3AF; }
 
 .pf-cert-text { font-size: $font-size-xs; color: $text-white; }
 

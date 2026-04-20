@@ -64,8 +64,8 @@ const iconPath = computed(() => LEVEL_ICONS[props.level])
   white-space: nowrap;
 }
 
-.level-badge--honor  { border: 2rpx solid $level-honor; }
-.level-badge--trainee { border: 2rpx solid $level-trainee; }
-.level-badge--official { border: 2rpx solid $level-official; }
-.level-badge--core   { border: 2rpx solid $level-core; }
+.level-badge--honor  { border: 2rpx solid $level-honor; background: #FFFBE6; }
+.level-badge--trainee { border: 2rpx solid $level-trainee; background: #F5F5F5; }
+.level-badge--official { border: 2rpx solid $level-official; background: #F6FFED; }
+.level-badge--core   { border: 2rpx solid $level-core; background: #E6F4FF; }
 </style>
