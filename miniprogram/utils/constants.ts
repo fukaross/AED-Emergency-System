@@ -65,6 +65,29 @@ export const MAX_MAP_ZOOM = 20
 /** 默认搜索半径 (米) */
 export const DEFAULT_SEARCH_RADIUS = 3000
 
+/** 校区中心点（GCJ-02） */
+export const CAMPUS_CENTERS = {
+  guilinyang: {
+    name: 'REDACTED校区',
+    lat: REDACTED,
+    lng: REDACTED,
+  },
+  fucheng: {
+    name: '府城校区',
+    lat: REDACTED,
+    lng: REDACTED,
+  },
+} as const
+
+/** 急救员距所属校区超出该半径后自动离线（米） */
+export const RESCUER_AUTO_OFFLINE_RADIUS_METERS = 30000
+
+/** 急救员单次手动离线上限（小时） */
+export const RESCUER_MAX_MANUAL_OFFLINE_HOURS = 10
+
+export const RESCUER_MAX_MANUAL_OFFLINE_MS =
+  RESCUER_MAX_MANUAL_OFFLINE_HOURS * 60 * 60 * 1000
+
 // ===== 网络常量 =====
 export const REQUEST_TIMEOUT = 10000
 export const TOKEN_STORAGE_KEY = 'aed_auth_token'

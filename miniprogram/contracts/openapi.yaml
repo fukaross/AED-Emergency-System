@@ -87,6 +87,111 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /api/rescuers/nearby:
+    get:
+      summary: 获取当前校区附近急救员列表
+      operationId: getNearbyRescuers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RescuerListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/rescuers/{id}:
+    get:
+      summary: 获取急救员联络详情
+      operationId: getRescuerDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RescuerDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/rescuers/me/availability:
+    get:
+      summary: 获取当前急救员自己的运行态配置
+      operationId: getMyRescuerAvailability
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RescuerAvailabilitySetting'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    put:
+      summary: 设置当前急救员的限时离线窗口
+      operationId: updateMyRescuerAvailability
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRescuerAvailabilityPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RescuerAvailabilitySetting'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /api/help/request:
     post:
       summary: 发布求助需求
@@ -632,6 +737,174 @@ components:
           type: string
         contactEmail:
           type: string
+
+    CampusCode:
+      type: string
+      enum: [guilinyang, fucheng]
+
+    RescuerAvailabilityStatus:
+      type: string
+      enum: [online, offline]
+
+    RescuerSkillFlags:
+      type: object
+      required: [cpr, aed, stb]
+      properties:
+        cpr:
+          type: boolean
+        aed:
+          type: boolean
+        stb:
+          type: boolean
+
+    RescuerListItem:
+      type: object
+      required:
+        - id
+        - name
+        - avatarUrl
+        - campus
+        - campusName
+        - level
+        - availabilityStatus
+        - qualificationStatus
+        - distance
+        - phoneMasked
+        - skills
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        avatarUrl:
+          type: string
+        campus:
+          $ref: '#/components/schemas/CampusCode'
+        campusName:
+          type: string
+        level:
+          type: string
+          nullable: true
+          enum: [honor, trainee, official, core]
+        availabilityStatus:
+          $ref: '#/components/schemas/RescuerAvailabilityStatus'
+        qualificationStatus:
+          type: string
+          enum: [active, inactive]
+        distance:
+          type: number
+        phoneMasked:
+          type: string
+        skills:
+          $ref: '#/components/schemas/RescuerSkillFlags'
+
+    RescuerListResponse:
+      type: object
+      required: [campus, campusName, viewerCampusDistance, autoOfflineRadius, items]
+      properties:
+        campus:
+          $ref: '#/components/schemas/CampusCode'
+        campusName:
+          type: string
+        viewerCampusDistance:
+          type: number
+        autoOfflineRadius:
+          type: number
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RescuerListItem'
+
+    RescuerDetail:
+      type: object
+      required:
+        - id
+        - surname
+        - avatarUrl
+        - campus
+        - campusName
+        - level
+        - availabilityStatus
+        - qualificationStatus
+        - phone
+        - phoneMasked
+        - skills
+      properties:
+        id:
+          type: string
+        surname:
+          type: string
+        avatarUrl:
+          type: string
+        campus:
+          $ref: '#/components/schemas/CampusCode'
+        campusName:
+          type: string
+        level:
+          type: string
+          nullable: true
+          enum: [honor, trainee, official, core]
+        availabilityStatus:
+          $ref: '#/components/schemas/RescuerAvailabilityStatus'
+        qualificationStatus:
+          type: string
+          enum: [active, inactive]
+        phone:
+          type: string
+        phoneMasked:
+          type: string
+        certificateNoMasked:
+          type: string
+          nullable: true
+        workUnit:
+          type: string
+          nullable: true
+        skills:
+          $ref: '#/components/schemas/RescuerSkillFlags'
+
+    RescuerAvailabilitySetting:
+      type: object
+      required:
+        - campus
+        - campusName
+        - availabilityStatus
+        - autoOfflineRadius
+        - maxManualOfflineHours
+        - manualOfflineFrom
+        - manualOfflineUntil
+        - autoOfflineReason
+      properties:
+        campus:
+          $ref: '#/components/schemas/CampusCode'
+        campusName:
+          type: string
+        availabilityStatus:
+          $ref: '#/components/schemas/RescuerAvailabilityStatus'
+        autoOfflineRadius:
+          type: number
+        maxManualOfflineHours:
+          type: number
+        manualOfflineFrom:
+          type: string
+          format: date-time
+          nullable: true
+        manualOfflineUntil:
+          type: string
+          format: date-time
+          nullable: true
+        autoOfflineReason:
+          type: string
+          nullable: true
+          enum: [out_of_service_radius]
+
+    UpdateRescuerAvailabilityPayload:
+      type: object
+      required: [manualOfflineUntil]
+      properties:
+        manualOfflineUntil:
+          type: string
+          format: date-time
+          nullable: true
 
     PublishHelpPayload:
       type: object
