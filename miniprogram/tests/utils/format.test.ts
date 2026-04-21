@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { maskPhone, formatDistance, formatDate, formatRelativeTime } from '@/utils/format'
+import {
+  maskPhone,
+  maskIdNumber,
+  formatDistance,
+  formatDate,
+  formatRelativeTime,
+} from '@/utils/format'
 
 describe('maskPhone', () => {
   it('masks middle 4 digits of 11-digit phone', () => {
@@ -12,6 +18,16 @@ describe('maskPhone', () => {
 
   it('handles empty string', () => {
     expect(maskPhone('')).toBe('')
+  })
+})
+
+describe('maskIdNumber', () => {
+  it('masks middle digits of id number', () => {
+    expect(maskIdNumber('REDACTED')).toBe('469027******3456')
+  })
+
+  it('returns original if too short', () => {
+    expect(maskIdNumber('1234567')).toBe('1234567')
   })
 })
 

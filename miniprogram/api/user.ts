@@ -6,16 +6,20 @@
  * GET  /api/user/profile             — 获取用户信息 [登录]
  * PUT  /api/user/profile             — 更新用户信息 [登录]
  * GET  /api/user/archives            — 急救档案列表 [登录]
+ * GET  /api/user/archives/:id        — 急救档案详情 [登录]
  * GET  /api/user/archives/:id/phone  — 查看完整电话 [登录 + 权限]
  */
 import { get, put } from '@/services/request'
 import type {
+  ArchiveDetail,
   UserProfile,
   UpdateUserProfilePayload,
   ArchiveListParams,
   ArchiveListResponse,
 } from '@/types/user'
 import {
+  canMockViewFullPhone,
+  getMockArchiveDetail,
   getMockArchivePhone,
   loadMockUserProfile,
   queryMockArchives,
@@ -55,6 +59,22 @@ export function fetchArchives(
   )
 }
 
+/** 获取急救档案详情（含证书历史） */
+export function fetchArchiveDetail(
+  archiveId: string,
+): Promise<ArchiveDetail> {
+  if (USE_MOCK) {
+    const detail = getMockArchiveDetail(archiveId)
+    if (!detail) {
+      return Promise.reject(new Error('档案不存在'))
+    }
+
+    return Promise.resolve(detail)
+  }
+
+  return get<ArchiveDetail>(`/api/user/archives/${archiveId}`)
+}
+
 /**
  * 查看档案完整电话号码
  * 仅值班老师/管理员可调用，需填写用途，后端记录审计日志
@@ -66,6 +86,10 @@ export function fetchArchivePhone(
   if (USE_MOCK) {
     if (!purpose.trim()) {
       return Promise.reject(new Error('查看用途不能为空'))
+    }
+
+    if (!canMockViewFullPhone()) {
+      return Promise.reject(new Error('当前角色无权查看完整号码'))
     }
 
     const phone = getMockArchivePhone(archiveId)

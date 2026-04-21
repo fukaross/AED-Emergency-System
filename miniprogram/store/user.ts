@@ -20,6 +20,7 @@ export const useUserStore = defineStore('user', () => {
   const displayName = computed(() => userInfo.value?.name || '游客')
   const isCertified = computed(() => userInfo.value?.certified ?? false)
   const rescuerLevel = computed(() => userInfo.value?.level ?? null)
+  const rescuerSummary = computed(() => userInfo.value?.rescuerSummary ?? null)
 
   // ===== Actions =====
   async function loadProfile(): Promise<void> {
@@ -40,6 +41,7 @@ export const useUserStore = defineStore('user', () => {
     displayName,
     isCertified,
     rescuerLevel,
+    rescuerSummary,
     loadProfile,
     saveProfile,
     clearUser,

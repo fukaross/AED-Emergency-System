@@ -10,6 +10,12 @@ export function maskPhone(phone: string): string {
   return phone.replace(/(\d{3})\d{4}(\d+)/, '$1****$2')
 }
 
+/** 身份证号脱敏：保留前 6 位和后 4 位 */
+export function maskIdNumber(idNumber: string): string {
+  if (!idNumber || idNumber.length < 10) return idNumber
+  return idNumber.replace(/(.{6}).+(.{4})$/, '$1******$2')
+}
+
 /** 格式化距离：< 1000m 显示整数米，≥ 1000m 显示 km */
 export function formatDistance(meters: number): string {
   if (meters >= 1000) {

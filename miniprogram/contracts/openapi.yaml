@@ -357,6 +357,15 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserProfile'
         '400':
           $ref: '#/components/responses/BadRequest'
     put:
@@ -391,6 +400,7 @@ paths:
           in: query
           schema:
             type: string
+            enum: [honor, trainee, official, core]
         - name: page
           in: query
           schema:
@@ -402,6 +412,42 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ArchiveListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/user/archives/{id}:
+    get:
+      summary: 获取急救档案详情
+      operationId: getArchiveDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RescuerArchiveDetail'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -425,6 +471,19 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [phone]
+                        properties:
+                          phone:
+                            type: string
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -836,6 +895,330 @@ components:
           enum: [male, female, unknown]
         phone:
           type: string
+
+    SchoolProfile:
+      type: object
+      required: [college, bindingStatus]
+      properties:
+        college:
+          type: string
+        studentId:
+          type: string
+        staffId:
+          type: string
+        bindingStatus:
+          type: string
+          enum: [pending, active, rejected, replaced, unbound]
+
+    RescuerSummary:
+      type: object
+      required:
+        - archiveProfileId
+        - responderProfileId
+        - responderType
+        - responderStatus
+        - level
+        - certified
+      properties:
+        archiveProfileId:
+          type: string
+        responderProfileId:
+          type: string
+        responderType:
+          type: string
+          enum: [rescuer, duty_teacher]
+        responderStatus:
+          type: string
+          enum: [active, inactive]
+        level:
+          type: string
+          nullable: true
+          enum: [honor, trainee, official, core]
+        certified:
+          type: boolean
+        certExpiry:
+          type: string
+          nullable: true
+        currentCertificateRecordId:
+          type: string
+          nullable: true
+        currentCertificateNo:
+          type: string
+          nullable: true
+        workUnit:
+          type: string
+          nullable: true
+
+    UserProfile:
+      type: object
+      required: [id, name, avatarUrl, gender, phone, certified, level]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        avatarUrl:
+          type: string
+        gender:
+          type: string
+          enum: [male, female, unknown]
+        phone:
+          type: string
+        certified:
+          type: boolean
+        level:
+          type: string
+          nullable: true
+          enum: [honor, trainee, official, core]
+        schoolProfile:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/SchoolProfile'
+          nullable: true
+        rescuerSummary:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/RescuerSummary'
+          nullable: true
+
+    ArchiveListItem:
+      type: object
+      required: [id, name, phone, level, college, certExpiry, certExpired]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+        level:
+          type: string
+          enum: [honor, trainee, official, core]
+        college:
+          type: string
+        certExpiry:
+          type: string
+        certExpired:
+          type: boolean
+        schoolBindingStatus:
+          type: string
+          enum: [pending, active, rejected, replaced, unbound]
+
+    ArchiveListResponse:
+      type: object
+      required: [total, canViewFullPhone, selfArchive, items]
+      properties:
+        total:
+          type: integer
+        canViewFullPhone:
+          type: boolean
+        selfArchive:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ArchiveListItem'
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArchiveListItem'
+
+    RescuerImportBatch:
+      type: object
+      required: [id, sourceYear, sourceFileName, importedAt]
+      properties:
+        id:
+          type: string
+        sourceYear:
+          type: integer
+        sourceFileName:
+          type: string
+        importedAt:
+          type: string
+          format: date-time
+        operator:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+
+    ArchiveSourceTrace:
+      type: object
+      required: [sourceFile, sourceSheet, sourceRowNo, sourceSeqNo, batch]
+      properties:
+        sourceFile:
+          type: string
+        sourceSheet:
+          type: string
+        sourceRowNo:
+          type: integer
+        sourceSeqNo:
+          type: string
+        batch:
+          $ref: '#/components/schemas/RescuerImportBatch'
+
+    RescuerCertificateRecord:
+      type: object
+      required:
+        - id
+        - profileId
+        - certificateNo
+        - issuingAuthority
+        - issueDate
+        - trainingYear
+        - trainingProject
+        - trainingSessionName
+        - isCurrent
+        - sourceTrace
+      properties:
+        id:
+          type: string
+        profileId:
+          type: string
+        certificateNo:
+          type: string
+        issuingAuthority:
+          type: string
+        issueDate:
+          type: string
+          format: date
+        trainingYear:
+          type: integer
+        trainingProject:
+          type: string
+        trainingSessionName:
+          type: string
+        theoryScore:
+          type: number
+          nullable: true
+        traumaAssessmentResult:
+          type: string
+          nullable: true
+        cprAssessmentResult:
+          type: string
+          nullable: true
+        aedAssessmentResult:
+          type: string
+          nullable: true
+        cprAedCombinedResult:
+          type: string
+          nullable: true
+        remark:
+          type: string
+          nullable: true
+        isCurrent:
+          type: boolean
+        sourceTrace:
+          $ref: '#/components/schemas/ArchiveSourceTrace'
+
+    ArchiveProfileDetail:
+      type: object
+      required:
+        - id
+        - name
+        - gender
+        - birthDate
+        - phone
+        - idNumberMasked
+        - phoneMasked
+        - idMasked
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        gender:
+          type: string
+          enum: [male, female, unknown]
+        birthDate:
+          type: string
+          format: date
+        phone:
+          type: string
+        idNumberMasked:
+          type: string
+        phoneMasked:
+          type: boolean
+        idMasked:
+          type: boolean
+        workUnit:
+          type: string
+          nullable: true
+
+    ResponderQualification:
+      type: object
+      required:
+        - id
+        - rescuerArchiveProfileId
+        - responderType
+        - status
+        - level
+        - certified
+        - certExpired
+        - sourceType
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+          nullable: true
+        rescuerArchiveProfileId:
+          type: string
+        currentCertificateRecordId:
+          type: string
+          nullable: true
+        responderType:
+          type: string
+          enum: [rescuer, duty_teacher]
+        status:
+          type: string
+          enum: [active, inactive]
+        level:
+          type: string
+          nullable: true
+          enum: [honor, trainee, official, core]
+        certified:
+          type: boolean
+        certExpiry:
+          type: string
+          nullable: true
+        certExpired:
+          type: boolean
+        sourceType:
+          type: string
+          enum: [school_import]
+        sourceBatchNo:
+          type: string
+          nullable: true
+        remark:
+          type: string
+          nullable: true
+
+    RescuerArchiveDetail:
+      type: object
+      required: [id, profile, schoolProfile, responderQualification, certificateRecords]
+      properties:
+        id:
+          type: string
+        profile:
+          $ref: '#/components/schemas/ArchiveProfileDetail'
+        schoolProfile:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/SchoolProfile'
+          nullable: true
+        schoolBindingStatus:
+          type: string
+          enum: [pending, active, rejected, replaced, unbound]
+        responderQualification:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ResponderQualification'
+          nullable: true
+        certificateRecords:
+          type: array
+          items:
+            $ref: '#/components/schemas/RescuerCertificateRecord'
 
     AuditBatchRequest:
       type: object
