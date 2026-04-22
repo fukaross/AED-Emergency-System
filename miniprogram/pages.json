@@ -8,9 +8,9 @@
       }
     },
     {
-      "path": "pages/device-center/index",
+      "path": "pages/rescuer-center/index",
       "style": {
-        "navigationBarTitleText": "设备中心"
+        "navigationBarTitleText": "急救员中心"
       }
     },
     {
@@ -77,8 +77,8 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/device-center/index",
-        "text": "设备"
+        "pagePath": "pages/rescuer-center/index",
+        "text": "急救员"
       },
       {
         "pagePath": "pages/knowledge/index",

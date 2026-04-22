@@ -5,7 +5,11 @@
  * 不管用户资料（由 user store 管理）
  */
 import { post } from '@/services/request'
-import { TOKEN_STORAGE_KEY, TOKEN_EXPIRE_KEY } from '@/utils/constants'
+import {
+  CURRENT_USER_ID_STORAGE_KEY,
+  TOKEN_STORAGE_KEY,
+  TOKEN_EXPIRE_KEY,
+} from '@/utils/constants'
 import type { LoginResponse } from '@/types/common'
 import { loadMockUserProfile } from '@/mock/user'
 import { USE_MOCK } from '@/utils/runtime-env'
@@ -13,9 +17,10 @@ import { USE_MOCK } from '@/utils/runtime-env'
 const MOCK_TOKEN = 'mock-token'
 const MOCK_EXPIRES_IN = 7 * 24 * 60 * 60
 
-function persistToken(token: string, expiresIn: number): void {
-  uni.setStorageSync(TOKEN_STORAGE_KEY, token)
-  uni.setStorageSync(TOKEN_EXPIRE_KEY, Date.now() + expiresIn * 1000)
+function persistSession(result: LoginResponse): void {
+  uni.setStorageSync(TOKEN_STORAGE_KEY, result.token)
+  uni.setStorageSync(TOKEN_EXPIRE_KEY, Date.now() + result.expiresIn * 1000)
+  uni.setStorageSync(CURRENT_USER_ID_STORAGE_KEY, result.userInfo.id)
 }
 
 /** 微信登录并获取 Token */
@@ -33,7 +38,7 @@ export async function wxLogin(): Promise<LoginResponse> {
       },
     }
 
-    persistToken(result.token, result.expiresIn)
+    persistSession(result)
     console.log('[Mock Auth API] login success')
     return result
   }
@@ -41,7 +46,7 @@ export async function wxLogin(): Promise<LoginResponse> {
   const { code } = await uni.login({ provider: 'weixin' })
   const result = await post<LoginResponse>('/api/auth/login', { code })
 
-  persistToken(result.token, result.expiresIn)
+  persistSession(result)
 
   return result
 }
@@ -58,6 +63,7 @@ export function isAuthenticated(): boolean {
 export function clearAuth(): void {
   uni.removeStorageSync(TOKEN_STORAGE_KEY)
   uni.removeStorageSync(TOKEN_EXPIRE_KEY)
+  uni.removeStorageSync(CURRENT_USER_ID_STORAGE_KEY)
 }
 
 /** 获取当前 Token（仅供调试或特殊场景） */

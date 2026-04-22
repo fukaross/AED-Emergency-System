@@ -43,10 +43,10 @@ const TABS: readonly TabItem[] = [
     activeIcon: '/static/icons/tab-home-active.svg',
   },
   {
-    pagePath: '/pages/device-center/index',
-    text: '设备',
-    icon: '/static/icons/tab-device.svg',
-    activeIcon: '/static/icons/tab-device-active.svg',
+    pagePath: '/pages/rescuer-center/index',
+    text: '急救员',
+    icon: '/static/icons/rescuer-inactive.svg',
+    activeIcon: '/static/icons/rescuer-active.svg',
   },
   {
     pagePath: '/pages/knowledge/index',

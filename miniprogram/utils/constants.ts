@@ -92,6 +92,7 @@ export const RESCUER_MAX_MANUAL_OFFLINE_MS =
 export const REQUEST_TIMEOUT = 10000
 export const TOKEN_STORAGE_KEY = 'aed_auth_token'
 export const TOKEN_EXPIRE_KEY = 'aed_auth_expire'
+export const CURRENT_USER_ID_STORAGE_KEY = 'aed_current_user_id'
 
 // ===== 上传常量 =====
 export const MAX_UPLOAD_SIZE = Number(
