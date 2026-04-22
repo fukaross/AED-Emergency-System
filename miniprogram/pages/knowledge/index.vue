@@ -25,6 +25,11 @@
       </swiper>
     </view>
 
+    <!-- 关键步骤标题 -->
+    <view class="kn-section">
+      <text class="kn-section-title">关键步骤</text>
+    </view>
+
     <!-- 快速操作入口 -->
     <view class="kn-quick">
       <view
