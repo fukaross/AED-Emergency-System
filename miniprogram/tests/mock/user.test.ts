@@ -65,12 +65,27 @@ describe('mock rescuer archives', () => {
     const reloaded = loadMockUserProfile()
 
     expect(updated.name).toBe('新的昵称')
-    expect(reloaded.avatarUrl).toBe('/static/images/avatar-default.png')
+    expect(reloaded.avatarUrl).toBe(
+      'https://loremflickr.com/200/200/landscape,nature?lock=201',
+    )
     expect(reloaded.gender).toBe('female')
     expect(reloaded.phone).toBe('REDACTED')
     expect(reloaded.rescuerSummary?.archiveProfileId).toBe('archive-self')
     expect(reloaded.rescuerSummary?.currentCertificateNo).toBe(
       '460000242004231000301',
+    )
+  })
+
+  it('replaces legacy default avatar path with mock avatar url', () => {
+    storage.set(
+      'aed_mock_user_profile',
+      JSON.stringify({ avatarUrl: '/static/images/avatar-default.png' }),
+    )
+
+    const profile = loadMockUserProfile()
+
+    expect(profile.avatarUrl).toBe(
+      'https://loremflickr.com/200/200/landscape,nature?lock=201',
     )
   })
 
