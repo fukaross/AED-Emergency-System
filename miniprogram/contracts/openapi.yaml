@@ -819,7 +819,7 @@ components:
       type: object
       required:
         - id
-        - surname
+        - name
         - avatarUrl
         - campus
         - campusName
@@ -832,7 +832,7 @@ components:
       properties:
         id:
           type: string
-        surname:
+        name:
           type: string
         avatarUrl:
           type: string

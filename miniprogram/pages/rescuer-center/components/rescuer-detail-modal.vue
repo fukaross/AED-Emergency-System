@@ -9,7 +9,7 @@
     <view v-if="detail" class="detail-body">
       <view class="detail-row">
         <text class="detail-label">姓名</text>
-        <text class="detail-val">{{ maskedName }}</text>
+        <text class="detail-val">{{ displayName }}</text>
       </view>
       <view class="detail-row">
         <text class="detail-label">电话</text>
@@ -64,7 +64,7 @@ import Modal from '@/components/modal/index.vue'
 interface Props {
   modelValue: boolean
   detail: RescuerDetail | null
-  maskedName?: string
+  name?: string
 }
 
 const props = defineProps<Props>()
@@ -81,16 +81,12 @@ const visible = computed({
   set: (val) => emit('update:modelValue', val),
 })
 
-const maskedName = computed(() => {
-  if (props.maskedName) {
-    return props.maskedName
+const displayName = computed(() => {
+  if (props.name) {
+    return props.name
   }
 
-  if (!props.detail?.surname) {
-    return ''
-  }
-
-  return `${props.detail.surname}*`
+  return props.detail?.name ?? ''
 })
 </script>
 

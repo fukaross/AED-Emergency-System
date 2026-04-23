@@ -52,7 +52,7 @@ export interface RescuerListResponse {
 
 export interface RescuerDetail {
   readonly id: string
-  readonly surname: string
+  readonly name: string
   readonly avatarUrl: string
   readonly campus: CampusCode
   readonly campusName: string

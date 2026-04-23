@@ -82,7 +82,7 @@
     <RescuerDetailModal
       :model-value="rescuerStore.showDetail"
       :detail="rescuerStore.currentDetail"
-      :masked-name="detailMaskedName"
+      :name="detailName"
       @update:model-value="handleDetailVisibleChange"
       @close="rescuerStore.closeDetail"
       @after-close="handleDetailAfterClose"
@@ -118,7 +118,7 @@ import RescuerLoginLock from './components/rescuer-login-lock.vue'
 
 const authStore = useAuthStore()
 const rescuerStore = useRescuerStore()
-const detailMaskedName = ref('')
+const detailName = ref('')
 
 const listItems = computed(() => rescuerStore.listResponse?.items ?? [])
 const onlineItems = computed(() =>
@@ -172,13 +172,13 @@ async function loadRescuers() {
 }
 
 async function handleDetail(id: string) {
-  detailMaskedName.value = getMaskedNameById(id)
+  detailName.value = getNameById(id)
 
   try {
     await rescuerStore.openRescuerDetail(id)
     auditViewContact(id)
   } catch {
-    detailMaskedName.value = ''
+    detailName.value = ''
     // 错误已在 store 中提示
   }
 }
@@ -207,10 +207,10 @@ function handleDetailVisibleChange(visible: boolean) {
 
 function handleDetailAfterClose() {
   rescuerStore.clearDetail()
-  detailMaskedName.value = ''
+  detailName.value = ''
 }
 
-function getMaskedNameById(rescuerId: string): string {
+function getNameById(rescuerId: string): string {
   return listItems.value.find((item) => item.id === rescuerId)?.name ?? ''
 }
 

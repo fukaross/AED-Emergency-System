@@ -22,7 +22,7 @@ describe('rescuer store', () => {
   it('loads detail silently without mutating modal state', async () => {
     vi.mocked(fetchRescuerDetail).mockResolvedValue({
       id: 'rescuer-001',
-      surname: '周',
+      name: '周雪',
       avatarUrl: '/static/images/avatar-default.png',
       campus: 'guilinyang',
       campusName: 'REDACTED校区',
@@ -48,7 +48,7 @@ describe('rescuer store', () => {
     const store = useRescuerStore()
     const detail = {
       id: 'rescuer-001',
-      surname: '周',
+      name: '周雪',
       avatarUrl: '/static/images/avatar-default.png',
       campus: 'guilinyang',
       campusName: 'REDACTED校区',

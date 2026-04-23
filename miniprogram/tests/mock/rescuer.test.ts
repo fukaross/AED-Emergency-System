@@ -28,7 +28,7 @@ describe('mock rescuers', () => {
   it('returns full contact in rescuer detail for login-only scene', () => {
     const detail = getMockRescuerDetail('rescuer-001')
 
-    expect(detail?.surname).toBe('周')
+    expect(detail?.name).toBe('周雪')
     expect(detail?.phone).toBe('REDACTED')
     expect(detail?.phoneMasked).toBe('135****6789')
     expect(detail?.skills.stb).toBe(true)
