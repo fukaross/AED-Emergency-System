@@ -28,9 +28,9 @@ describe('mock rescuers', () => {
   it('returns full contact in rescuer detail for login-only scene', () => {
     const detail = getMockRescuerDetail('rescuer-001')
 
-    expect(detail?.name).toBe('周雪')
+    expect(detail?.name).toBe('REDACTED')
     expect(detail?.phone).toBe('REDACTED')
-    expect(detail?.phoneMasked).toBe('135****6789')
+    expect(detail?.phoneMasked).toBe('182****7261')
     expect(detail?.skills.stb).toBe(true)
   })
 
@@ -45,10 +45,41 @@ describe('mock rescuers', () => {
   })
 
   it('keeps availability runtime status separate from qualification status', () => {
-    const detail = getMockRescuerDetail('rescuer-004')
+    const detail = getMockRescuerDetail('rescuer-020')
 
-    expect(detail?.qualificationStatus).toBe('inactive')
+    expect(detail?.qualificationStatus).toBe('active')
     expect(detail?.availabilityStatus).toBe('offline')
+  })
+
+  it('matches 20/10 campus split and 8:2 online-offline ratio', () => {
+    const guilinyang = queryMockNearbyRescuers({
+      lat: 19.9743,
+      lng: 110.5178,
+    })
+    const fucheng = queryMockNearbyRescuers({
+      lat: 19.9988,
+      lng: 110.358,
+    })
+
+    const guilinyangOnline = guilinyang.items.filter(
+      (item) => item.availabilityStatus === 'online',
+    ).length
+    const guilinyangOffline = guilinyang.items.filter(
+      (item) => item.availabilityStatus === 'offline',
+    ).length
+    const fuchengOnline = fucheng.items.filter(
+      (item) => item.availabilityStatus === 'online',
+    ).length
+    const fuchengOffline = fucheng.items.filter(
+      (item) => item.availabilityStatus === 'offline',
+    ).length
+
+    expect(guilinyang.items).toHaveLength(20)
+    expect(fucheng.items).toHaveLength(10)
+    expect(guilinyangOnline).toBe(16)
+    expect(guilinyangOffline).toBe(4)
+    expect(fuchengOnline).toBe(8)
+    expect(fuchengOffline).toBe(2)
   })
 
   it('supports manual offline window within 10 hours', () => {
