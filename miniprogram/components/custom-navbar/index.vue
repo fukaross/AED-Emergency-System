@@ -3,7 +3,13 @@
     <view class="navbar-status-bar" :style="{ height: statusBarHeight + 'px' }" />
     <view class="navbar-content" :style="{ height: navBarHeight + 'px' }">
       <view v-if="showBack" class="navbar-back" @click="handleBack">
-        <text class="navbar-back-icon">‹</text>
+        <image
+          v-if="backIcon"
+          class="navbar-back-icon-img"
+          :src="backIcon"
+          mode="aspectFit"
+        />
+        <text v-else class="navbar-back-icon">‹</text>
       </view>
       <view class="navbar-title" :style="titleStyle">
         <text class="navbar-title-text">{{ title }}</text>
@@ -34,6 +40,8 @@ interface Props {
   showBack?: boolean
   transparent?: boolean
   titleAlign?: 'left' | 'center'
+  backIcon?: string
+  beforeBack?: () => boolean | Promise<boolean>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -41,6 +49,8 @@ const props = withDefaults(defineProps<Props>(), {
   showBack: false,
   transparent: false,
   titleAlign: 'left',
+  backIcon: '',
+  beforeBack: undefined,
 })
 
 const statusBarHeight = ref(0)
@@ -74,7 +84,11 @@ onMounted(() => {
   // #endif
 })
 
-function handleBack() {
+async function handleBack() {
+  if (props.beforeBack) {
+    const canBack = await props.beforeBack()
+    if (!canBack) return
+  }
   uni.navigateBack({ delta: 1 })
 }
 </script>
@@ -112,11 +126,18 @@ function handleBack() {
   height: 100%;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
 }
 
 .navbar-back-icon {
   font-size: $font-size-hero;
   color: $text-primary;
+  line-height: 1;
+}
+
+.navbar-back-icon-img {
+  width: 40rpx;
+  height: 40rpx;
 }
 
 .navbar-title {

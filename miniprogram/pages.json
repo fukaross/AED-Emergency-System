@@ -44,7 +44,10 @@
         },
         {
           "path": "profile/edit",
-          "style": { "navigationBarTitleText": "个人资料" }
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "个人资料"
+          }
         },
         {
           "path": "profile/archives",
