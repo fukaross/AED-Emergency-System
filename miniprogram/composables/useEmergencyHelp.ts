@@ -10,11 +10,16 @@ import { ref, reactive } from 'vue'
 import { useHelpStore } from '@/store/help'
 import { useAuthStore } from '@/store/auth'
 import { getCurrentLocation } from '@/services/geo-service'
+import { resolveLocationAddress } from '@/services/location-address-service'
 import { uploadImage } from '@/api/common'
 import type { PublishHelpPayload, PublishHelpResponse } from '@/types/help'
 import { MAX_HELP_IMAGES, SCHOOL_EMERGENCY_PHONE } from '@/utils/constants'
 
 export type HelpType = 'help_hand' | 'call_120' | 'call_school' | 'general'
+
+function formatLocationFallback(lat: number, lng: number): string {
+  return `定位坐标 ${lat.toFixed(6)}, ${lng.toFixed(6)}`
+}
 
 export function useEmergencyHelp() {
   const helpStore = useHelpStore()
@@ -38,13 +43,26 @@ export function useEmergencyHelp() {
     const loc = await getCurrentLocation({ mode: 'interactive' })
 
     if (loc.success) {
+      const resolvedAddress = await resolveLocationAddress({
+        point: loc.point,
+        address: loc.address,
+        name: loc.name,
+      })
+
       form.lat = loc.point.lat
       form.lng = loc.point.lng
-      form.address =
-        loc.address ||
-        loc.name ||
-        form.address ||
-        '定位成功，请补充具体楼栋/楼层信息'
+
+      if (resolvedAddress) {
+        form.address = resolvedAddress
+        return
+      }
+
+      form.address = formatLocationFallback(loc.point.lat, loc.point.lng)
+
+      uni.showToast({
+        title: '已回填定位结果，可继续修改',
+        icon: 'none',
+      })
       return
     }
 
