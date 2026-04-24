@@ -6,6 +6,7 @@ import {
   queryMockArchives,
   saveMockUserProfile,
 } from '@/mock/user'
+import { SOURCE_RESCUER_ARCHIVE_ROWS } from '@/mock/rescuer-source-rows'
 
 const storage = new Map<string, string>()
 
@@ -22,42 +23,55 @@ describe('mock rescuer archives', () => {
     vi.clearAllMocks()
   })
 
-  it('keeps multi-certificate history under one archive profile', () => {
-    const detail = getMockArchiveDetail('archive-001')
+  it('derives archive detail and certificate trace from source rows', () => {
+    const detail = getMockArchiveDetail('archive-jzr-2023-00762')
 
-    expect(detail?.certificateRecords).toHaveLength(2)
-    expect(detail?.certificateRecords.map((item) => item.certificateNo)).toEqual([
-      '460000232004231001138',
-      '460000232004231000138',
-    ])
+    expect(detail?.profile.name).toBe('REDACTED')
+    expect(detail?.profile.phone).toBe('182****7261')
+    expect(detail?.profile.idNumberMasked).toBe('460033******326X')
+    expect(detail?.certificateRecords).toHaveLength(1)
+    expect(detail?.certificateRecords[0]?.certificateNo).toBe(
+      '460000232004231001532',
+    )
+    expect(detail?.certificateRecords[0]?.sourceTrace.sourceRowNo).toBe(39)
   })
 
-  it('lists only active responder qualifications and excludes self', () => {
+  it('lists active source rows and excludes self from items', () => {
     const result = queryMockArchives()
 
-    expect(result.total).toBe(2)
-    expect(result.selfArchive?.id).toBe('archive-self')
-    expect(result.items.map((item) => item.id)).toEqual([
-      'archive-001',
-      'archive-002',
-    ])
+    expect(SOURCE_RESCUER_ARCHIVE_ROWS).toHaveLength(30)
+    expect(result.total).toBe(29)
+    expect(result.selfArchive?.id).toBe('archive-jzr-2023-00762')
+    expect(result.items).toHaveLength(20)
+    expect(result.items[0]?.id).toBe('archive-jzr-2023-00169')
+    expect(result.items.some((item) => item.id === result.selfArchive?.id)).toBe(
+      false,
+    )
   })
 
   it('keeps self archive outside keyword and level filters', () => {
-    const result = queryMockArchives({ keyword: '张三', level: 'core' })
+    const result = queryMockArchives({ keyword: 'REDACTED', level: 'core' })
 
-    expect(result.total).toBe(1)
-    expect(result.selfArchive?.id).toBe('archive-self')
-    expect(result.items.map((item) => item.id)).toEqual(['archive-001'])
+    expect(result.total).toBe(0)
+    expect(result.selfArchive?.id).toBe('archive-jzr-2023-00762')
+    expect(result.items).toHaveLength(0)
   })
 
-  it('retains inactive archive history outside the current list', () => {
-    const result = queryMockArchives()
-    const inactiveDetail = getMockArchiveDetail('archive-003')
+  it('filters other archive rows by keyword and level', () => {
+    const result = queryMockArchives({ keyword: 'REDACTED', level: 'official' })
 
-    expect(result.items.some((item) => item.id === 'archive-003')).toBe(false)
-    expect(inactiveDetail?.certificateRecords).toHaveLength(1)
-    expect(inactiveDetail?.responderQualification?.status).toBe('inactive')
+    expect(result.total).toBe(1)
+    expect(result.items.map((item) => item.id)).toEqual([
+      'archive-jzr-2023-00169',
+    ])
+  })
+
+  it('paginates active archive rows derived from source data', () => {
+    const result = queryMockArchives({ page: 2, pageSize: 20 })
+
+    expect(result.total).toBe(29)
+    expect(result.items).toHaveLength(9)
+    expect(result.items.at(-1)?.id).toBe('archive-jzr-2023-00694')
   })
 
   it('preserves rescuer summary when saving editable profile fields', () => {
@@ -70,9 +84,11 @@ describe('mock rescuer archives', () => {
     )
     expect(reloaded.gender).toBe('female')
     expect(reloaded.phone).toBe('REDACTED')
-    expect(reloaded.rescuerSummary?.archiveProfileId).toBe('archive-self')
+    expect(reloaded.rescuerSummary?.archiveProfileId).toBe(
+      'archive-jzr-2023-00762',
+    )
     expect(reloaded.rescuerSummary?.currentCertificateNo).toBe(
-      '460000242004231000301',
+      '460000232004231001532',
     )
   })
 

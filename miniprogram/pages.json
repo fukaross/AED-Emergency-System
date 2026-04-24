@@ -51,7 +51,10 @@
         },
         {
           "path": "profile/archives",
-          "style": { "navigationBarTitleText": "急救档案" }
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "急救档案"
+          }
         },
         {
           "path": "profile/settings",

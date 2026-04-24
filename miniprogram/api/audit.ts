@@ -152,6 +152,18 @@ export function auditViewContact(rescuerId: string): void {
   ])
 }
 
+/** 便捷方法：记录查看急救档案完整号码 */
+export function auditViewArchivePhone(archiveId: string, purpose: string): void {
+  submitAuditBatch([
+    {
+      eventType: 'archive',
+      eventName: 'archive.view_phone',
+      targetId: archiveId,
+      metadata: { purpose },
+    },
+  ])
+}
+
 /** 便捷方法：记录拨打急救员电话 */
 export function auditCallResponder(rescuerId: string): void {
   submitAuditBatch([
