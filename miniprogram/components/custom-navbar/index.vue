@@ -106,7 +106,7 @@ async function handleBack() {
 .custom-navbar--transparent {
   background: linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.8),
+    var(--bg-nav-transparent, rgba(255, 255, 255, 0.8)),
     rgba(255, 255, 255, 0)
   );
 }

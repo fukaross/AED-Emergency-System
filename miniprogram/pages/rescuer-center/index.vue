@@ -1,5 +1,5 @@
 <template>
-  <view class="rescuer-center">
+  <view class="rescuer-center" :class="themeClass">
     <!-- 登录锁页态 -->
     <RescuerLoginLock v-if="!authStore.isLoggedIn" @login="handleLogin" />
 
@@ -106,6 +106,7 @@ import { onShow } from '@dcloudio/uni-app'
 const ACTIVE_BANNER = '/static/icons/rescuer-active.svg'
 const INACTIVE_BANNER = '/static/icons/rescuer-inactive.svg'
 
+import { useTheme } from '@/composables/useTheme'
 import { useAuthStore } from '@/store/auth'
 import { useRescuerStore } from '@/store/rescuer'
 import { getCurrentLocation } from '@/services/geo-service'
@@ -118,6 +119,7 @@ import RescuerLoginLock from './components/rescuer-login-lock.vue'
 
 const authStore = useAuthStore()
 const rescuerStore = useRescuerStore()
+const { themeClass } = useTheme()
 const detailName = ref('')
 
 const listItems = computed(() => rescuerStore.listResponse?.items ?? [])

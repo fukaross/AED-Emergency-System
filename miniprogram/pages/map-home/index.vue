@@ -1,5 +1,5 @@
 <template>
-  <view class="map-home">
+  <view class="map-home" :class="themeClass">
     <CustomNavbar
       title="REDACTED地图"
       :transparent="true"
@@ -59,6 +59,7 @@ import { onShow } from '@dcloudio/uni-app'
 import AppTabBar from '@/components/app-tab-bar/index.vue'
 import CustomNavbar from '@/components/custom-navbar/index.vue'
 import { useAedMap } from '@/composables/useAedMap'
+import { useTheme } from '@/composables/useTheme'
 import {
   createMapCtx,
   openNativeNavigation,
@@ -84,6 +85,7 @@ const MARKER_TAP_GUARD_MS = 250
 const MAP_LOAD_ERROR_TEXT = '地图加载失败，请检查网络后重试'
 
 const aedStore = useAedStore()
+const { themeClass } = useTheme()
 const {
   mapCenter,
   mapZoom,

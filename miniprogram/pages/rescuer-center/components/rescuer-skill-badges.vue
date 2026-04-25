@@ -60,12 +60,12 @@ const visibleTags = computed<TagItem[]>(() => [
 }
 
 .skill-tag--yes {
-  background: #E8F5E9;
+  background: var(--skill-cert-bg, #E8F5E9);
   color: $status-online;
 }
 
 .skill-tag--no {
-  background: #F5F5F5;
+  background: $background-card-disabled;
   color: $status-offline;
 }
 

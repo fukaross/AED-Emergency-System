@@ -58,7 +58,10 @@
         },
         {
           "path": "profile/settings",
-          "style": { "navigationBarTitleText": "设置" }
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "设置"
+          }
         },
         {
           "path": "emergency-guide/index",

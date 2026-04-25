@@ -1,0 +1,89 @@
+/**
+ * AED 急救小程序 — 深色/浅色主题 CSS 自定义属性
+ *
+ * .theme-light 定义亮色默认值，.theme-dark 覆写为暗色值。
+ * 级联方式：每页根元素 :class="themeClass"。
+ * 本文件在 App.vue 全局 style 中引入，不作为 SCSS 变量注入。
+ *
+ * [G-06] 本文件与 variables.scss 的 fallback 值严格对齐。
+ */
+
+// ===== Light（默认）=====
+.theme-light {
+  // 背景
+  --bg-page: #F5F5F5;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F1F1F1;
+  --bg-card-disabled: #F0F0F0;
+  --bg-nav-transparent: rgba(255, 255, 255, 0.8);
+
+  // 文字
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --text-tertiary-a11y: #757575;
+  --text-disabled: #C0C0C0;
+
+  // 分割线
+  --divider: #EEEEEE;
+  --divider-light: #F0F0F0;
+
+  // 遮罩
+  --overlay: rgba(0, 0, 0, 0.5);
+
+  // 阴影
+  --shadow-card: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+  --shadow-fab: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+  --shadow-modal: 0 8rpx 32rpx rgba(0, 0, 0, 0.15);
+
+  // 浅色底标签/徽章
+  --tag-light-bg: rgba(255, 255, 255, 0.9);
+  --tag-glass-bg: rgba(255, 255, 255, 0.25);
+
+  // 品牌色浅底（快捷卡片 / 级别标签 / 技能标签）
+  --card-red-bg: #FFF5F5;
+  --badge-honor-bg: #FFFBE6;
+  --badge-official-bg: #F6FFED;
+  --badge-core-bg: #E6F4FF;
+  --skill-cert-bg: #E8F5E9;
+}
+
+// ===== Dark =====
+.theme-dark {
+  // 背景
+  --bg-page: #121926;
+  --bg-card: #1e293b;
+  --bg-hover: #263348;
+  --bg-card-disabled: #1a2332;
+  --bg-nav-transparent: rgba(18, 25, 38, 0.8);
+
+  // 文字
+  --text-primary: #cbd5e1;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --text-tertiary-a11y: #8b9db5;
+  --text-disabled: #475569;
+
+  // 分割线
+  --divider: #1e293b;
+  --divider-light: #263348;
+
+  // 遮罩（在暗色背景上需更深）
+  --overlay: rgba(0, 0, 0, 0.72);
+
+  // 阴影（暗色背景上去除）
+  --shadow-card: none;
+  --shadow-fab: none;
+  --shadow-modal: none;
+
+  // 浅色底标签/徽章 → 改为暗色半透明
+  --tag-light-bg: rgba(30, 41, 59, 0.9);
+  --tag-glass-bg: rgba(30, 41, 59, 0.25);
+
+  // 品牌色浅底 → 暗化以保证文字可读
+  --card-red-bg: #2a1a1a;
+  --badge-honor-bg: #2a2410;
+  --badge-official-bg: #1a2a18;
+  --badge-core-bg: #18202a;
+  --skill-cert-bg: #1a2a1a;
+}

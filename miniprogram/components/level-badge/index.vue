@@ -47,7 +47,7 @@ const iconPath = computed(() => LEVEL_ICONS[props.level])
   height: 40rpx;
   padding: 0 14rpx;
   border-radius: 20rpx;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--tag-light-bg, rgba(255, 255, 255, 0.9));
   gap: 6rpx;
 }
 
@@ -64,8 +64,8 @@ const iconPath = computed(() => LEVEL_ICONS[props.level])
   white-space: nowrap;
 }
 
-.level-badge--honor  { border: 2rpx solid $level-honor; background: #FFFBE6; }
-.level-badge--trainee { border: 2rpx solid $level-trainee; background: #F5F5F5; }
-.level-badge--official { border: 2rpx solid $level-official; background: #F6FFED; }
-.level-badge--core   { border: 2rpx solid $level-core; background: #E6F4FF; }
+.level-badge--honor  { border: 2rpx solid $level-honor; background: var(--badge-honor-bg, #FFFBE6); }
+.level-badge--trainee { border: 2rpx solid $level-trainee; background: $background-card-disabled; }
+.level-badge--official { border: 2rpx solid $level-official; background: var(--badge-official-bg, #F6FFED); }
+.level-badge--core   { border: 2rpx solid $level-core; background: var(--badge-core-bg, #E6F4FF); }
 </style>

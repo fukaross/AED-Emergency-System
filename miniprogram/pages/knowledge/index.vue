@@ -1,5 +1,5 @@
 <template>
-  <view class="knowledge">
+  <view class="knowledge" :class="themeClass">
     <!-- 轮播横幅 -->
     <view class="kn-banner-wrap">
       <swiper
@@ -73,6 +73,7 @@
  * 设计来源：CLAUDE.md §4.3 + page-Instrument.md
  */
 import { onShow } from '@dcloudio/uni-app'
+import { useTheme } from '@/composables/useTheme'
 import { useCourseStore } from '@/store/course'
 import { fetchCourseByType } from '@/api/course'
 import type { BannerItem } from '@/types/common'
@@ -92,6 +93,7 @@ const QUICK_ACTIONS: readonly {
 ]
 
 const courseStore = useCourseStore()
+const { themeClass } = useTheme()
 
 // ===== 轮播点击 =====
 function handleBannerClick(banner: BannerItem) {
@@ -171,7 +173,7 @@ onShow(() => {
 .kn-quick-card {
   flex: 1;
   height: 120rpx;
-  background: #FFF5F5;
+  background: var(--card-red-bg, #FFF5F5);
   border-radius: $radius-md;
   border-left: 4rpx solid $primary;
   @include flex-align-center;

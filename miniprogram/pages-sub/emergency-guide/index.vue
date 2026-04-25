@@ -1,5 +1,5 @@
 <template>
-  <view class="emergency-guide">
+  <view class="emergency-guide" :class="themeClass">
     <text>急救教程 — 页面骨架</text>
   </view>
 </template>
@@ -14,6 +14,8 @@
  *
  * 详细设计见 CLAUDE.md §4.5.6
  */
+import { useTheme } from '@/composables/useTheme'
+const { themeClass } = useTheme()
 </script>
 
 <style lang="scss" scoped>

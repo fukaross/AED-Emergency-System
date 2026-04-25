@@ -1,5 +1,5 @@
 <template>
-  <view class="pe-root">
+  <view class="pe-root" :class="themeClass">
     <custom-navbar
       title="个人资料"
       :show-back="true"
@@ -118,6 +118,7 @@
 import LevelBadge from '@/components/level-badge/index.vue'
 import CustomNavbar from '@/components/custom-navbar/index.vue'
 import { useProfileEditForm } from './useProfileEditForm'
+import { useTheme } from '@/composables/useTheme'
 
 const BACK_ICON = '/static/icons/ico-left-arrow.svg'
 
@@ -136,6 +137,7 @@ const {
   saving,
   schoolProfile,
 } = useProfileEditForm()
+const { themeClass } = useTheme()
 </script>
 
 <style src="./edit.scss" lang="scss" scoped></style>

@@ -1,5 +1,5 @@
 <template>
-  <view class="step-guide">
+  <view class="step-guide" :class="themeClass">
     <text>急救步骤 — 页面骨架</text>
   </view>
 </template>
@@ -13,6 +13,8 @@
  *
  * 详细设计见 CLAUDE.md §4.5.8
  */
+import { useTheme } from '@/composables/useTheme'
+const { themeClass } = useTheme()
 </script>
 
 <style lang="scss" scoped>

@@ -32,20 +32,20 @@ $link-blue: #4A90E2;         // 可点击链接
 $help-button-bg: #E60000;    // 紧急帮助按钮底色
 
 // ===== 中性色 =====
-$text-primary: #333333;
-$text-secondary: #666666;
-$text-tertiary: #999999;     // ⚠️ 白底对比度 2.9:1，辅助文字建议用 #757575 (4.6:1)
-$text-tertiary-a11y: #757575; // 无障碍合规替代色
+$text-primary: var(--text-primary, #333333);
+$text-secondary: var(--text-secondary, #666666);
+$text-tertiary: var(--text-tertiary, #999999);     // ⚠️ 白底对比度 2.9:1，辅助文字建议用 #757575 (4.6:1)
+$text-tertiary-a11y: var(--text-tertiary-a11y, #757575); // 无障碍合规替代色
 $text-placeholder: #808080;
-$text-disabled: #C0C0C0;
+$text-disabled: var(--text-disabled, #C0C0C0);
 $text-white: #FFFFFF;
-$background: #F5F5F5;
-$background-white: #FFFFFF;
-$background-hover: #F1F1F1;
-$background-card-disabled: #F0F0F0;
-$divider: #EEEEEE;
-$divider-light: #F0F0F0;
-$overlay-mask: rgba(0, 0, 0, 0.5);
+$background: var(--bg-page, #F5F5F5);
+$background-white: var(--bg-card, #FFFFFF);
+$background-hover: var(--bg-hover, #F1F1F1);
+$background-card-disabled: var(--bg-card-disabled, #F0F0F0);
+$divider: var(--divider, #EEEEEE);
+$divider-light: var(--divider-light, #F0F0F0);
+$overlay-mask: var(--overlay, rgba(0, 0, 0, 0.5));
 
 // ===== 字体大小 =====
 $font-size-xs: 20rpx;        // 辅助文字（标签内、TabBar 文字）
@@ -84,9 +84,9 @@ $radius-pill: 36rpx;         // 胶囊按钮
 $radius-full: 50%;           // 圆形
 
 // ===== 阴影层级 =====
-$shadow-sm: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);       // 卡片
-$shadow-md: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);        // 浮动按钮
-$shadow-lg: 0 8rpx 32rpx rgba(0, 0, 0, 0.15);       // 弹窗
+$shadow-sm: var(--shadow-card, 0 2rpx 8rpx rgba(0, 0, 0, 0.06));       // 卡片
+$shadow-md: var(--shadow-fab, 0 4rpx 16rpx rgba(0, 0, 0, 0.1));        // 浮动按钮
+$shadow-lg: var(--shadow-modal, 0 8rpx 32rpx rgba(0, 0, 0, 0.15));       // 弹窗
 $shadow-primary: 0 4rpx 16rpx rgba(229, 57, 53, 0.3); // 红色主按钮
 $shadow-warning: 0 4rpx 16rpx rgba(255, 193, 7, 0.4); // 黄色警告按钮
 

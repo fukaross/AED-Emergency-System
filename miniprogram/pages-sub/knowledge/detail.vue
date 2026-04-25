@@ -1,5 +1,5 @@
 <template>
-  <view class="course-detail">
+  <view class="course-detail" :class="themeClass">
     <text>课程详情 — 页面骨架</text>
   </view>
 </template>
@@ -13,6 +13,8 @@
  *
  * 详细设计见 CLAUDE.md §4.5.7
  */
+import { useTheme } from '@/composables/useTheme'
+const { themeClass } = useTheme()
 </script>
 
 <style lang="scss" scoped>

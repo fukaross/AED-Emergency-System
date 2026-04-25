@@ -1,5 +1,5 @@
 <template>
-  <view class="profile">
+  <view class="profile" :class="themeClass">
     <!-- 沉浸式头部 -->
     <view class="pf-header" :style="{ paddingTop: statusBarPx }">
       <image class="pf-header-bg" :src="PROFILE_BG" mode="aspectFill" />
@@ -73,6 +73,7 @@
  */
 import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { useTheme } from '@/composables/useTheme'
 import { useAuthStore } from '@/store/auth'
 import { useUserStore } from '@/store/user'
 import { uploadImage } from '@/api/common'
@@ -101,6 +102,7 @@ const MENU_ITEMS: readonly MenuItem[] = [
 
 const authStore = useAuthStore()
 const userStore = useUserStore()
+const { themeClass } = useTheme()
 
 const sysInfo = uni.getSystemInfoSync()
 const statusBarPx = `${sysInfo.statusBarHeight ?? 0}px`
@@ -277,7 +279,7 @@ onShow(() => {
 }
 
 .pf-cert--yes { background: #22C55E; }
-.pf-cert--no { background: #9CA3AF; }
+.pf-cert--no { background: $status-offline; }
 
 .pf-cert-text { font-size: $font-size-xs; color: $text-white; }
 
@@ -301,7 +303,7 @@ onShow(() => {
   height: 56rpx;
   padding: 0 $spacing-lg;
   border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--tag-glass-bg, rgba(255, 255, 255, 0.25));
   @include flex-center;
 }
 

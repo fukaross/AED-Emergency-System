@@ -1,5 +1,5 @@
 <template>
-  <scroll-view class="help-request" scroll-y>
+  <scroll-view class="help-request" :class="themeClass" scroll-y>
     <!-- 当前位置 -->
     <view class="section-card">
       <view class="section-header">
@@ -102,6 +102,7 @@
  */
 import { onMounted } from 'vue'
 import { useEmergencyHelp } from '@/composables/useEmergencyHelp'
+import { useTheme } from '@/composables/useTheme'
 
 const {
   form,
@@ -114,6 +115,7 @@ const {
   addImage,
   submit,
 } = useEmergencyHelp()
+const { themeClass } = useTheme()
 
 onMounted(() => {
   void autoLocate()

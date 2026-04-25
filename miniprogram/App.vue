@@ -19,5 +19,6 @@ onHide(() => {
 </script>
 
 <style lang="scss">
+@use './common/styles/theme.scss';
 @use './common/styles/reset.scss';
 </style>

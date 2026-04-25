@@ -1,5 +1,5 @@
 <template>
-  <view class="ar-root">
+  <view class="ar-root" :class="themeClass">
     <custom-navbar title="急救档案" :show-back="true" :back-icon="BACK_ICON" />
 
     <view class="ar-search">
@@ -90,6 +90,7 @@ import CustomNavbar from '@/components/custom-navbar/index.vue'
 import ArchiveCard from './archive-card.vue'
 import ArchivePhoneModal from './archive-phone-modal.vue'
 import { useArchivesPage } from './useArchivesPage'
+import { useTheme } from '@/composables/useTheme'
 
 const BACK_ICON = '/static/icons/ico-left-arrow.svg'
 const SEARCH_ICON = '/static/icons/search.svg'
@@ -117,6 +118,7 @@ const {
   selfArchive,
   showPhoneModal,
 } = useArchivesPage()
+const { themeClass } = useTheme()
 </script>
 
 <style src="./archives.scss" lang="scss" scoped></style>

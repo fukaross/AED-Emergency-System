@@ -1,5 +1,5 @@
 <template>
-  <view class="webview-container">
+  <view class="webview-container" :class="themeClass">
     <web-view v-if="url" :src="url" />
     <view v-else class="webview-error">
       <text class="webview-error__title">链接无效或缺失</text>
@@ -28,9 +28,11 @@
  */
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useTheme } from '@/composables/useTheme'
 
 const url = ref('')
 const rawUrl = ref('')
+const { themeClass } = useTheme()
 
 function isValidWebUrl(target: string): boolean {
   return /^https:\/\//i.test(target)

@@ -10,7 +10,7 @@
   height: 72rpx;
   margin: 16rpx $spacing-md;
   padding: 0 $spacing-md;
-  background: #F5F5F5;
+  background: $background;
   border-radius: $radius-pill;
 }
 
@@ -97,7 +97,7 @@
 .ar-divider-line {
   flex: 1;
   height: 2rpx;
-  background: #D0D0D0;
+  background: $divider;
 }
 
 .ar-divider-text {
