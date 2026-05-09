@@ -46,6 +46,7 @@
   --badge-official-bg: #F6FFED;
   --badge-core-bg: #E6F4FF;
   --skill-cert-bg: #E8F5E9;
+  --icon-arrow-filter: none;
 }
 
 // ===== Dark =====
@@ -86,4 +87,5 @@
   --badge-official-bg: #1a2a18;
   --badge-core-bg: #18202a;
   --skill-cert-bg: #1a2a1a;
+  --icon-arrow-filter: invert(1);
 }

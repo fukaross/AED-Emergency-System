@@ -4,12 +4,25 @@
  * REDACTED AED Emergency Mini-Program
  */
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
+import { useSettingsStore } from '@/store/settings'
+
+function applyGlobalTheme() {
+  const store = useSettingsStore()
+  const dark = store.darkMode
+  const bg = dark ? '#121926' : '#F5F5F5'
+  const fg = dark ? '#ffffff' : '#000000'
+
+  uni.setBackgroundColor({ backgroundColor: bg, backgroundColorTop: bg })
+  uni.setNavigationBarColor({ frontColor: fg, backgroundColor: bg })
+}
 
 onLaunch(() => {
+  applyGlobalTheme()
   console.log('[AED] App Launch')
 })
 
 onShow(() => {
+  applyGlobalTheme()
   console.log('[AED] App Show')
 })
 

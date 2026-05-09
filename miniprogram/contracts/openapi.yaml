@@ -41,7 +41,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AedItem'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -59,6 +66,15 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AedDetail'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -84,6 +100,10 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -415,6 +435,15 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CourseListPage'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -433,6 +462,15 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CourseByTypeResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -450,6 +488,15 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CourseDetail'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -487,6 +534,10 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -600,6 +651,15 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BannerList'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -621,6 +681,15 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LoginResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -636,7 +705,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LoginResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -664,6 +738,15 @@ paths:
       responses:
         '200':
           description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UploadImageResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -708,14 +791,14 @@ components:
   schemas:
     ApiResponse:
       type: object
-      required: [code, message, data]
+      required: [code, message]
       properties:
         code:
           type: integer
         message:
           type: string
         data:
-          description: 响应数据，具体结构由各接口定义
+          description: 响应数据，具体结构由各接口定义；错误响应可省略，空成功响应可为 null
 
     AedReportRequest:
       type: object
@@ -737,6 +820,48 @@ components:
           type: string
         contactEmail:
           type: string
+
+    AedItem:
+      type: object
+      required:
+        - id
+        - name
+        - lat
+        - lng
+        - status
+        - image
+        - address
+        - lastMaintenance
+        - nextMaintenance
+        - maintainer
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        status:
+          type: string
+          enum: [online, offline]
+        distance:
+          type: number
+        image:
+          type: string
+        address:
+          type: string
+        lastMaintenance:
+          type: string
+        nextMaintenance:
+          type: string
+        maintainer:
+          type: string
+
+    AedDetail:
+      allOf:
+        - $ref: '#/components/schemas/AedItem'
 
     CampusCode:
       type: string
@@ -1169,6 +1294,112 @@ components:
         phone:
           type: string
 
+    CourseSummary:
+      type: object
+      required:
+        - id
+        - title
+        - thumbnail
+        - type
+        - category
+        - createdAt
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        thumbnail:
+          type: string
+        type:
+          type: string
+          enum: [article, video]
+        category:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        pinned:
+          type: boolean
+        sortOrder:
+          type: integer
+        isEmergency:
+          type: boolean
+        cacheVersion:
+          type: string
+        estimatedTime:
+          type: string
+
+    CourseStep:
+      type: object
+      required: [title, description, image]
+      properties:
+        order:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        image:
+          type: string
+        keyPoints:
+          type: array
+          items:
+            type: string
+
+    CourseDetail:
+      allOf:
+        - $ref: '#/components/schemas/CourseSummary'
+        - type: object
+          required: [content, videoUrl, steps]
+          properties:
+            content:
+              type: string
+            videoUrl:
+              type: string
+              nullable: true
+            disclaimer:
+              type: string
+            steps:
+              type: array
+              items:
+                $ref: '#/components/schemas/CourseStep'
+            viewCount:
+              type: integer
+
+    CourseListPage:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CourseSummary'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    CourseByTypeResponse:
+      type: object
+      required: [id, title, contentType, entryMode, summary]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        contentType:
+          type: string
+          enum: [article, video, steps]
+        entryMode:
+          type: string
+          enum: [detail, steps]
+        summary:
+          type: string
+
     SchoolProfile:
       type: object
       required: [college, bindingStatus]
@@ -1221,6 +1452,61 @@ components:
         workUnit:
           type: string
           nullable: true
+
+    BannerItem:
+      type: object
+      required: [id, image, title, linkType, linkTarget, sortOrder]
+      properties:
+        id:
+          type: string
+        image:
+          type: string
+        title:
+          type: string
+        linkType:
+          type: string
+          enum: [course, url, page, none]
+        linkTarget:
+          type: string
+        sortOrder:
+          type: integer
+
+    BannerList:
+      type: array
+      items:
+        $ref: '#/components/schemas/BannerItem'
+
+    LoginResponse:
+      type: object
+      required: [token, expiresIn, userInfo]
+      properties:
+        token:
+          type: string
+        expiresIn:
+          type: integer
+        userInfo:
+          type: object
+          required: [id, name, avatarUrl, isNewUser]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            avatarUrl:
+              type: string
+            isNewUser:
+              type: boolean
+
+    UploadImageResponse:
+      type: object
+      required: [url, thumbnail, fileId]
+      properties:
+        url:
+          type: string
+        thumbnail:
+          type: string
+        fileId:
+          type: string
 
     UserProfile:
       type: object

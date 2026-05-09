@@ -14,7 +14,13 @@ const STORAGE_PREFIX = 'aed_settings_'
 function loadBool(key: string, defaultVal: boolean): boolean {
   try {
     const val = uni.getStorageSync(`${STORAGE_PREFIX}${key}`)
-    return val === '' || val === undefined ? defaultVal : Boolean(val)
+    if (val === '' || val === undefined || val === null) return defaultVal
+    if (typeof val === 'string') {
+      if (val === 'true') return true
+      if (val === 'false') return false
+      return defaultVal
+    }
+    return Boolean(val)
   } catch {
     return defaultVal
   }

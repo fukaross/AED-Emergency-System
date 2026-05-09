@@ -138,6 +138,7 @@ async function handleBack() {
 .navbar-back-icon-img {
   width: 40rpx;
   height: 40rpx;
+  filter: var(--icon-arrow-filter, none);
 }
 
 .navbar-title {

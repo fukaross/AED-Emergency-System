@@ -57,4 +57,19 @@ describe('settings store', () => {
     expect(store.darkMode).toBe(true)
     expect(store.fontScale).toBe(1.2)
   })
+
+  it('parses string boolean values from storage', () => {
+    const mockStorage: Record<string, unknown> = {
+      'aed_settings_notification': 'false',
+      'aed_settings_darkMode': 'false',
+      'aed_settings_reducedMotion': 'true',
+    }
+    vi.mocked(uni.getStorageSync).mockImplementation((key: string) => mockStorage[key])
+
+    const store = useSettingsStore()
+
+    expect(store.notificationEnabled).toBe(false)
+    expect(store.darkMode).toBe(false)
+    expect(store.reducedMotion).toBe(true)
+  })
 })
