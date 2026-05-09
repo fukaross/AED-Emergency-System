@@ -7,6 +7,12 @@ import {
   queryMockNearbyRescuers,
   updateMockMyRescuerAvailability,
 } from '@/mock/rescuer'
+import { MOCK_RESCUERS } from '@/mock/rescuer-fixtures'
+import {
+  FEATURED_MOCK_RESCUER_ID,
+  resolveCampusCodeFromSource,
+} from '@/mock/rescuer-qualification-fixtures'
+import { SOURCE_RESCUER_ARCHIVE_ROWS } from '@/mock/rescuer-source-rows'
 
 describe('mock rescuers', () => {
   beforeEach(() => {
@@ -34,6 +40,43 @@ describe('mock rescuers', () => {
     expect(detail?.skills.stb).toBe(true)
   })
 
+  it('pins the featured new rescuer online in Guilinyang campus', () => {
+    const result = queryMockNearbyRescuers({
+      lat: 19.9743,
+      lng: 110.5178,
+    })
+    const detail = getMockRescuerDetail(FEATURED_MOCK_RESCUER_ID)
+
+    expect(result.items[0]?.id).toBe(FEATURED_MOCK_RESCUER_ID)
+    expect(result.items[0]?.name).toBe('REDACTED')
+    expect(result.items[0]?.level).toBe('honor')
+    expect(result.items[0]?.availabilityStatus).toBe('online')
+    expect(detail?.campus).toBe('guilinyang')
+  })
+
+  it('derives skill flags from source assessment results', () => {
+    expect(MOCK_RESCUERS).toHaveLength(SOURCE_RESCUER_ARCHIVE_ROWS.length)
+
+    MOCK_RESCUERS.forEach((record, index) => {
+      const row = SOURCE_RESCUER_ARCHIVE_ROWS[index]
+      const cprAedPassed = row.cprAedCombinedResult === '合格'
+
+      expect(record.skills).toEqual({
+        cpr: row.cprAssessmentResult === '合格' || cprAedPassed,
+        aed: row.aedAssessmentResult === '合格' || cprAedPassed,
+        stb: row.traumaAssessmentResult === '合格',
+      })
+    })
+  })
+
+  it('derives campus from source training session instead of array position', () => {
+    MOCK_RESCUERS.forEach((record, index) => {
+      expect(record.campus).toBe(
+        resolveCampusCodeFromSource(SOURCE_RESCUER_ARCHIVE_ROWS[index]),
+      )
+    })
+  })
+
   it('returns empty state list when viewer is outside both campus service radii', () => {
     const result = queryMockNearbyRescuers({
       lat: 20.45,
@@ -45,13 +88,13 @@ describe('mock rescuers', () => {
   })
 
   it('keeps availability runtime status separate from qualification status', () => {
-    const detail = getMockRescuerDetail('rescuer-020')
+    const detail = getMockRescuerDetail('rescuer-025')
 
     expect(detail?.qualificationStatus).toBe('active')
     expect(detail?.availabilityStatus).toBe('offline')
   })
 
-  it('matches 20/10 campus split and 8:2 online-offline ratio', () => {
+  it('matches campus split and online-offline ratio after featured override', () => {
     const guilinyang = queryMockNearbyRescuers({
       lat: 19.9743,
       lng: 110.5178,
@@ -74,12 +117,12 @@ describe('mock rescuers', () => {
       (item) => item.availabilityStatus === 'offline',
     ).length
 
-    expect(guilinyang.items).toHaveLength(20)
-    expect(fucheng.items).toHaveLength(10)
-    expect(guilinyangOnline).toBe(16)
-    expect(guilinyangOffline).toBe(4)
+    expect(guilinyang.items).toHaveLength(22)
+    expect(fucheng.items).toHaveLength(9)
+    expect(guilinyangOnline).toBe(17)
+    expect(guilinyangOffline).toBe(5)
     expect(fuchengOnline).toBe(8)
-    expect(fuchengOffline).toBe(2)
+    expect(fuchengOffline).toBe(1)
   })
 
   it('supports manual offline window within 10 hours', () => {
