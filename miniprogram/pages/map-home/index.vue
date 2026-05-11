@@ -29,6 +29,13 @@
       @nearest="handleNearest"
     />
 
+    <VitalSignsCard
+      :heart-rate="vitalsStore.currentHeartRate"
+      :latest-blood-pressure="vitalsStore.latestBloodPressure"
+      :heart-rate-status="vitalsStore.heartRateStatus"
+      :blood-pressure-stale="vitalsStore.bloodPressureStale"
+    />
+
     <MapStatusOverlay
       :status-message="statusMessage"
       :status-bar-dismissed="statusBarDismissed"
@@ -54,8 +61,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { onHide, onShow } from '@dcloudio/uni-app'
 import AppTabBar from '@/components/app-tab-bar/index.vue'
 import CustomNavbar from '@/components/custom-navbar/index.vue'
 import { useAedMap } from '@/composables/useAedMap'
@@ -66,12 +73,14 @@ import {
   RIPPLE_ID_BASE,
 } from '@/services/map-service'
 import { useAedStore } from '@/store/aed'
+import { useVitalsStore } from '@/store/vitals'
 import type { AedItem } from '@/types/aed'
 import { MAP_CENTER } from '@/utils/constants'
 import AedDetailModal from './components/aed-detail-modal.vue'
 import MapFloatingActions from './components/map-floating-actions.vue'
 import MapStatusOverlay from './components/map-status-overlay.vue'
 import NearbyAedPanel from './components/nearby-aed-panel.vue'
+import VitalSignsCard from './components/vital-signs-card.vue'
 
 interface MarkerTapEvent {
   readonly markerId?: number
@@ -85,6 +94,7 @@ const MARKER_TAP_GUARD_MS = 250
 const MAP_LOAD_ERROR_TEXT = '地图加载失败，请检查网络后重试'
 
 const aedStore = useAedStore()
+const vitalsStore = useVitalsStore()
 const { themeClass } = useTheme()
 const {
   mapCenter,
@@ -120,6 +130,15 @@ onShow(() => {
     loc?.lat ?? MAP_CENTER.latitude,
     loc?.lng ?? MAP_CENTER.longitude,
   )
+  vitalsStore.startMonitoring()
+})
+
+onHide(() => {
+  vitalsStore.stopMonitoring()
+})
+
+onUnmounted(() => {
+  vitalsStore.stopMonitoring()
 })
 
 const statusMessage = computed(() => {

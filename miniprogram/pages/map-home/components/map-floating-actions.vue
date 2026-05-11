@@ -67,9 +67,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, reactive } from 'vue'
+import { useNavbarSafeArea } from '@/composables/useNavbarSafeArea'
 
-const DEFAULT_NAVBAR_HEIGHT = 44
 const HELP_TOP_GAP_PX = 10
 const EMERGENCY_CALL_ICON = '/static/images/emergency-call.png'
 const LIST_ICON = '/static/icons/list.svg'
@@ -85,7 +85,7 @@ const emit = defineEmits<{
   nearest: []
 }>()
 
-const navbarBottom = ref(0)
+const { navbarBottom } = useNavbarSafeArea()
 const pressedStates = reactive<Record<PressedKey, boolean>>({
   help: false,
   nearby: false,
@@ -96,30 +96,6 @@ const pressedStates = reactive<Record<PressedKey, boolean>>({
 const fabHelpStyle = computed(() => ({
   top: `${navbarBottom.value + HELP_TOP_GAP_PX}px`,
 }))
-
-onMounted(() => {
-  navbarBottom.value = resolveNavbarBottom()
-})
-
-function resolveNavbarBottom(): number {
-  const windowInfo =
-    typeof uni.getWindowInfo === 'function'
-      ? uni.getWindowInfo()
-      : uni.getSystemInfoSync()
-  const statusBarHeight = windowInfo.statusBarHeight ?? 0
-  let navBarHeight = DEFAULT_NAVBAR_HEIGHT
-
-  // #ifdef MP-WEIXIN
-  try {
-    const menuBtn = uni.getMenuButtonBoundingClientRect()
-    navBarHeight = (menuBtn.top - statusBarHeight) * 2 + menuBtn.height
-  } catch {
-    navBarHeight = DEFAULT_NAVBAR_HEIGHT
-  }
-  // #endif
-
-  return statusBarHeight + navBarHeight
-}
 
 function setPressed(key: PressedKey, value: boolean): void {
   pressedStates[key] = value
