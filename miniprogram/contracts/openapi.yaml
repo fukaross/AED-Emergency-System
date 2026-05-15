@@ -215,6 +215,9 @@ paths:
   /api/help/request:
     post:
       summary: 发布求助需求
+      description: >
+        求助创建成功并进入 published 状态后，服务端应通过微信订阅消息通知校医室、
+        发布者辅导员、附近有效急救员和值班老师；手动求助不通知家长/监护人。
       operationId: createHelpRequest
       security:
         - bearerAuth: []
