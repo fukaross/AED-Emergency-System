@@ -8,8 +8,9 @@
  * GET  /api/user/archives            — 急救档案列表 [登录]
  * GET  /api/user/archives/:id        — 急救档案详情 [登录]
  * GET  /api/user/archives/:id/phone  — 查看完整电话 [登录 + 权限]
+ * POST /api/user/volunteer-applications — 提交志愿者入队申请 [登录]
  */
-import { get, put } from '@/services/request'
+import { get, post, put } from '@/services/request'
 import type {
   ArchiveDetail,
   UserProfile,
@@ -17,12 +18,17 @@ import type {
   ArchiveListParams,
   ArchiveListResponse,
 } from '@/types/user'
+import type {
+  VolunteerApplicationPayload,
+  VolunteerApplicationResponse,
+} from '@/types/volunteer'
 import {
   canMockViewFullPhone,
   getMockArchiveDetail,
   getMockArchivePhone,
   loadMockUserProfile,
   queryMockArchives,
+  saveMockVolunteerApplication,
   saveMockUserProfile,
 } from '@/mock/user'
 import { USE_MOCK } from '@/utils/runtime-env'
@@ -103,5 +109,19 @@ export function fetchArchivePhone(
   return get<{ phone: string }>(
     `/api/user/archives/${archiveId}/phone`,
     { purpose },
+  )
+}
+
+/** 提交校园 AED 急救志愿者入队申请 */
+export function submitVolunteerApplication(
+  payload: VolunteerApplicationPayload,
+): Promise<VolunteerApplicationResponse> {
+  if (USE_MOCK) {
+    return Promise.resolve(saveMockVolunteerApplication(payload))
+  }
+
+  return post<VolunteerApplicationResponse>(
+    '/api/user/volunteer-applications',
+    payload as unknown as Record<string, unknown>,
   )
 }

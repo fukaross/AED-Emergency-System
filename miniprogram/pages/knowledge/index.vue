@@ -1,28 +1,15 @@
 <template>
   <view class="knowledge" :class="themeClass">
-    <!-- 轮播横幅 -->
-    <view class="kn-banner-wrap">
-      <swiper
-        class="kn-banner"
-        :autoplay="true"
-        :interval="SWIPER_INTERVAL"
-        :circular="true"
-        indicator-dots
-        indicator-color="rgba(255,255,255,0.4)"
-        indicator-active-color="#FFFFFF"
+    <!-- 数据展示横幅 -->
+    <view class="kn-stats-banner">
+      <view
+        v-for="item in knowledgeStore.summaryItems"
+        :key="item.key"
+        class="kn-stat-item"
       >
-        <swiper-item
-          v-for="banner in courseStore.banners"
-          :key="banner.id"
-          @click="handleBannerClick(banner)"
-        >
-          <image
-            class="kn-banner-img"
-            :src="banner.image"
-            mode="aspectFill"
-          />
-        </swiper-item>
-      </swiper>
+        <text class="kn-stat-value">{{ item.value }}</text>
+        <text class="kn-stat-title">{{ item.title }}</text>
+      </view>
     </view>
 
     <!-- 关键步骤标题 -->
@@ -67,7 +54,7 @@
 /**
  * 急救课堂页面
  *
- * 轮播横幅 + 快速操作入口（CPR/海姆立克）+ 课程网格
+ * 数据展示横幅 + 快速操作入口（CPR/海姆立克）+ 课程网格
  * 前两格固定：AED使用教程、心肺复苏教程
  *
  * 设计来源：CLAUDE.md §4.3 + page-Instrument.md
@@ -75,13 +62,11 @@
 import { onShow } from '@dcloudio/uni-app'
 import { useTheme } from '@/composables/useTheme'
 import { useCourseStore } from '@/store/course'
+import { useKnowledgeStore } from '@/store/knowledge'
 import { fetchCourseByType } from '@/api/course'
-import type { BannerItem } from '@/types/common'
 import type { CourseTypeKey } from '@/types/user'
 import AppTabBar from '@/components/app-tab-bar/index.vue'
 import CourseCard from '@/components/course-card/index.vue'
-
-const SWIPER_INTERVAL = 5000
 
 const QUICK_ACTIONS: readonly {
   type: CourseTypeKey
@@ -93,27 +78,8 @@ const QUICK_ACTIONS: readonly {
 ]
 
 const courseStore = useCourseStore()
+const knowledgeStore = useKnowledgeStore()
 const { themeClass } = useTheme()
-
-// ===== 轮播点击 =====
-function handleBannerClick(banner: BannerItem) {
-  switch (banner.linkType) {
-    case 'course':
-      uni.navigateTo({ url: `/pages-sub/knowledge/detail?id=${banner.linkTarget}` })
-      break
-    case 'url':
-      uni.navigateTo({
-        url: `/pages-sub/webview/index?url=${encodeURIComponent(banner.linkTarget)}`,
-      })
-      break
-    case 'page':
-      uni.navigateTo({ url: banner.linkTarget })
-      break
-    case 'none':
-    default:
-      break
-  }
-}
 
 // ===== 快速操作 =====
 async function handleQuickAction(type: CourseTypeKey) {
@@ -137,7 +103,7 @@ function goDetail(id: string) {
 
 // ===== 生命周期 =====
 onShow(() => {
-  courseStore.loadBanners()
+  knowledgeStore.loadSummary()
   courseStore.loadCourseList()
 })
 </script>
@@ -148,19 +114,41 @@ onShow(() => {
   background: $background;
 }
 
-// ===== 轮播横幅 =====
-.kn-banner-wrap { padding: $spacing-sm $spacing-md 0; }
-
-.kn-banner {
-  height: 300rpx;
+// ===== 数据展示横幅 =====
+.kn-stats-banner {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  min-height: 164rpx;
+  margin: $spacing-sm $spacing-md 0;
+  padding: $spacing-lg $spacing-sm;
   border-radius: $radius-lg;
-  overflow: hidden;
+  background: linear-gradient(180deg, $status-info 0%, $level-core 100%);
+  box-shadow: 0 8rpx 24rpx rgba(33, 150, 243, 0.24);
 }
 
-.kn-banner-img {
-  width: 100%;
-  height: 100%;
-  border-radius: $radius-lg;
+.kn-stat-item {
+  min-width: 0;
+  @include flex-column;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-xs;
+}
+
+.kn-stat-value {
+  max-width: 100%;
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-tight;
+  color: $text-white;
+}
+
+.kn-stat-title {
+  max-width: 100%;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-tight;
+  color: rgba(255, 255, 255, 0.92);
+  text-align: center;
 }
 
 // ===== 快速操作入口 =====

@@ -1,0 +1,197 @@
+.va-page {
+  min-height: 100vh;
+  background: $background;
+}
+
+.va-scroll {
+  height: calc(100vh - #{$nav-bar-content-height});
+  box-sizing: border-box;
+  padding: $spacing-md $spacing-md 0;
+}
+
+.va-card {
+  margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  border-radius: $radius-lg;
+  background: $background-white;
+  box-shadow: $shadow-sm;
+}
+
+.va-row {
+  display: flex;
+  align-items: center;
+  min-height: 92rpx;
+  border-bottom: 1rpx solid $divider-light;
+}
+
+.va-row:last-child {
+  border-bottom: none;
+}
+
+.va-label {
+  display: block;
+  width: 210rpx;
+  flex-shrink: 0;
+  font-size: $font-size-base;
+  color: $text-primary;
+  font-weight: $font-weight-medium;
+}
+
+.va-label--required::before {
+  content: '*';
+  color: $primary;
+}
+
+.va-input,
+.va-picker {
+  flex: 1;
+  min-width: 0;
+  font-size: $font-size-base;
+  color: $text-primary;
+  text-align: right;
+}
+
+.va-picker {
+  line-height: 92rpx;
+  color: $text-secondary;
+}
+
+.va-image-block {
+  margin-bottom: $spacing-md;
+}
+
+.va-image-block:last-child {
+  margin-bottom: 0;
+}
+
+.va-upload-box {
+  margin-top: $spacing-sm;
+  width: 220rpx;
+  height: 220rpx;
+  border-radius: $radius-md;
+  border: 1rpx dashed $divider;
+  background: $background;
+  overflow: hidden;
+  @include flex-center;
+}
+
+.va-upload-box--small {
+  width: 180rpx;
+  height: 180rpx;
+  margin-top: 0;
+}
+
+.va-upload-img,
+.va-thumb-img {
+  width: 100%;
+  height: 100%;
+}
+
+.va-upload-text {
+  font-size: $font-size-sm;
+  color: $link-blue;
+}
+
+.va-image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  margin-top: $spacing-sm;
+}
+
+.va-thumb {
+  position: relative;
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: $radius-md;
+  overflow: hidden;
+  background: $background;
+}
+
+.va-thumb-remove {
+  position: absolute;
+  top: 6rpx;
+  right: 6rpx;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: $radius-full;
+  background: $overlay-mask;
+  color: $text-white;
+  font-size: $font-size-base;
+  line-height: 36rpx;
+  text-align: center;
+}
+
+.va-textarea-block {
+  margin-bottom: $spacing-md;
+}
+
+.va-textarea {
+  width: 100%;
+  min-height: 180rpx;
+  margin-top: $spacing-sm;
+  padding: $spacing-sm;
+  box-sizing: border-box;
+  border-radius: $radius-md;
+  background: $background;
+  font-size: $font-size-base;
+  color: $text-primary;
+  line-height: $line-height-normal;
+}
+
+.va-commitment {
+  padding-top: $spacing-xs;
+}
+
+.va-commitment-text {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  color: $text-secondary;
+  line-height: $line-height-normal;
+}
+
+.va-check-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  margin-top: $spacing-sm;
+}
+
+.va-checkbox {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: $radius-sm;
+  border: 2rpx solid $text-tertiary-a11y;
+  box-sizing: border-box;
+  @include flex-center;
+}
+
+.va-checkbox--checked {
+  border-color: $primary;
+  background: $primary;
+}
+
+.va-checkbox-mark {
+  font-size: $font-size-sm;
+  color: $text-white;
+}
+
+.va-check-text {
+  font-size: $font-size-base;
+  color: $text-primary;
+}
+
+.va-submit-wrap {
+  padding: $spacing-sm 0 calc(#{$spacing-xl} + env(safe-area-inset-bottom));
+}
+
+.va-submit {
+  @include btn-primary;
+  width: 100%;
+}
+
+.va-submit--disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}

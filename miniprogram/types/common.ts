@@ -58,17 +58,5 @@ export interface UploadImageResponse {
 }
 
 /** 上传场景 */
-export type UploadScene = 'avatar' | 'report' | 'help'
+export type UploadScene = 'avatar' | 'report' | 'help' | 'volunteer'
 
-/** 轮播横幅 */
-export interface BannerItem {
-  readonly id: string
-  readonly image: string
-  readonly title: string
-  readonly linkType: 'course' | 'url' | 'page' | 'none'
-  readonly linkTarget: string
-  readonly sortOrder: number
-}
-
-/** Banner 跳转类型 */
-export type BannerLinkType = BannerItem['linkType']

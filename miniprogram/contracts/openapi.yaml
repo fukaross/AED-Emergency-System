@@ -1,10 +1,10 @@
 openapi: '3.0.3'
 info:
   title: AED 急救小程序 API
-  version: '1.0.0'
+  version: '1.1.0'
   description: |
     REDACTED AED 急救小程序后端接口契约
-    来源：CLAUDE.md §8 + BackEnd.md v1.1
+    来源：CLAUDE.md §8 + BackEnd.md v1.2
   license:
     name: Proprietary
     url: https://www.qtnu.edu.cn
@@ -646,6 +646,33 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /api/user/volunteer-applications:
+    post:
+      summary: 提交校园 AED 急救志愿者入队申请
+      operationId: createVolunteerApplication
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolunteerApplicationPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/VolunteerApplicationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /api/vitals/current:
     get:
       summary: 获取当前生命体征
@@ -731,9 +758,32 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /api/knowledge/summary:
+    get:
+      summary: 获取课堂统计横幅数据
+      operationId: getKnowledgeSummary
+      security: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/KnowledgeSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /api/banners:
     get:
       summary: 获取轮播横幅配置
+      description: >
+        历史运营配置接口，课堂首页首屏已改用 /api/knowledge/summary，
+        小程序课堂页不再消费本接口。
       operationId: listBanners
       security: []
       responses:
@@ -822,7 +872,7 @@ paths:
                   format: binary
                 scene:
                   type: string
-                  enum: [avatar, report, help]
+                  enum: [avatar, report, help, volunteer]
       responses:
         '200':
           description: 成功
@@ -835,6 +885,211 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/UploadImageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/ops/help-requests:
+    get:
+      summary: 运营端获取求助记录列表
+      operationId: listOpsHelpRequests
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [published, closed, false_alarm]
+        - name: keyword
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OpsHelpRequestListPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/ops/help-requests/{id}/close:
+    put:
+      summary: 运营端关闭求助或标记误报
+      operationId: closeOpsHelpRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseHelpPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/ops/aed/import:
+    post:
+      summary: 运营端批量导入 AED 点位
+      operationId: importOpsAedDevices
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        description: 后端需按 BackEnd.md 将 WGS-84 转换为 GCJ-02 并双存。
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsAedImportRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OpsImportResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/ops/aed/{id}/status:
+    put:
+      summary: 运营端更新 AED 上下线状态
+      operationId: updateOpsAedStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsAedStatusPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/ops/config/content:
+    put:
+      summary: 运营端维护内容配置
+      operationId: updateOpsContentConfig
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        description: Banner、校方热线、课程配置等运营内容。
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsContentConfigPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/ops/profiles/import:
+    post:
+      summary: 运营端批量导入学校档案
+      operationId: importOpsProfiles
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        description: 批量导入学校档案。
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsProfileImportRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OpsImportResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/ops/profile-bindings/{id}/review:
+    put:
+      summary: 运营端审核用户与学校档案绑定
+      operationId: reviewOpsProfileBinding
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        description: 审核用户与学校档案绑定关系。
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsProfileBindingReviewPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -1369,6 +1624,276 @@ components:
         note:
           type: string
 
+    OpsHelpRequestListItem:
+      type: object
+      required:
+        - id
+        - requestNo
+        - requestChannel
+        - content
+        - type
+        - status
+        - address
+        - createdAt
+        - respondersCount
+      properties:
+        id:
+          type: string
+        requestNo:
+          type: string
+        requestChannel:
+          type: string
+          enum: [user, guest]
+        content:
+          type: string
+        type:
+          type: string
+          enum: [help_hand, call_120, call_school, general]
+        status:
+          type: string
+          enum: [published, closed, false_alarm]
+        address:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+        closeNote:
+          type: string
+          nullable: true
+        respondersCount:
+          type: integer
+
+    OpsHelpRequestListPage:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpsHelpRequestListItem'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    OpsImportFailedItem:
+      type: object
+      required: [rowNo, reason]
+      properties:
+        rowNo:
+          type: integer
+        reason:
+          type: string
+
+    OpsImportResult:
+      type: object
+      required: [importedCount, updatedCount, failedCount, failedItems]
+      properties:
+        importedCount:
+          type: integer
+        updatedCount:
+          type: integer
+        failedCount:
+          type: integer
+        failedItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpsImportFailedItem'
+
+    OpsAedImportItem:
+      type: object
+      required: [name, latitudeWgs84, longitudeWgs84]
+      properties:
+        externalId:
+          type: string
+        name:
+          type: string
+        latitudeWgs84:
+          type: number
+        longitudeWgs84:
+          type: number
+        address:
+          type: string
+        imageUrl:
+          type: string
+        lastMaintenance:
+          type: string
+          format: date
+        nextMaintenance:
+          type: string
+          format: date
+        maintainer:
+          type: string
+        status:
+          type: string
+          enum: [online, offline]
+
+    OpsAedImportRequest:
+      type: object
+      required: [sourceName, items]
+      properties:
+        sourceName:
+          type: string
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OpsAedImportItem'
+
+    OpsAedStatusPayload:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [online, offline]
+        note:
+          type: string
+
+    OpsBannerConfigItem:
+      type: object
+      required: [image, title, linkType, linkTarget, sortOrder]
+      properties:
+        id:
+          type: string
+        image:
+          type: string
+        title:
+          type: string
+        linkType:
+          type: string
+          enum: [course, url, page, none]
+        linkTarget:
+          type: string
+        sortOrder:
+          type: integer
+        enabled:
+          type: boolean
+          default: true
+
+    OpsCourseStepConfigItem:
+      type: object
+      required: [title, description, image]
+      properties:
+        order:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        image:
+          type: string
+        keyPoints:
+          type: array
+          items:
+            type: string
+
+    OpsCourseConfigItem:
+      type: object
+      required: [title, thumbnail, type, category]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        thumbnail:
+          type: string
+        type:
+          type: string
+          enum: [article, video]
+        category:
+          type: string
+        content:
+          type: string
+        videoUrl:
+          type: string
+          nullable: true
+        disclaimer:
+          type: string
+        sortOrder:
+          type: integer
+        pinned:
+          type: boolean
+        isEmergency:
+          type: boolean
+        cacheVersion:
+          type: string
+        estimatedTime:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpsCourseStepConfigItem'
+
+    OpsContentConfigPayload:
+      type: object
+      minProperties: 1
+      properties:
+        schoolEmergencyPhone:
+          type: string
+        banners:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpsBannerConfigItem'
+        courses:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpsCourseConfigItem'
+
+    OpsProfileImportItem:
+      type: object
+      required: [name, primaryRole]
+      properties:
+        externalProfileNo:
+          type: string
+        name:
+          type: string
+        primaryRole:
+          type: string
+          enum: [student, teacher, staff]
+        college:
+          type: string
+        studentNo:
+          type: string
+        staffNo:
+          type: string
+        phone:
+          type: string
+        idNumber:
+          type: string
+        remark:
+          type: string
+
+    OpsProfileImportRequest:
+      type: object
+      required: [sourceName, items]
+      properties:
+        sourceName:
+          type: string
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OpsProfileImportItem'
+
+    OpsProfileBindingReviewPayload:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, rejected]
+        overrideReason:
+          type: string
+
     UpdateUserProfilePayload:
       type: object
       properties:
@@ -1381,6 +1906,113 @@ components:
           enum: [male, female, unknown]
         phone:
           type: string
+
+    VolunteerApplicationStatus:
+      type: string
+      enum: [submitted, reviewing, approved, rejected]
+
+    VolunteerImageAttachment:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+        fileId:
+          type: string
+        name:
+          type: string
+        localPath:
+          type: string
+          description: 前端 Mock 演示期保留的本地临时路径，正式提交可不传
+
+    VolunteerApplicationPayload:
+      type: object
+      required:
+        - idPhoto
+        - name
+        - gender
+        - birthDate
+        - phone
+        - email
+        - politicalStatus
+        - education
+        - occupation
+        - professionalTitle
+        - emergencyContactName
+        - emergencyContactPhone
+        - qualificationImages
+        - volunteerCertificateImages
+        - idNumber
+        - idCardFront
+        - idCardBack
+        - homeAddress
+        - personalResume
+        - joinReason
+        - commitmentAccepted
+      properties:
+        idPhoto:
+          $ref: '#/components/schemas/VolunteerImageAttachment'
+        name:
+          type: string
+        gender:
+          type: string
+          enum: [male, female, unknown]
+        birthDate:
+          type: string
+          format: date
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        politicalStatus:
+          type: string
+        education:
+          type: string
+        occupation:
+          type: string
+        professionalTitle:
+          type: string
+        emergencyContactName:
+          type: string
+        emergencyContactPhone:
+          type: string
+        qualificationImages:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/VolunteerImageAttachment'
+        volunteerCertificateImages:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/VolunteerImageAttachment'
+        idNumber:
+          type: string
+        idCardFront:
+          $ref: '#/components/schemas/VolunteerImageAttachment'
+        idCardBack:
+          $ref: '#/components/schemas/VolunteerImageAttachment'
+        homeAddress:
+          type: string
+        personalResume:
+          type: string
+        joinReason:
+          type: string
+        commitmentAccepted:
+          type: boolean
+
+    VolunteerApplicationResponse:
+      type: object
+      required: [applicationId, status, submittedAt]
+      properties:
+        applicationId:
+          type: string
+        status:
+          $ref: '#/components/schemas/VolunteerApplicationStatus'
+        submittedAt:
+          type: string
+          format: date-time
 
     CourseSummary:
       type: object
@@ -1487,6 +2119,35 @@ components:
           enum: [detail, steps]
         summary:
           type: string
+
+    KnowledgeStatKey:
+      type: string
+      enum: [aed_count, trained_people, certified_people, coverage_rate]
+
+    KnowledgeStatItem:
+      type: object
+      required: [key, title, value, sortOrder]
+      properties:
+        key:
+          $ref: '#/components/schemas/KnowledgeStatKey'
+        title:
+          type: string
+        value:
+          type: number
+        sortOrder:
+          type: integer
+
+    KnowledgeSummary:
+      type: object
+      required: [items, updatedAt]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/KnowledgeStatItem'
+        updatedAt:
+          type: string
+          format: date-time
 
     SchoolProfile:
       type: object
@@ -1797,9 +2458,22 @@ components:
 
     ArchiveListResponse:
       type: object
-      required: [total, canViewFullPhone, selfArchive, items]
+      required:
+        - total
+        - page
+        - pageSize
+        - totalPages
+        - canViewFullPhone
+        - selfArchive
+        - items
       properties:
         total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
           type: integer
         canViewFullPhone:
           type: boolean

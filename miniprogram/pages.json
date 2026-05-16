@@ -57,6 +57,13 @@
           }
         },
         {
+          "path": "profile/volunteer",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "加入志愿者"
+          }
+        },
+        {
           "path": "profile/settings",
           "style": {
             "navigationStyle": "custom",

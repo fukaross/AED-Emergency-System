@@ -74,8 +74,8 @@ describe('pickReverseGeocodeAddress', () => {
 
 describe('location fallback formatting', () => {
   it('keeps coordinates readable when no address is available', () => {
-    expect(formatLocationFallback(19.97439412, 110.51766891)).toBe(
-      '定位坐标 19.974394, 110.517669',
+    expect(formatLocationFallback(19.97654712, 110.51346091)).toBe(
+      '定位坐标 19.976547, 110.513461',
     )
   })
 })

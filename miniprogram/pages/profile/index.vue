@@ -93,6 +93,7 @@ interface MenuItem {
 
 const MENU_ITEMS: readonly MenuItem[] = [
   { key: 'profile', title: '个人资料', icon: '/static/icons/menu-profile.svg', url: '/pages-sub/profile/edit', needAuth: true },
+  { key: 'volunteer', title: '加入志愿者', icon: '/static/icons/volunteer-prepare.svg', url: '/pages-sub/profile/volunteer', needAuth: true },
   { key: 'archive', title: '急救档案', icon: '/static/icons/menu-archive.svg', url: '/pages-sub/profile/archives', needAuth: true },
   { key: 'settings', title: '设置', icon: '/static/icons/menu-settings.svg', url: '/pages-sub/profile/settings', needAuth: true },
   { key: 'study', title: '我的学习', icon: '/static/icons/menu-study.svg', url: '', needAuth: true },

@@ -6,22 +6,17 @@
  */
 import { post } from '@/services/request'
 import {
-  CURRENT_USER_ID_STORAGE_KEY,
-  TOKEN_STORAGE_KEY,
-  TOKEN_EXPIRE_KEY,
-} from '@/utils/constants'
+  clearAuthSession,
+  getToken as readToken,
+  getTokenExpireAt,
+  persistAuthSession,
+} from '@/services/auth-session'
 import type { LoginResponse } from '@/types/common'
 import { loadMockUserProfile } from '@/mock/user'
 import { USE_MOCK } from '@/utils/runtime-env'
 
 const MOCK_TOKEN = 'mock-token'
 const MOCK_EXPIRES_IN = 7 * 24 * 60 * 60
-
-function persistSession(result: LoginResponse): void {
-  uni.setStorageSync(TOKEN_STORAGE_KEY, result.token)
-  uni.setStorageSync(TOKEN_EXPIRE_KEY, Date.now() + result.expiresIn * 1000)
-  uni.setStorageSync(CURRENT_USER_ID_STORAGE_KEY, result.userInfo.id)
-}
 
 /** 微信登录并获取 Token */
 export async function wxLogin(): Promise<LoginResponse> {
@@ -38,7 +33,7 @@ export async function wxLogin(): Promise<LoginResponse> {
       },
     }
 
-    persistSession(result)
+    persistAuthSession(result)
     console.log('[Mock Auth API] login success')
     return result
   }
@@ -46,27 +41,25 @@ export async function wxLogin(): Promise<LoginResponse> {
   const { code } = await uni.login({ provider: 'weixin' })
   const result = await post<LoginResponse>('/api/auth/login', { code })
 
-  persistSession(result)
+  persistAuthSession(result)
 
   return result
 }
 
 /** 判断当前是否已登录且 Token 未过期 */
 export function isAuthenticated(): boolean {
-  const token = uni.getStorageSync(TOKEN_STORAGE_KEY) as string
-  const expireAt = uni.getStorageSync(TOKEN_EXPIRE_KEY) as number
+  const token = readToken()
+  const expireAt = getTokenExpireAt()
   if (!token || !expireAt) return false
   return Date.now() < expireAt
 }
 
 /** 清除登录态 */
 export function clearAuth(): void {
-  uni.removeStorageSync(TOKEN_STORAGE_KEY)
-  uni.removeStorageSync(TOKEN_EXPIRE_KEY)
-  uni.removeStorageSync(CURRENT_USER_ID_STORAGE_KEY)
+  clearAuthSession()
 }
 
 /** 获取当前 Token（仅供调试或特殊场景） */
 export function getToken(): string {
-  return (uni.getStorageSync(TOKEN_STORAGE_KEY) as string) || ''
+  return readToken()
 }

@@ -1,25 +1,13 @@
 /**
- * 公共 API（横幅、上传、认证）
+ * 公共 API（上传、认证）
  *
- * 接口来源：CLAUDE.md §8.1 + BackEnd.md §4.2/§4.8
+ * 接口来源：CLAUDE.md §8.1 + BackEnd.md §4.2
  *
- * GET  /api/banners        — 轮播横幅 [公开]
  * POST /api/upload/image   — 图片上传 [登录可选]
  * POST /api/auth/login     — 微信登录 [公开]
  */
-import { get } from '@/services/request'
-import { uploadFile } from '@/services/request'
-import type { BannerItem, UploadImageResponse, UploadScene } from '@/types/common'
-import { BANNER_MOCK_DATA } from '@/mock/banner'
-import { USE_MOCK } from '@/utils/runtime-env'
-
-/** 获取轮播横幅列表 */
-export function fetchBanners(): Promise<BannerItem[]> {
-  if (USE_MOCK) {
-    return Promise.resolve([...BANNER_MOCK_DATA])
-  }
-  return get<BannerItem[]>('/api/banners')
-}
+import { uploadFile } from '@/services/request-upload'
+import type { UploadImageResponse, UploadScene } from '@/types/common'
 
 /** 上传图片 */
 export function uploadImage(

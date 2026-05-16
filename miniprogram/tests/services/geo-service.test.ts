@@ -55,8 +55,8 @@ describe('devtools location routing', () => {
 describe('calculateDistance (Haversine)', () => {
   it('returns 0 for same point', () => {
     const d = calculateDistance(
-      { lat: 19.974394, lng: 110.517669 },
-      { lat: 19.974394, lng: 110.517669 },
+      { lat: 19.976547, lng: 110.51346 },
+      { lat: 19.976547, lng: 110.51346 },
     )
     expect(d).toBe(0)
   })

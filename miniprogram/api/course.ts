@@ -16,8 +16,11 @@ import type {
   CourseByTypeResponse,
 } from '@/types/user'
 import type { PaginatedData } from '@/types/common'
-import { COURSE_MOCK_DATA } from '@/mock/course'
+import { COURSE_DETAIL_MOCK_DATA, COURSE_MOCK_DATA } from '@/mock/course'
 import { USE_MOCK } from '@/utils/runtime-env'
+
+const DEFAULT_COURSE_PAGE = 1
+const MIN_COURSE_PAGE_SIZE = 1
 
 const COURSE_BY_TYPE_MOCK_MAP: Readonly<Record<CourseTypeKey, CourseByTypeResponse>> = {
   aed: {
@@ -46,16 +49,22 @@ const COURSE_BY_TYPE_MOCK_MAP: Readonly<Record<CourseTypeKey, CourseByTypeRespon
 function buildMockCourseList(
   filter?: CourseFilter,
 ): PaginatedData<CourseSummary> {
-  const items = filter?.category
+  const allItems = filter?.category
     ? COURSE_MOCK_DATA.filter((item) => item.category === filter.category)
     : [...COURSE_MOCK_DATA]
+  const page = Math.max(DEFAULT_COURSE_PAGE, filter?.page ?? DEFAULT_COURSE_PAGE)
+  const pageSize = Math.max(
+    MIN_COURSE_PAGE_SIZE,
+    filter?.pageSize ?? allItems.length,
+  )
+  const start = (page - 1) * pageSize
 
   return {
-    items,
-    total: items.length,
-    page: filter?.page ?? 1,
-    pageSize: filter?.pageSize ?? items.length,
-    totalPages: 1,
+    items: allItems.slice(start, start + pageSize),
+    total: allItems.length,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(allItems.length / pageSize)),
   }
 }
 
@@ -87,5 +96,13 @@ export function fetchCourseByType(
 
 /** 获取课程详情 */
 export function fetchCourseDetail(id: string): Promise<CourseDetail> {
+  if (USE_MOCK) {
+    const found = COURSE_DETAIL_MOCK_DATA.find((item) => item.id === id)
+    if (!found) {
+      return Promise.reject(new Error('课程不存在'))
+    }
+    return Promise.resolve(found)
+  }
+
   return get<CourseDetail>(`/api/courses/${id}`)
 }

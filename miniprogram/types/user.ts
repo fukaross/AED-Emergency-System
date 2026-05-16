@@ -94,6 +94,9 @@ export interface RescuerArchiveListItem {
 /** 急救档案列表响应 */
 export interface RescuerArchiveListResponse {
   readonly total: number
+  readonly page: number
+  readonly pageSize: number
+  readonly totalPages: number
   readonly canViewFullPhone: boolean
   readonly selfArchive: RescuerArchiveListItem | null
   readonly items: readonly RescuerArchiveListItem[]
