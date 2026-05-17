@@ -4,10 +4,6 @@ import {
   pickReverseGeocodeAddress,
 } from '@/services/location-address-service'
 
-function formatLocationFallback(lat: number, lng: number): string {
-  return `定位坐标 ${lat.toFixed(6)}, ${lng.toFixed(6)}`
-}
-
 describe('mergeLocationText', () => {
   it('combines name and address when both are available', () => {
     expect(mergeLocationText('理科楼', '海南省海口市REDACTED')).toBe(
@@ -69,13 +65,5 @@ describe('pickReverseGeocodeAddress', () => {
         },
       }),
     ).toBe('海南省海口市美兰区文临路8号')
-  })
-})
-
-describe('location fallback formatting', () => {
-  it('keeps coordinates readable when no address is available', () => {
-    expect(formatLocationFallback(19.97654712, 110.51346091)).toBe(
-      '定位坐标 19.976547, 110.513461',
-    )
   })
 })

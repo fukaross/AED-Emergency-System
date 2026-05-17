@@ -38,13 +38,13 @@ import {
   queryMockGuestHelp,
   respondMockHelpRequest,
 } from '@/mock/help'
-import { USE_MOCK } from '@/utils/runtime-env'
+import { USE_MOCK, USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
 
 /** 发布求助 */
 export function publishHelp(
   payload: PublishHelpPayload,
 ): Promise<PublishHelpResponse> {
-  if (USE_MOCK) {
+  if (USE_MOCK && !USE_REAL_WECHAT_FLOW) {
     return Promise.resolve(publishMockHelpRequest(payload))
   }
 

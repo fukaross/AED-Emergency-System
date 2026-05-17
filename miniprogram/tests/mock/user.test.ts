@@ -8,6 +8,7 @@ import {
 } from '@/mock/user'
 import { FEATURED_MOCK_RESCUER_ARCHIVE_ID } from '@/mock/rescuer-qualification-fixtures'
 import { SOURCE_RESCUER_ARCHIVE_ROWS } from '@/mock/rescuer-source-rows'
+import { MOCK_PROFILE_AVATAR_URL } from '@/mock/avatar-fixtures'
 
 const storage = new Map<string, string>()
 
@@ -28,8 +29,8 @@ describe('mock rescuer archives', () => {
     const detail = getMockArchiveDetail('archive-jzr-2023-00762')
 
     expect(detail?.profile.name).toBe('REDACTED')
-    expect(detail?.profile.phone).toBe('182****7261')
-    expect(detail?.profile.idNumberMasked).toBe('460033******326X')
+    expect(detail?.profile.phoneMasked).toBe('182****7261')
+    expect(detail?.profile.idMasked).toBe('460033******326X')
     expect(detail?.certificateRecords).toHaveLength(1)
     expect(detail?.certificateRecords[0]?.certificateNo).toBe(
       '460000232004231001532',
@@ -84,9 +85,7 @@ describe('mock rescuer archives', () => {
     const reloaded = loadMockUserProfile()
 
     expect(updated.name).toBe('新的昵称')
-    expect(reloaded.avatarUrl).toBe(
-      'https://loremflickr.com/200/200/landscape,nature?lock=201',
-    )
+    expect(reloaded.avatarUrl).toBe(MOCK_PROFILE_AVATAR_URL)
     expect(reloaded.gender).toBe('female')
     expect(reloaded.phone).toBe('REDACTED')
     expect(reloaded.rescuerSummary?.archiveProfileId).toBe(
@@ -105,9 +104,7 @@ describe('mock rescuer archives', () => {
 
     const profile = loadMockUserProfile()
 
-    expect(profile.avatarUrl).toBe(
-      'https://loremflickr.com/200/200/landscape,nature?lock=201',
-    )
+    expect(profile.avatarUrl).toBe(MOCK_PROFILE_AVATAR_URL)
   })
 
   it('does not allow full phone access for the default mock viewer', () => {

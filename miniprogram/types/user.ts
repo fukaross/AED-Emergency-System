@@ -147,10 +147,8 @@ export interface RescuerArchiveProfileDetail {
   readonly name: string
   readonly gender: Gender
   readonly birthDate: string
-  readonly phone: string
-  readonly idNumberMasked: string
-  readonly phoneMasked: boolean
-  readonly idMasked: boolean
+  readonly phoneMasked: string
+  readonly idMasked: string
   readonly workUnit?: string | null
 }
 

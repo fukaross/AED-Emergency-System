@@ -97,6 +97,7 @@ export const REQUEST_TIMEOUT = 10000
 export const TOKEN_STORAGE_KEY = 'aed_auth_token'
 export const TOKEN_EXPIRE_KEY = 'aed_auth_expire'
 export const CURRENT_USER_ID_STORAGE_KEY = 'aed_current_user_id'
+export const AUTH_USER_INFO_STORAGE_KEY = 'aed_auth_user_info'
 
 // ===== 上传常量 =====
 export const MAX_UPLOAD_SIZE = Number(
@@ -112,6 +113,10 @@ export const HELP_RATE_LIMIT_SECONDS = 300
 /** 校方急救热线 (占位值，运行时从环境变量读取) */
 export const SCHOOL_EMERGENCY_PHONE =
   import.meta.env.VITE_SCHOOL_EMERGENCY_PHONE || 'REDACTED'
+
+/** 急救报警订阅消息模板 ID */
+export const WECHAT_ALERT_TEMPLATE_ID =
+  import.meta.env.VITE_WECHAT_ALERT_TEMPLATE_ID || ''
 
 // ===== 生命体征常量 =====
 const VITAL_DEFAULT_REFRESH_MS = 4000

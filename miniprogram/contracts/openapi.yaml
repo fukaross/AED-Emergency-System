@@ -2583,8 +2583,6 @@ components:
         - name
         - gender
         - birthDate
-        - phone
-        - idNumberMasked
         - phoneMasked
         - idMasked
       properties:
@@ -2598,14 +2596,12 @@ components:
         birthDate:
           type: string
           format: date
-        phone:
-          type: string
-        idNumberMasked:
-          type: string
         phoneMasked:
-          type: boolean
+          type: string
+          description: 脱敏手机号，不返回完整号码
         idMasked:
-          type: boolean
+          type: string
+          description: 脱敏身份证号
         workUnit:
           type: string
           nullable: true

@@ -192,7 +192,7 @@ async function requestCurrentLocation(): Promise<LocationResult> {
   }
 }
 
-async function chooseDebugLocation(): Promise<LocationResult> {
+export async function chooseLocationPoint(): Promise<LocationResult> {
   try {
     const res = await uni.chooseLocation({
       latitude: MAP_CENTER.latitude,
@@ -246,7 +246,7 @@ export async function getCurrentLocation(
   const platform = getRuntimePlatform()
 
   if (shouldUseManualLocationPicker(platform, mode)) {
-    return chooseDebugLocation()
+    return chooseLocationPoint()
   }
 
   return requestCurrentLocation()

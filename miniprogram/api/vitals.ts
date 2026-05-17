@@ -16,10 +16,10 @@ import type {
   VitalAlertResult,
   VitalSignsCurrent,
 } from '@/types/vitals'
-import { USE_MOCK } from '@/utils/runtime-env'
+import { USE_PUBLIC_DEMO_DATA } from '@/utils/runtime-env'
 
 export function fetchCurrentVitalSigns(): Promise<VitalSignsCurrent> {
-  if (USE_MOCK) {
+  if (USE_PUBLIC_DEMO_DATA) {
     return Promise.resolve(getMockVitalSignsCurrent())
   }
   return get<VitalSignsCurrent>('/api/vitals/current')
@@ -28,7 +28,7 @@ export function fetchCurrentVitalSigns(): Promise<VitalSignsCurrent> {
 export function fetchHeartRateTrends(
   params?: HeartRateTrendParams,
 ): Promise<HeartRateTrendList> {
-  if (USE_MOCK) {
+  if (USE_PUBLIC_DEMO_DATA) {
     return Promise.resolve(getMockHeartRateTrends(params))
   }
   return get<HeartRateTrendList>(
@@ -40,7 +40,7 @@ export function fetchHeartRateTrends(
 export function createVitalAlert(
   payload: CreateVitalAlertPayload,
 ): Promise<VitalAlertResult> {
-  if (USE_MOCK) {
+  if (USE_PUBLIC_DEMO_DATA) {
     return Promise.resolve(createMockVitalAlert(payload))
   }
   return post<VitalAlertResult>(

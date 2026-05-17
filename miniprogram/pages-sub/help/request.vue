@@ -4,16 +4,16 @@
     <view class="section-card">
       <view class="section-header">
         <text class="section-title">当前位置</text>
-        <view class="mini-btn" @click="autoLocate">
-          <text class="mini-btn__text">自动定位</text>
+        <view class="mini-btn" @click="selectLocation">
+          <text class="mini-btn__text">选择位置</text>
         </view>
       </view>
       <input
         v-model="form.address"
         class="input-field"
-        placeholder="请输入详细位置（教学楼/楼层/房间）"
+        placeholder="请选择地图位置后补充楼层/房间"
       />
-      <text class="input-hint">已自动定位，必要时可手动修正</text>
+      <text class="input-hint">请在地图中选点，必要时补充楼层/房间</text>
     </view>
 
     <!-- 快速操作 -->
@@ -29,8 +29,8 @@
         <view class="quick-btn" @click="quickCallSchool">
           <text class="quick-btn__text">找校方</text>
         </view>
-        <view class="quick-btn" @click="autoLocate">
-          <text class="quick-btn__text">重新定位</text>
+        <view class="quick-btn" @click="selectLocation">
+          <text class="quick-btn__text">重新选点</text>
         </view>
       </view>
     </view>
@@ -49,6 +49,42 @@
           <text class="mini-btn__text">
            上传图片（{{ form.images.length }}/3）
           </text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 联系电话 -->
+    <view class="section-card">
+      <view class="section-header">
+        <text class="section-title">联系电话</text>
+        <button
+          class="mini-btn phone-btn"
+          open-type="getPhoneNumber"
+          :loading="isBindingPhone"
+          @getphonenumber="onGetPhoneNumber"
+        >
+          <text class="mini-btn__text">
+            {{ phone ? '已授权' : '授权电话' }}
+          </text>
+        </button>
+      </view>
+      <text class="input-hint">
+        {{ phone || '用于报警通知' }}
+      </text>
+      <view class="phone-manual">
+        <input
+          v-model="manualPhone"
+          class="input-field phone-input"
+          maxlength="11"
+          type="number"
+          placeholder="手动填写手机号"
+        />
+        <view
+          class="mini-btn phone-save"
+          :class="{ 'is-disabled': isBindingPhone }"
+          @click="onManualPhoneSave"
+        >
+          <text class="mini-btn__text">保存电话</text>
         </view>
       </view>
     </view>
@@ -96,33 +132,54 @@
 /**
  * 寻求帮助页（独立子页面，含四合一快捷操作）
  *
- * 表单区：当前位置（自动定位可编辑）+ 帮助内容 + 现场图片
- * 快捷操作：找人手 / 找120 / 找校方 / 重新定位
+ * 表单区：当前位置（地图选点后可编辑）+ 帮助内容 + 现场图片
+ * 快捷操作：找人手 / 找120 / 找校方 / 重新选点
  * 支持游客匿名会话，成功后返回 requestNo / followupCode / closeToken
  */
-import { onMounted } from 'vue'
 import { useEmergencyHelp } from '@/composables/useEmergencyHelp'
 import { useTheme } from '@/composables/useTheme'
 
 const {
   form,
   isSubmitting,
+  isBindingPhone,
+  phone,
+  manualPhone,
   publishResult,
-  autoLocate,
+  selectLocation,
   quickHelpHand,
   quickCall120,
   quickCallSchool,
   addImage,
+  bindPhone,
+  bindManualPhone,
   submit,
 } = useEmergencyHelp()
 const { themeClass } = useTheme()
 
-onMounted(() => {
-  void autoLocate()
-})
+interface PhoneNumberEvent {
+  readonly detail: {
+    readonly code?: string
+    readonly errMsg?: string
+  }
+}
 
 function togglePrivacy(): void {
   form.privacyConsent = !form.privacyConsent
+}
+
+async function onGetPhoneNumber(event: PhoneNumberEvent): Promise<void> {
+  if (event.detail.errMsg && !event.detail.code) {
+    uni.showToast({ title: '授权失败', icon: 'none' })
+    return
+  }
+
+  await bindPhone(event.detail.code)
+}
+
+async function onManualPhoneSave(): Promise<void> {
+  if (isBindingPhone.value) return
+  await bindManualPhone()
 }
 
 async function submitHelp(): Promise<void> {
@@ -233,11 +290,41 @@ async function submitHelp(): Promise<void> {
   border-radius: $radius-pill;
   border: 1rpx solid $primary;
   background-color: $background-white;
+  line-height: 64rpx;
 
   &__text {
     font-size: $font-size-sm;
     color: $primary;
     line-height: 64rpx;
+  }
+}
+
+.phone-btn {
+  margin: 0;
+}
+
+.phone-btn::after {
+  border: 0;
+}
+
+.phone-manual {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-top: $spacing-sm;
+}
+
+.phone-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-save {
+  flex-shrink: 0;
+
+  &.is-disabled {
+    opacity: 0.6;
+    pointer-events: none;
   }
 }
 

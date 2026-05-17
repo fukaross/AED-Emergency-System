@@ -12,12 +12,15 @@ import {
   wxLogin,
   isAuthenticated,
   clearAuth,
+  initializeAuthState,
 } from '@/services/auth-service'
 import { useUserStore } from './user'
+import type { UserProfile } from '@/types/user'
+import { USE_MOCK, USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
 
 export const useAuthStore = defineStore('auth', () => {
   // ===== State =====
-  const isLoggedIn = ref(isAuthenticated())
+  const isLoggedIn = ref(initializeAuthState())
 
   // ===== Actions =====
   async function login(): Promise<void> {
@@ -26,7 +29,12 @@ export const useAuthStore = defineStore('auth', () => {
 
     // 登录成功后加载用户资料
     const userStore = useUserStore()
-    if (result.userInfo) {
+    if (USE_REAL_WECHAT_FLOW) {
+      userStore.setLoginProfile(toUserProfile(result.userInfo))
+      return
+    }
+
+    if (result.userInfo && USE_MOCK) {
       await userStore.loadProfile()
     }
   }
@@ -51,3 +59,21 @@ export const useAuthStore = defineStore('auth', () => {
     checkAuth,
   }
 })
+
+function toUserProfile(userInfo: {
+  readonly id: string
+  readonly name: string
+  readonly avatarUrl: string
+}): UserProfile {
+  return {
+    id: userInfo.id,
+    name: userInfo.name || '微信用户',
+    avatarUrl: userInfo.avatarUrl,
+    gender: 'unknown',
+    phone: '',
+    certified: false,
+    level: null,
+    schoolProfile: null,
+    rescuerSummary: null,
+  }
+}

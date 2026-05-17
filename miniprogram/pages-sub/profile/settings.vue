@@ -89,6 +89,7 @@ import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
 import { useTheme } from '@/composables/useTheme'
 import {
+  AUTH_USER_INFO_STORAGE_KEY,
   TOKEN_STORAGE_KEY,
   TOKEN_EXPIRE_KEY,
   CURRENT_USER_ID_STORAGE_KEY,
@@ -103,6 +104,7 @@ const PRESERVED_KEYS = new Set([
   TOKEN_STORAGE_KEY,
   TOKEN_EXPIRE_KEY,
   CURRENT_USER_ID_STORAGE_KEY,
+  AUTH_USER_INFO_STORAGE_KEY,
 ])
 
 const settingsStore = useSettingsStore()

@@ -1,7 +1,7 @@
 /**
  * 求助页面与匿名会话流程 composable
  *
- * 编排求助发布流程：定位 → 填写 → 上传图片 → 发布
+ * 编排求助发布流程：选点 → 填写 → 上传图片 → 发布
  * 支持游客匿名会话（返回 requestNo/followupCode/closeToken）
  *
  * D-05 基线要求
@@ -9,17 +9,21 @@
 import { ref, reactive } from 'vue'
 import { useHelpStore } from '@/store/help'
 import { useAuthStore } from '@/store/auth'
-import { getCurrentLocation } from '@/services/geo-service'
-import { resolveLocationAddress } from '@/services/location-address-service'
+import { requestAlertSubscribe } from '@/api/wechat-subscribe'
+import {
+  bindManualPhone as bindManualPhoneApi,
+  bindWeChatPhone,
+} from '@/services/auth-service'
+import { chooseLocationPoint } from '@/services/geo-service'
+import { mergeLocationText } from '@/services/location-address-service'
 import { uploadImage } from '@/api/common'
 import type { PublishHelpPayload, PublishHelpResponse } from '@/types/help'
 import { MAX_HELP_IMAGES, SCHOOL_EMERGENCY_PHONE } from '@/utils/constants'
+import { USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
 
 export type HelpType = 'help_hand' | 'call_120' | 'call_school' | 'general'
 
-function formatLocationFallback(lat: number, lng: number): string {
-  return `定位坐标 ${lat.toFixed(6)}, ${lng.toFixed(6)}`
-}
+const PHONE_PATTERN = /^1[3-9]\d{9}$/
 
 export function useEmergencyHelp() {
   const helpStore = useHelpStore()
@@ -36,38 +40,34 @@ export function useEmergencyHelp() {
   })
 
   const isSubmitting = ref(false)
+  const isBindingPhone = ref(false)
+  const phone = ref('')
+  const manualPhone = ref('')
   const publishResult = ref<PublishHelpResponse | null>(null)
 
-  /** 自动定位并填入地址 */
-  async function autoLocate(): Promise<void> {
-    const loc = await getCurrentLocation({ mode: 'interactive' })
+  /** 选择求助发生位置 */
+  async function selectLocation(): Promise<void> {
+    const loc = await chooseLocationPoint()
 
     if (loc.success) {
-      const resolvedAddress = await resolveLocationAddress({
-        point: loc.point,
-        address: loc.address,
-        name: loc.name,
-      })
-
       form.lat = loc.point.lat
       form.lng = loc.point.lng
+      form.address = mergeLocationText(loc.name, loc.address)
 
-      if (resolvedAddress) {
-        form.address = resolvedAddress
+      if (form.address) {
+        uni.showToast({ title: '位置已选择', icon: 'success' })
         return
       }
 
-      form.address = formatLocationFallback(loc.point.lat, loc.point.lng)
-
       uni.showToast({
-        title: '已回填定位结果，可继续修改',
+        title: '请补充位置名称',
         icon: 'none',
       })
       return
     }
 
     uni.showToast({
-      title: loc.errorMessage || '定位失败，请手动输入地址',
+      title: loc.errorMessage || '位置选择失败',
       icon: 'none',
     })
   }
@@ -109,7 +109,11 @@ export function useEmergencyHelp() {
   /** 发布求助 */
   async function submit(): Promise<PublishHelpResponse | null> {
     if (!form.address.trim()) {
-      uni.showToast({ title: '请填写详细位置', icon: 'none' })
+      uni.showToast({ title: '请选择位置', icon: 'none' })
+      return null
+    }
+    if (!form.lat || !form.lng) {
+      uni.showToast({ title: '请先选点', icon: 'none' })
       return null
     }
     if (!form.content.trim()) {
@@ -118,6 +122,10 @@ export function useEmergencyHelp() {
     }
     if (!form.privacyConsent) {
       uni.showToast({ title: '请同意隐私说明', icon: 'none' })
+      return null
+    }
+    if (USE_REAL_WECHAT_FLOW && !phone.value) {
+      uni.showToast({ title: '请先授权电话', icon: 'none' })
       return null
     }
 
@@ -134,6 +142,7 @@ export function useEmergencyHelp() {
         privacyConsentAt: new Date().toISOString(),
       }
 
+      await requestSubscribeBeforePublish()
       const result = await helpStore.publish(payload)
       publishResult.value = result
       return result
@@ -142,15 +151,80 @@ export function useEmergencyHelp() {
     }
   }
 
+  async function bindPhone(code?: string): Promise<void> {
+    if (!code) {
+      uni.showToast({ title: '授权失败', icon: 'none' })
+      return
+    }
+
+    isBindingPhone.value = true
+    try {
+      if (!authStore.isLoggedIn) {
+        await authStore.login()
+      }
+
+      const result = await bindWeChatPhone(code)
+      phone.value = result.phone
+      manualPhone.value = result.phone
+      uni.showToast({ title: '电话已授权', icon: 'success' })
+    } finally {
+      isBindingPhone.value = false
+    }
+  }
+
+  async function bindManualPhone(): Promise<void> {
+    const input = manualPhone.value.trim()
+    if (!PHONE_PATTERN.test(input)) {
+      uni.showToast({ title: '请输入正确手机号', icon: 'none' })
+      return
+    }
+
+    isBindingPhone.value = true
+    try {
+      if (!authStore.isLoggedIn) {
+        await authStore.login()
+      }
+
+      const result = await bindManualPhoneApi(input)
+      phone.value = result.phone
+      manualPhone.value = result.phone
+      uni.showToast({ title: '电话已保存', icon: 'success' })
+    } finally {
+      isBindingPhone.value = false
+    }
+  }
+
+  async function requestSubscribeBeforePublish(): Promise<void> {
+    if (!authStore.isLoggedIn) return
+
+    try {
+      const status = await requestAlertSubscribe()
+      if (status === 'accept' || status === 'acceptWithAudio') {
+        uni.showToast({ title: '通知已开启', icon: 'success' })
+        return
+      }
+
+      uni.showToast({ title: '通知未开启', icon: 'none' })
+    } catch (error) {
+      console.warn('[Help] 订阅授权失败', error)
+      uni.showToast({ title: '通知未开启', icon: 'none' })
+    }
+  }
+
   return {
     form,
     isSubmitting,
+    isBindingPhone,
+    phone,
+    manualPhone,
     publishResult,
-    autoLocate,
+    selectLocation,
     quickHelpHand,
     quickCall120,
     quickCallSchool,
     addImage,
+    bindPhone,
+    bindManualPhone,
     submit,
   }
 }

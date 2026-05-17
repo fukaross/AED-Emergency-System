@@ -1,11 +1,16 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import {
   calculateDistance,
+  chooseLocationPoint,
   isWechatDevtoolsPlatform,
   shouldSkipInitialRealLocation,
   shouldUseManualLocationPicker,
   shouldUseDefaultLocation,
 } from '@/services/geo-service'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('shouldUseDefaultLocation', () => {
   it('uses campus center in preview mock mode when real location is disabled', () => {
@@ -49,6 +54,31 @@ describe('devtools location routing', () => {
     expect(shouldUseManualLocationPicker('devtools', 'interactive')).toBe(true)
     expect(shouldUseManualLocationPicker('devtools', 'auto')).toBe(false)
     expect(shouldUseManualLocationPicker('windows', 'interactive')).toBe(false)
+  })
+})
+
+describe('chooseLocationPoint', () => {
+  it('returns the selected map point and place text', async () => {
+    const chooseLocation = vi.fn().mockResolvedValue({
+      latitude: 19.976547,
+      longitude: 110.51346,
+      name: '理科楼',
+      address: 'REDACTED',
+    })
+    vi.stubGlobal('uni', { chooseLocation })
+
+    const result = await chooseLocationPoint()
+
+    expect(chooseLocation).toHaveBeenCalledWith({
+      latitude: 19.976547,
+      longitude: 110.51346,
+    })
+    expect(result).toMatchObject({
+      success: true,
+      point: { lat: 19.976547, lng: 110.51346 },
+      address: 'REDACTED',
+      name: '理科楼',
+    })
   })
 })
 
