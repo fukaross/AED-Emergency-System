@@ -56,6 +56,34 @@
       @preview-image="handlePreviewAedImage"
     />
 
+    <Modal
+      v-model="showSubscribePrompt"
+      title="接收通知"
+      :show-close="false"
+      :show-footer="false"
+    >
+      <view class="subscribe-prompt">
+        <text class="subscribe-prompt__text">有人求助时提醒你</text>
+      </view>
+      <template #footer>
+        <view class="subscribe-prompt__actions">
+          <button
+            class="subscribe-prompt__btn subscribe-prompt__btn--ghost"
+            @tap="closeSubscribePrompt"
+          >
+            稍后
+          </button>
+          <button
+            class="subscribe-prompt__btn subscribe-prompt__btn--primary"
+            :loading="isRequestingSubscribe"
+            @tap="handleEnableSubscribe"
+          >
+            开启
+          </button>
+        </view>
+      </template>
+    </Modal>
+
     <AppTabBar current-path="/pages/map-home/index" />
   </view>
 </template>
@@ -63,7 +91,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { onHide, onShow } from '@dcloudio/uni-app'
+import { requestAlertSubscribe } from '@/api/wechat-subscribe'
 import AppTabBar from '@/components/app-tab-bar/index.vue'
+import Modal from '@/components/modal/index.vue'
 import CustomNavbar from '@/components/custom-navbar/index.vue'
 import { useAedMap } from '@/composables/useAedMap'
 import { useTheme } from '@/composables/useTheme'
@@ -73,9 +103,11 @@ import {
   RIPPLE_ID_BASE,
 } from '@/services/map-service'
 import { useAedStore } from '@/store/aed'
+import { useAuthStore } from '@/store/auth'
 import { useVitalsStore } from '@/store/vitals'
 import type { AedItem } from '@/types/aed'
-import { MAP_CENTER } from '@/utils/constants'
+import { MAP_CENTER, WECHAT_ALERT_TEMPLATE_ID } from '@/utils/constants'
+import { USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
 import AedDetailModal from './components/aed-detail-modal.vue'
 import MapFloatingActions from './components/map-floating-actions.vue'
 import MapStatusOverlay from './components/map-status-overlay.vue'
@@ -92,8 +124,12 @@ interface MarkerTapEvent {
 const MAP_ID = 'aedMap'
 const MARKER_TAP_GUARD_MS = 250
 const MAP_LOAD_ERROR_TEXT = '地图加载失败，请检查网络后重试'
+const SUBSCRIBE_PROMPT_DELAY_MS = 800
+
+let hasPromptedSubscribeThisSession = false
 
 const aedStore = useAedStore()
+const authStore = useAuthStore()
 const vitalsStore = useVitalsStore()
 const { themeClass } = useTheme()
 const {
@@ -116,9 +152,12 @@ const mapErrorMessage = ref('')
 const showNearbyPanel = ref(false)
 const statusBarDismissed = ref(false)
 const showAedModal = ref(false)
+const showSubscribePrompt = ref(false)
+const isRequestingSubscribe = ref(false)
 const selectedAed = ref<AedItem | null>(null)
 
 let lastMarkerTapAt = 0
+let subscribePromptTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(() => {
   createMapCtx(MAP_ID)
@@ -131,14 +170,17 @@ onShow(() => {
     loc?.lng ?? MAP_CENTER.longitude,
   )
   vitalsStore.startMonitoring()
+  scheduleSubscribePrompt()
 })
 
 onHide(() => {
   vitalsStore.stopMonitoring()
+  clearSubscribePromptTimer()
 })
 
 onUnmounted(() => {
   vitalsStore.stopMonitoring()
+  clearSubscribePromptTimer()
 })
 
 const statusMessage = computed(() => {
@@ -150,6 +192,59 @@ const statusMessage = computed(() => {
 
 function openHelpPage(): void {
   uni.navigateTo({ url: '/pages-sub/help/request' })
+}
+
+function shouldShowSubscribePrompt(): boolean {
+  return USE_REAL_WECHAT_FLOW
+    && Boolean(WECHAT_ALERT_TEMPLATE_ID)
+    && !hasPromptedSubscribeThisSession
+}
+
+function clearSubscribePromptTimer(): void {
+  if (!subscribePromptTimer) return
+  clearTimeout(subscribePromptTimer)
+  subscribePromptTimer = null
+}
+
+function scheduleSubscribePrompt(): void {
+  clearSubscribePromptTimer()
+  if (!shouldShowSubscribePrompt()) return
+
+  subscribePromptTimer = setTimeout(() => {
+    subscribePromptTimer = null
+    if (!shouldShowSubscribePrompt()) return
+    hasPromptedSubscribeThisSession = true
+    showSubscribePrompt.value = true
+  }, SUBSCRIBE_PROMPT_DELAY_MS)
+}
+
+function closeSubscribePrompt(): void {
+  showSubscribePrompt.value = false
+}
+
+async function handleEnableSubscribe(): Promise<void> {
+  if (isRequestingSubscribe.value) return
+
+  isRequestingSubscribe.value = true
+  try {
+    if (!authStore.isLoggedIn) {
+      await authStore.login()
+    }
+
+    uni.showToast({ title: '请点允许', icon: 'none' })
+    const status = await requestAlertSubscribe()
+    const accepted = status === 'accept' || status === 'acceptWithAudio'
+    uni.showToast({
+      title: accepted ? '已开启' : '未开启',
+      icon: accepted ? 'success' : 'none',
+    })
+    showSubscribePrompt.value = false
+  } catch (error) {
+    console.warn('[MapHome] 订阅授权失败', error)
+    uni.showToast({ title: '未开启', icon: 'none' })
+  } finally {
+    isRequestingSubscribe.value = false
+  }
 }
 
 function toggleNearbyPanel(): void {
@@ -231,5 +326,43 @@ function handleMapError(event: Event): void {
 .map-canvas {
   width: 100%;
   height: 100%;
+}
+
+.subscribe-prompt {
+  padding: $spacing-xs $spacing-md $spacing-sm;
+}
+
+.subscribe-prompt__text {
+  color: $text-secondary;
+  font-size: $font-size-base;
+  line-height: 1.6;
+}
+
+.subscribe-prompt__actions {
+  display: flex;
+  gap: $spacing-sm;
+  width: 100%;
+}
+
+.subscribe-prompt__btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: $radius-md;
+  font-size: $font-size-base;
+  line-height: 88rpx;
+}
+
+.subscribe-prompt__btn::after {
+  border: 0;
+}
+
+.subscribe-prompt__btn--ghost {
+  background: $background;
+  color: $text-secondary;
+}
+
+.subscribe-prompt__btn--primary {
+  background: $primary;
+  color: $text-white;
 }
 </style>
