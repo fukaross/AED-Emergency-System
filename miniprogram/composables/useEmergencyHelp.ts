@@ -124,8 +124,7 @@ export function useEmergencyHelp() {
       uni.showToast({ title: '请同意隐私说明', icon: 'none' })
       return null
     }
-    if (USE_REAL_WECHAT_FLOW && !phone.value) {
-      uni.showToast({ title: '请先授权电话', icon: 'none' })
+    if (!(await ensurePhoneBeforePublish())) {
       return null
     }
 
@@ -151,10 +150,10 @@ export function useEmergencyHelp() {
     }
   }
 
-  async function bindPhone(code?: string): Promise<void> {
+  async function bindPhone(code?: string): Promise<boolean> {
     if (!code) {
-      uni.showToast({ title: '授权失败', icon: 'none' })
-      return
+      uni.showToast({ title: '可手动填写', icon: 'none' })
+      return false
     }
 
     isBindingPhone.value = true
@@ -167,16 +166,17 @@ export function useEmergencyHelp() {
       phone.value = result.phone
       manualPhone.value = result.phone
       uni.showToast({ title: '电话已授权', icon: 'success' })
+      return true
     } finally {
       isBindingPhone.value = false
     }
   }
 
-  async function bindManualPhone(): Promise<void> {
+  async function bindManualPhone(): Promise<boolean> {
     const input = manualPhone.value.trim()
     if (!PHONE_PATTERN.test(input)) {
       uni.showToast({ title: '请输入正确手机号', icon: 'none' })
-      return
+      return false
     }
 
     isBindingPhone.value = true
@@ -189,9 +189,18 @@ export function useEmergencyHelp() {
       phone.value = result.phone
       manualPhone.value = result.phone
       uni.showToast({ title: '电话已保存', icon: 'success' })
+      return true
     } finally {
       isBindingPhone.value = false
     }
+  }
+
+  async function ensurePhoneBeforePublish(): Promise<boolean> {
+    if (!USE_REAL_WECHAT_FLOW || phone.value) return true
+    if (manualPhone.value.trim()) return bindManualPhone()
+
+    uni.showToast({ title: '请填写电话', icon: 'none' })
+    return false
   }
 
   async function requestSubscribeBeforePublish(): Promise<void> {

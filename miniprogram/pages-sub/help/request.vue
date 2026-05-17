@@ -170,7 +170,7 @@ function togglePrivacy(): void {
 
 async function onGetPhoneNumber(event: PhoneNumberEvent): Promise<void> {
   if (event.detail.errMsg && !event.detail.code) {
-    uni.showToast({ title: '授权失败', icon: 'none' })
+    uni.showToast({ title: '可手动填写', icon: 'none' })
     return
   }
 

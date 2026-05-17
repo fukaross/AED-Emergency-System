@@ -17,6 +17,11 @@
           />
         </view>
         <view class="st-divider" />
+        <view class="st-row st-row--link" @tap="handleAlertSubscribe">
+          <text class="st-label">求助通知</text>
+          <text class="st-arrow">开启</text>
+        </view>
+        <view class="st-divider" />
         <view class="st-row st-row--link" @tap="handleOpenLocationSetting">
           <text class="st-label">位置权限</text>
           <text class="st-arrow">›</text>
@@ -88,6 +93,7 @@ import CustomNavbar from '@/components/custom-navbar/index.vue'
 import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
 import { useTheme } from '@/composables/useTheme'
+import { requestAlertSubscribe } from '@/api/wechat-subscribe'
 import {
   AUTH_USER_INFO_STORAGE_KEY,
   TOKEN_STORAGE_KEY,
@@ -141,6 +147,24 @@ function getSwitchValue(e: Event): boolean {
 
 function handleNotificationChange(e: Event): void {
   settingsStore.setNotification(getSwitchValue(e))
+}
+
+async function handleAlertSubscribe(): Promise<void> {
+  try {
+    if (!authStore.isLoggedIn) {
+      await authStore.login()
+    }
+
+    const status = await requestAlertSubscribe()
+    const accepted = status === 'accept' || status === 'acceptWithAudio'
+    uni.showToast({
+      title: accepted ? '通知已开启' : '通知未开启',
+      icon: accepted ? 'success' : 'none',
+    })
+  } catch (error) {
+    console.warn('[Settings] 订阅授权失败', error)
+    uni.showToast({ title: '通知未开启', icon: 'none' })
+  }
 }
 
 function handleDarkModeChange(e: Event): void {
