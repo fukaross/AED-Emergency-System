@@ -155,15 +155,16 @@ async function handleAlertSubscribe(): Promise<void> {
       await authStore.login()
     }
 
+    uni.showToast({ title: '请点允许通知', icon: 'none' })
     const status = await requestAlertSubscribe()
     const accepted = status === 'accept' || status === 'acceptWithAudio'
     uni.showToast({
-      title: accepted ? '通知已开启' : '通知未开启',
+      title: accepted ? '通知已开启' : '请开启通知',
       icon: accepted ? 'success' : 'none',
     })
   } catch (error) {
     console.warn('[Settings] 订阅授权失败', error)
-    uni.showToast({ title: '通知未开启', icon: 'none' })
+    uni.showToast({ title: '请开启通知', icon: 'none' })
   }
 }
 

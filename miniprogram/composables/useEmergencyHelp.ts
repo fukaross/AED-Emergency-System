@@ -207,16 +207,17 @@ export function useEmergencyHelp() {
     if (!authStore.isLoggedIn) return
 
     try {
+      uni.showToast({ title: '请点允许通知', icon: 'none' })
       const status = await requestAlertSubscribe()
       if (status === 'accept' || status === 'acceptWithAudio') {
         uni.showToast({ title: '通知已开启', icon: 'success' })
         return
       }
 
-      uni.showToast({ title: '通知未开启', icon: 'none' })
+      uni.showToast({ title: '请开启通知', icon: 'none' })
     } catch (error) {
       console.warn('[Help] 订阅授权失败', error)
-      uni.showToast({ title: '通知未开启', icon: 'none' })
+      uni.showToast({ title: '请开启通知', icon: 'none' })
     }
   }
 
