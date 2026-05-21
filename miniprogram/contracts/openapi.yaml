@@ -264,7 +264,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [published, closed, false_alarm]
+            enum: [published, responding, pending_review, closed, false_alarm]
       responses:
         '200':
           description: 成功
@@ -304,6 +304,39 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/HelpRequestDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/help/{id}/report:
+    post:
+      summary: 提交救助报告
+      operationId: submitHelpReport
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitHelpReportPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SubmitHelpReportResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -909,7 +942,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [published, closed, false_alarm]
+            enum: [published, responding, pending_review, closed, false_alarm]
         - name: keyword
           in: query
           schema:
@@ -1414,7 +1447,7 @@ components:
           type: string
         status:
           type: string
-          enum: [published, closed, false_alarm]
+          enum: [published, responding, pending_review, closed, false_alarm]
         createdAt:
           type: string
           format: date-time
@@ -1425,9 +1458,11 @@ components:
 
     HelpListItem:
       type: object
-      required: [id, content, type, status, address, createdAt, respondersCount, latestEta]
+      required: [id, requestNo, content, type, status, address, createdAt, respondersCount, latestEta]
       properties:
         id:
+          type: string
+        requestNo:
           type: string
         content:
           type: string
@@ -1436,7 +1471,7 @@ components:
           enum: [help_hand, call_120, call_school, general]
         status:
           type: string
-          enum: [published, closed, false_alarm]
+          enum: [published, responding, pending_review, closed, false_alarm]
         address:
           type: string
         createdAt:
@@ -1493,17 +1528,24 @@ components:
       type: object
       required:
         - id
+        - requestNo
         - content
         - type
         - status
         - address
+        - lat
+        - lng
+        - requesterPhone
         - createdAt
         - images
         - responders
         - estimatedArrivalTime
         - timeline
+        - reports
       properties:
         id:
+          type: string
+        requestNo:
           type: string
         content:
           type: string
@@ -1512,8 +1554,14 @@ components:
           enum: [help_hand, call_120, call_school, general]
         status:
           type: string
-          enum: [published, closed, false_alarm]
+          enum: [published, responding, pending_review, closed, false_alarm]
         address:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        requesterPhone:
           type: string
         createdAt:
           type: string
@@ -1536,6 +1584,56 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/HelpTimelineEntry'
+        reports:
+          type: array
+          items:
+            $ref: '#/components/schemas/HelpReportRecord'
+
+    SubmitHelpReportPayload:
+      type: object
+      required: [images, recordText, isFalseAlarm]
+      properties:
+        images:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        recordText:
+          type: string
+          minLength: 1
+        isFalseAlarm:
+          type: boolean
+
+    SubmitHelpReportResponse:
+      type: object
+      required: [id, status, submittedAt]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [pending_review, false_alarm]
+        submittedAt:
+          type: string
+          format: date-time
+
+    HelpReportRecord:
+      type: object
+      required: [id, images, recordText, isFalseAlarm, submittedAt]
+      properties:
+        id:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
+        recordText:
+          type: string
+        isFalseAlarm:
+          type: boolean
+        submittedAt:
+          type: string
+          format: date-time
 
     GuestLookupPayload:
       type: object
@@ -1561,7 +1659,7 @@ components:
           type: string
         status:
           type: string
-          enum: [published, closed, false_alarm]
+          enum: [published, responding, pending_review, closed, false_alarm]
         content:
           type: string
         address:
@@ -1651,7 +1749,7 @@ components:
           enum: [help_hand, call_120, call_school, general]
         status:
           type: string
-          enum: [published, closed, false_alarm]
+          enum: [published, responding, pending_review, closed, false_alarm]
         address:
           type: string
         createdAt:

@@ -124,6 +124,9 @@ export function useEmergencyHelp() {
       uni.showToast({ title: '请同意隐私说明', icon: 'none' })
       return null
     }
+    if (!(await ensureNoActiveHelp())) {
+      return null
+    }
     if (!(await ensurePhoneBeforePublish())) {
       return null
     }
@@ -148,6 +151,14 @@ export function useEmergencyHelp() {
     } finally {
       isSubmitting.value = false
     }
+  }
+
+  async function ensureNoActiveHelp(): Promise<boolean> {
+    await helpStore.loadList()
+    if (!helpStore.activeRequest) return true
+
+    uni.showToast({ title: '已有进行中的求助', icon: 'none' })
+    return false
   }
 
   async function bindPhone(code?: string): Promise<boolean> {

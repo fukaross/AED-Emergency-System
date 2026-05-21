@@ -9,7 +9,12 @@
 export type HelpRequestType = 'help_hand' | 'call_120' | 'call_school' | 'general'
 
 /** 求助状态 */
-export type HelpStatus = 'published' | 'closed' | 'false_alarm'
+export type HelpStatus =
+  | 'published'
+  | 'responding'
+  | 'pending_review'
+  | 'closed'
+  | 'false_alarm'
 
 /** 求助渠道 */
 export type RequestChannel = 'user' | 'guest'
@@ -41,6 +46,7 @@ export interface PublishHelpResponse {
 /** 求助列表项 */
 export interface HelpListItem {
   readonly id: string
+  readonly requestNo: string
   readonly content: string
   readonly type: HelpRequestType
   readonly status: HelpStatus
@@ -71,18 +77,46 @@ export interface CloseHelpPayload {
   readonly note?: string
 }
 
+/** 急救员报告提交请求 */
+export interface SubmitHelpReportPayload {
+  readonly images: readonly string[]
+  readonly recordText: string
+  readonly isFalseAlarm: boolean
+}
+
+/** 急救员报告提交响应 */
+export interface SubmitHelpReportResponse {
+  readonly id: string
+  readonly status: 'pending_review' | 'false_alarm'
+  readonly submittedAt: string
+}
+
+/** 求助报告记录 */
+export interface HelpReportRecord {
+  readonly id: string
+  readonly images: readonly string[]
+  readonly recordText: string
+  readonly isFalseAlarm: boolean
+  readonly submittedAt: string
+}
+
 /** 求助详情 */
 export interface HelpRequestDetail {
   readonly id: string
+  readonly requestNo: string
   readonly content: string
   readonly type: HelpRequestType
   readonly status: HelpStatus
   readonly address: string
+  readonly lat: number
+  readonly lng: number
+  readonly requesterPhone: string
   readonly createdAt: string
   readonly images: readonly string[]
   readonly responders: readonly HelpResponder[]
   readonly estimatedArrivalTime: string
   readonly timeline: readonly HelpTimelineEntry[]
+  readonly reports: readonly HelpReportRecord[]
 }
 
 /** 时间线条目 */

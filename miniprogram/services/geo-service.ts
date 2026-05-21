@@ -17,8 +17,7 @@ import { APP_ENV, USE_MOCK, USE_REAL_LOCATION } from '@/utils/runtime-env'
 const EARTH_RADIUS_M = 6371000
 const DEVTOOLS_PLATFORM = 'devtools'
 const LOCATION_SCOPE = 'scope.userLocation'
-const HIGH_ACCURACY_EXPIRE_MS = 5000
-
+const LOCATION_TIMEOUT_MS = 10000
 type GetCurrentLocationMode = 'auto' | 'interactive'
 
 interface DeviceInfoLike {
@@ -156,19 +155,43 @@ async function ensureLocationPermission(): Promise<boolean> {
   }
 }
 
-async function requestCurrentLocation(): Promise<LocationResult> {
+function buildLocationOptions(
+  mode: GetCurrentLocationMode,
+): GetLocationWithAccuracyOptions {
+  if (mode === 'interactive') {
+    return {
+      type: 'gcj02',
+      isHighAccuracy: true,
+      highAccuracyExpireTime: LOCATION_TIMEOUT_MS,
+    }
+  }
+
+  return { type: 'gcj02' }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label}: timeout`)), ms),
+    ),
+  ])
+}
+
+async function requestCurrentLocation(
+  mode: GetCurrentLocationMode,
+): Promise<LocationResult> {
   const hasPermission = await ensureLocationPermission()
   if (!hasPermission) {
     return createDefaultLocation('定位权限被拒绝，已使用校园中心点')
   }
 
   try {
-    const options: GetLocationWithAccuracyOptions = {
-      type: 'gcj02',
-      isHighAccuracy: true,
-      highAccuracyExpireTime: HIGH_ACCURACY_EXPIRE_MS,
-    }
-    const res = await uni.getLocation(options)
+    const res = await withTimeout(
+      uni.getLocation(buildLocationOptions(mode)),
+      LOCATION_TIMEOUT_MS,
+      'getLocation',
+    )
 
     console.log(
       `[GeoService] 定位成功 lat=${res.latitude} lng=${res.longitude} accuracy=${(res as { accuracy?: number }).accuracy ?? '未知'}m`,
@@ -181,7 +204,9 @@ async function requestCurrentLocation(): Promise<LocationResult> {
       showSystemLocation: true,
     }
   } catch (err) {
-    const errMsg = (err as { errMsg?: string })?.errMsg || ''
+    const errMsg = (err as { errMsg?: string })?.errMsg
+      || (err as Error)?.message
+      || ''
     console.warn('[GeoService] getLocation failed:', errMsg)
 
     if (errMsg.includes('auth deny') || errMsg.includes('authorize')) {
@@ -249,7 +274,7 @@ export async function getCurrentLocation(
     return chooseLocationPoint()
   }
 
-  return requestCurrentLocation()
+  return requestCurrentLocation(mode)
 }
 
 /** 引导用户开启定位权限 */

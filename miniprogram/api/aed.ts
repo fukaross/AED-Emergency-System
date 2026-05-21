@@ -12,6 +12,7 @@ import type { AedItem, NearbyAedParams, AedReportRequest } from '@/types/aed'
 import { AED_MOCK_DATA } from '@/mock/aed'
 import { calculateDistance } from '@/services/geo-service'
 import {
+  AED_BACKEND_READY,
   IS_DEV_LIKE,
   USE_PUBLIC_DEMO_DATA,
   shouldWarnPlaceholderApiBaseUrl,
@@ -49,7 +50,7 @@ function logMockUsage(action: string): void {
 
 /** 获取附近 AED 列表 */
 export function fetchNearbyAed(params: NearbyAedParams): Promise<AedItem[]> {
-  if (USE_PUBLIC_DEMO_DATA) {
+  if (!AED_BACKEND_READY && USE_PUBLIC_DEMO_DATA) {
     logMockUsage('fetchNearbyAed')
     return Promise.resolve(buildMockNearbyAed(params))
   }
@@ -58,7 +59,7 @@ export function fetchNearbyAed(params: NearbyAedParams): Promise<AedItem[]> {
 
 /** 获取单个 AED 详情 */
 export function fetchAedDetail(id: string): Promise<AedItem> {
-  if (USE_PUBLIC_DEMO_DATA) {
+  if (!AED_BACKEND_READY && USE_PUBLIC_DEMO_DATA) {
     logMockUsage('fetchAedDetail')
     const found = AED_MOCK_DATA.find((item) => item.id === id)
     if (!found) {
@@ -74,7 +75,7 @@ export function submitAedReport(
   aedId: string,
   payload: AedReportRequest,
 ): Promise<void> {
-  if (USE_PUBLIC_DEMO_DATA) {
+  if (!AED_BACKEND_READY && USE_PUBLIC_DEMO_DATA) {
     logMockUsage(`submitAedReport:${aedId}`)
     console.log('[Mock AED API] report payload', payload)
     return Promise.resolve()

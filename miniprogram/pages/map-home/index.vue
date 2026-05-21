@@ -23,10 +23,17 @@
     />
 
     <MapFloatingActions
+      :help-disabled="Boolean(helpStore.activeRequest)"
       @open-help="openHelpPage"
+      @help-disabled="showActiveHelpTip"
       @toggle-nearby="toggleNearbyPanel"
       @relocate="handleRelocate"
       @nearest="handleNearest"
+    />
+
+    <CurrentHelpCard
+      :request="helpStore.activeRequest"
+      @open="openCurrentHelp"
     />
 
     <VitalSignsCard
@@ -104,11 +111,13 @@ import {
 } from '@/services/map-service'
 import { useAedStore } from '@/store/aed'
 import { useAuthStore } from '@/store/auth'
+import { useHelpStore } from '@/store/help'
 import { useVitalsStore } from '@/store/vitals'
 import type { AedItem } from '@/types/aed'
 import { MAP_CENTER, WECHAT_ALERT_TEMPLATE_ID } from '@/utils/constants'
 import { USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
 import AedDetailModal from './components/aed-detail-modal.vue'
+import CurrentHelpCard from './components/current-help-card.vue'
 import MapFloatingActions from './components/map-floating-actions.vue'
 import MapStatusOverlay from './components/map-status-overlay.vue'
 import NearbyAedPanel from './components/nearby-aed-panel.vue'
@@ -130,6 +139,7 @@ let hasPromptedSubscribeThisSession = false
 
 const aedStore = useAedStore()
 const authStore = useAuthStore()
+const helpStore = useHelpStore()
 const vitalsStore = useVitalsStore()
 const { themeClass } = useTheme()
 const {
@@ -169,6 +179,9 @@ onShow(() => {
     loc?.lat ?? MAP_CENTER.latitude,
     loc?.lng ?? MAP_CENTER.longitude,
   )
+  helpStore.loadList().catch(() => {
+    console.warn('[MapHome] 求助列表加载失败')
+  })
   vitalsStore.startMonitoring()
   scheduleSubscribePrompt()
 })
@@ -194,10 +207,21 @@ function openHelpPage(): void {
   uni.navigateTo({ url: '/pages-sub/help/request' })
 }
 
+function openCurrentHelp(): void {
+  const request = helpStore.activeRequest
+  if (!request) return
+  uni.navigateTo({ url: `/pages-sub/help/detail?id=${request.id}` })
+}
+
+function showActiveHelpTip(): void {
+  uni.showToast({ title: '已有进行中的求助', icon: 'none' })
+}
+
 function shouldShowSubscribePrompt(): boolean {
   return USE_REAL_WECHAT_FLOW
     && Boolean(WECHAT_ALERT_TEMPLATE_ID)
     && !hasPromptedSubscribeThisSession
+    && authStore.isLoggedIn
 }
 
 function clearSubscribePromptTimer(): void {
@@ -227,11 +251,6 @@ async function handleEnableSubscribe(): Promise<void> {
 
   isRequestingSubscribe.value = true
   try {
-    if (!authStore.isLoggedIn) {
-      await authStore.login()
-    }
-
-    uni.showToast({ title: '请点允许', icon: 'none' })
     const status = await requestAlertSubscribe()
     const accepted = status === 'accept' || status === 'acceptWithAudio'
     uni.showToast({

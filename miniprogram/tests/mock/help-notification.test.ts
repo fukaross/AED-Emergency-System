@@ -4,10 +4,12 @@ import {
   dedupeMockHelpNotificationTargets,
   listMockHelpNotifications,
 } from '@/mock/help-notification'
-import { publishMockHelpRequest } from '@/mock/help'
+import { listMockHelpRequests, publishMockHelpRequest } from '@/mock/help'
+import type { MockHelpRecord } from '@/mock/help-storage'
 import type { PublishHelpPayload } from '@/types/help'
 
 const storage = new Map<string, string>()
+const MOCK_HELP_STORAGE_KEY = 'aed_mock_help_requests'
 
 vi.stubGlobal('uni', {
   getStorageSync: vi.fn((key: string) => storage.get(key)),
@@ -30,6 +32,31 @@ function buildPayload(
     type: 'general',
     requestChannel: 'user',
     privacyConsentAt: '2026-05-15T10:00:00.000Z',
+    ...patch,
+  }
+}
+
+function buildStoredHelpRecord(
+  patch: Partial<MockHelpRecord>,
+): MockHelpRecord {
+  const createdAt = patch.createdAt ?? '2026-05-15T10:00:00.000Z'
+  return {
+    id: 'help-legacy',
+    requestNo: 'HELPLEGACY',
+    content: '需要帮助',
+    type: 'general',
+    status: 'published',
+    address: 'REDACTED校区教学楼A',
+    lat: 19.9743,
+    lng: 110.5178,
+    requesterPhone: 'REDACTED',
+    createdAt,
+    images: [],
+    requestChannel: 'user',
+    responders: [],
+    estimatedArrivalTime: '待响应',
+    timeline: [{ action: 'published', timestamp: createdAt }],
+    reports: [],
     ...patch,
   }
 }
@@ -114,5 +141,25 @@ describe('mock help notifications', () => {
     expect(listMockHelpNotifications(result.requestNo).length).toBeGreaterThan(0)
     clearMockHelpNotifications()
     expect(listMockHelpNotifications(result.requestNo)).toHaveLength(0)
+  })
+
+  it('rejects a second active mock help request', () => {
+    publishMockHelpRequest(buildPayload())
+
+    expect(() => publishMockHelpRequest(buildPayload())).toThrow('已有进行中的求助')
+  })
+
+  it('normalizes legacy duplicate active records to one published item', () => {
+    storage.set(
+      MOCK_HELP_STORAGE_KEY,
+      JSON.stringify([
+        buildStoredHelpRecord({ id: 'help-new', requestNo: 'HELPNEW' }),
+        buildStoredHelpRecord({ id: 'help-old', requestNo: 'HELPOLD' }),
+      ]),
+    )
+
+    const result = listMockHelpRequests(1, 20)
+
+    expect(result.items.map((item) => item.status)).toEqual(['published', 'closed'])
   })
 })

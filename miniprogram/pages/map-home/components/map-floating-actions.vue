@@ -2,16 +2,16 @@
   <view class="map-floating-actions">
     <view
       class="fab-help"
-      :class="{ 'is-pressed': pressedStates.help }"
+      :class="{ 'is-pressed': pressedStates.help, 'is-disabled': props.helpDisabled }"
       :style="fabHelpStyle"
-      @click="emit('open-help')"
+      @click="handleHelpTap"
       @touchstart.passive="setPressed('help', true)"
       @touchend="setPressed('help', false)"
       @touchcancel="setPressed('help', false)"
     >
       <image
         class="fab-help__icon"
-        :src="EMERGENCY_CALL_ICON"
+        :src="HELP_ICON"
         mode="aspectFit"
       />
       <text class="fab-help__text">寻求帮助</text>
@@ -71,7 +71,7 @@ import { computed, reactive } from 'vue'
 import { useNavbarSafeArea } from '@/composables/useNavbarSafeArea'
 
 const HELP_TOP_GAP_PX = 10
-const EMERGENCY_CALL_ICON = '/static/images/emergency-call.png'
+const HELP_ICON = '/static/images/emergency-call.png'
 const LIST_ICON = '/static/icons/list.svg'
 const LOCATION_ICON = '/static/icons/location.svg'
 const NEAR_AED_ICON = '/static/icons/near_AED.svg'
@@ -80,9 +80,14 @@ type PressedKey = 'help' | 'nearby' | 'locate' | 'nearest'
 
 const emit = defineEmits<{
   'open-help': []
+  'help-disabled': []
   'toggle-nearby': []
   relocate: []
   nearest: []
+}>()
+
+const props = defineProps<{
+  readonly helpDisabled?: boolean
 }>()
 
 const { navbarBottom } = useNavbarSafeArea()
@@ -99,6 +104,14 @@ const fabHelpStyle = computed(() => ({
 
 function setPressed(key: PressedKey, value: boolean): void {
   pressedStates[key] = value
+}
+
+function handleHelpTap(): void {
+  if (props.helpDisabled) {
+    emit('help-disabled')
+    return
+  }
+  emit('open-help')
 }
 </script>
 
@@ -120,6 +133,10 @@ function setPressed(key: PressedKey, value: boolean): void {
 
   &.is-pressed {
     transform: scale(0.88);
+  }
+
+  &.is-disabled {
+    opacity: 0.52;
   }
 
   &__icon {

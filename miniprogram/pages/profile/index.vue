@@ -42,19 +42,7 @@
     </view>
 
     <!-- 选项列表 -->
-    <view class="pf-menu">
-      <view
-        v-for="(item, idx) in MENU_ITEMS"
-        :key="item.key"
-        class="pf-menu-item"
-        :class="{ 'pf-menu-item--last': idx === MENU_ITEMS.length - 1 }"
-        @click="handleMenuClick(item)"
-      >
-        <image class="pf-menu-icon" :src="item.icon" mode="aspectFit" />
-        <text class="pf-menu-title">{{ item.title }}</text>
-        <text class="pf-menu-arrow">›</text>
-      </view>
-    </view>
+    <ProfileMenuList @select="handleMenuClick" />
 
     <view class="pf-spacer" />
 
@@ -79,27 +67,16 @@ import { useUserStore } from '@/store/user'
 import { uploadImage } from '@/api/common'
 import AppTabBar from '@/components/app-tab-bar/index.vue'
 import LevelBadge from '@/components/level-badge/index.vue'
+import ProfileMenuList from './components/profile-menu-list.vue'
 
 const PROFILE_BG = '/static/images/profile-bg.png'
 const DEFAULT_AVATAR = '/static/images/avatar-default.png'
 
-interface MenuItem {
-  readonly key: string
+interface ProfileMenuItem {
   readonly title: string
-  readonly icon: string
   readonly url: string
   readonly needAuth: boolean
 }
-
-const MENU_ITEMS: readonly MenuItem[] = [
-  { key: 'profile', title: '个人资料', icon: '/static/icons/menu-profile.svg', url: '/pages-sub/profile/edit', needAuth: true },
-  { key: 'volunteer', title: '加入志愿者', icon: '/static/icons/volunteer-prepare.svg', url: '/pages-sub/profile/volunteer', needAuth: true },
-  { key: 'archive', title: '急救档案', icon: '/static/icons/menu-archive.svg', url: '/pages-sub/profile/archives', needAuth: true },
-  { key: 'settings', title: '设置', icon: '/static/icons/menu-settings.svg', url: '/pages-sub/profile/settings', needAuth: true },
-  { key: 'study', title: '我的学习', icon: '/static/icons/menu-study.svg', url: '', needAuth: true },
-  { key: 'feedback', title: '帮助与反馈', icon: '/static/icons/menu-feedback.svg', url: '', needAuth: false },
-  { key: 'about', title: '关于我们', icon: '/static/icons/menu-about.svg', url: '', needAuth: false },
-]
 
 const authStore = useAuthStore()
 const userStore = useUserStore()
@@ -165,7 +142,7 @@ function handleLogin() {
   })
 }
 
-function handleMenuClick(item: MenuItem) {
+function handleMenuClick(item: ProfileMenuItem) {
   if (item.needAuth && !authStore.isLoggedIn) {
     uni.showToast({ title: '请先登录', icon: 'none' })
     return
@@ -309,44 +286,6 @@ onShow(() => {
 }
 
 .pf-login-text { font-size: $font-size-sm; color: $text-white; }
-
-// ===== 菜单列表 =====
-.pf-menu {
-  background: $background-white;
-  margin: -16rpx $spacing-md 0;
-  border-radius: $radius-xl $radius-xl 0 0;
-  position: relative;
-  z-index: 1;
-}
-
-.pf-menu-item {
-  @include flex-align-center;
-  height: 100rpx;
-  padding: 0 $spacing-md;
-  border-bottom: 1rpx solid $divider-light;
-  margin-left: 88rpx;
-  position: relative;
-}
-
-.pf-menu-item--last { border-bottom: none; }
-
-.pf-menu-icon {
-  position: absolute;
-  left: -64rpx;
-  width: 48rpx;
-  height: 48rpx;
-}
-
-.pf-menu-title {
-  flex: 1;
-  font-size: $font-size-lg;
-  color: $text-primary;
-}
-
-.pf-menu-arrow {
-  font-size: $font-size-xl;
-  color: $text-tertiary;
-}
 
 // ===== 底部占位 =====
 .pf-spacer {

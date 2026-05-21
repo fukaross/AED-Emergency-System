@@ -6,7 +6,7 @@
  * 来源：CLAUDE.md §6.3
  */
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type {
   PublishHelpPayload,
   PublishHelpResponse,
@@ -16,12 +16,17 @@ import type {
   GuestLookupPayload,
   GuestClosePayload,
   GuestCloseResult,
+  HelpListItem,
+  SubmitHelpReportPayload,
+  SubmitHelpReportResponse,
 } from '@/types/help'
 import {
+  fetchHelpList,
   publishHelp,
   fetchHelpDetail,
   guestQueryHelp,
   guestCloseHelp,
+  submitHelpReport,
 } from '@/api/help'
 
 const GUEST_HELP_SESSION_STORAGE_KEY = 'aed_guest_help_session'
@@ -51,9 +56,19 @@ function persistGuestSession(session: GuestHelpSession | null): void {
 export const useHelpStore = defineStore('help', () => {
   // ===== State =====
   const currentRequest = ref<HelpRequestDetail | null>(null)
+  const helpList = ref<readonly HelpListItem[]>([])
   const guestSession = ref<GuestHelpSession | null>(loadGuestSession())
   const lookupResult = ref<GuestHelpLookupResult | null>(null)
+  const loadingList = ref(false)
   const publishing = ref(false)
+
+  const activeRequest = computed(() =>
+    helpList.value.find((item) =>
+      item.status === 'published'
+        || item.status === 'responding'
+        || item.status === 'pending_review',
+    ) ?? null,
+  )
 
   // ===== Actions =====
   async function publish(
@@ -86,6 +101,26 @@ export const useHelpStore = defineStore('help', () => {
     currentRequest.value = await fetchHelpDetail(id)
   }
 
+  async function loadList(page = 1, pageSize = 20): Promise<void> {
+    loadingList.value = true
+    try {
+      const result = await fetchHelpList(page, pageSize)
+      helpList.value = result.items
+    } finally {
+      loadingList.value = false
+    }
+  }
+
+  async function submitReport(
+    id: string,
+    payload: SubmitHelpReportPayload,
+  ): Promise<SubmitHelpReportResponse> {
+    const result = await submitHelpReport(id, payload)
+    await loadDetail(id)
+    await loadList()
+    return result
+  }
+
   async function guestLookup(
     payload: GuestLookupPayload,
   ): Promise<void> {
@@ -103,6 +138,7 @@ export const useHelpStore = defineStore('help', () => {
 
   function clearHelpState(): void {
     currentRequest.value = null
+    helpList.value = []
     guestSession.value = null
     lookupResult.value = null
     persistGuestSession(null)
@@ -110,11 +146,16 @@ export const useHelpStore = defineStore('help', () => {
 
   return {
     currentRequest,
+    helpList,
     guestSession,
     lookupResult,
+    activeRequest,
+    loadingList,
     publishing,
     publish,
     loadDetail,
+    loadList,
+    submitReport,
     guestLookup,
     guestClose,
     clearHelpState,

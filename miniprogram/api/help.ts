@@ -8,6 +8,7 @@
  * GET  /api/help/:id            — 求助详情 [登录]
  * POST /api/help/:id/respond    — 响应求助 [登录 + 权限]
  * PUT  /api/help/:id/close      — 关闭求助 [登录]
+ * POST /api/help/:id/report     — 提交救助报告 [登录 + 权限]
  * POST /api/help/guest/query    — 游客查询 [公开]
  * POST /api/help/guest/close    — 游客关闭误报 [公开]
  *
@@ -27,6 +28,8 @@ import type {
   GuestClosePayload,
   GuestCloseResult,
   RespondToHelpPayload,
+  SubmitHelpReportPayload,
+  SubmitHelpReportResponse,
 } from '@/types/help'
 import type { PaginatedData } from '@/types/common'
 import {
@@ -37,8 +40,14 @@ import {
   publishMockHelpRequest,
   queryMockGuestHelp,
   respondMockHelpRequest,
+  submitMockHelpReport,
 } from '@/mock/help'
-import { USE_MOCK, USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
+import { cachePublishedHelpRecord } from '@/mock/help-storage'
+import {
+  USE_LOCAL_HELP_READ_MODEL,
+  USE_MOCK,
+  USE_REAL_WECHAT_FLOW,
+} from '@/utils/runtime-env'
 
 /** 发布求助 */
 export function publishHelp(
@@ -51,7 +60,12 @@ export function publishHelp(
   return post<PublishHelpResponse>(
     '/api/help/request',
     payload as unknown as Record<string, unknown>,
-  )
+  ).then((result) => {
+    if (USE_LOCAL_HELP_READ_MODEL) {
+      cachePublishedHelpRecord(payload, result)
+    }
+    return result
+  })
 }
 
 /** 获取已登录用户求助列表 */
@@ -59,7 +73,7 @@ export function fetchHelpList(
   page = 1,
   pageSize = 20,
 ): Promise<PaginatedData<HelpListItem>> {
-  if (USE_MOCK) {
+  if (USE_LOCAL_HELP_READ_MODEL) {
     return Promise.resolve(listMockHelpRequests(page, pageSize))
   }
 
@@ -68,11 +82,26 @@ export function fetchHelpList(
 
 /** 获取求助详情 */
 export function fetchHelpDetail(id: string): Promise<HelpRequestDetail> {
-  if (USE_MOCK) {
+  if (USE_LOCAL_HELP_READ_MODEL) {
     return Promise.resolve(getMockHelpDetail(id))
   }
 
   return get<HelpRequestDetail>(`/api/help/${id}`)
+}
+
+/** 急救员提交救助报告 */
+export function submitHelpReport(
+  id: string,
+  payload: SubmitHelpReportPayload,
+): Promise<SubmitHelpReportResponse> {
+  if (USE_LOCAL_HELP_READ_MODEL) {
+    return Promise.resolve(submitMockHelpReport(id, payload))
+  }
+
+  return post<SubmitHelpReportResponse>(
+    `/api/help/${id}/report`,
+    payload as unknown as Record<string, unknown>,
+  )
 }
 
 /**
@@ -85,7 +114,7 @@ export function respondToHelp(
   id: string,
   payload: RespondToHelpPayload,
 ): Promise<void> {
-  if (USE_MOCK) {
+  if (USE_LOCAL_HELP_READ_MODEL) {
     respondMockHelpRequest(id, payload)
     return Promise.resolve()
   }
@@ -95,7 +124,7 @@ export function respondToHelp(
 
 /** 关闭求助 */
 export function closeHelp(id: string, payload: CloseHelpPayload): Promise<void> {
-  if (USE_MOCK) {
+  if (USE_LOCAL_HELP_READ_MODEL) {
     closeMockHelpRequest(id, payload)
     return Promise.resolve()
   }
@@ -107,7 +136,7 @@ export function closeHelp(id: string, payload: CloseHelpPayload): Promise<void> 
 export function guestQueryHelp(
   payload: GuestLookupPayload,
 ): Promise<GuestHelpLookupResult> {
-  if (USE_MOCK) {
+  if (USE_LOCAL_HELP_READ_MODEL) {
     return Promise.resolve(queryMockGuestHelp(payload))
   }
 
@@ -121,7 +150,7 @@ export function guestQueryHelp(
 export function guestCloseHelp(
   payload: GuestClosePayload,
 ): Promise<GuestCloseResult> {
-  if (USE_MOCK) {
+  if (USE_LOCAL_HELP_READ_MODEL) {
     return Promise.resolve(closeMockGuestHelpRequest(payload))
   }
 

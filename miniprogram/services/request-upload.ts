@@ -10,7 +10,7 @@ import { handleErrorCode } from '@/services/request-errors'
 import { createApiError, extractApiResponse } from '@/services/request-response'
 import type { UploadImageResponse } from '@/types/common'
 import { ERROR_CODES, REQUEST_TIMEOUT } from '@/utils/constants'
-import { USE_MOCK } from '@/utils/runtime-env'
+import { HELP_BACKEND_READY, USE_MOCK } from '@/utils/runtime-env'
 
 interface UploadCallbacks {
   readonly resolve: (value: UploadImageResponse) => void
@@ -89,7 +89,7 @@ function uploadFileInternal(
 ): Promise<UploadImageResponse> {
   const token = getToken()
 
-  if (USE_MOCK) {
+  if (USE_MOCK && !HELP_BACKEND_READY) {
     const fileId = `mock-file-${Date.now()}`
     console.log(`[Mock Upload API] ${scene}`, filePath)
     return Promise.resolve({
