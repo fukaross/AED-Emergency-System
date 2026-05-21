@@ -4,6 +4,7 @@ import {
   maskIdNumber,
   formatDistance,
   formatDate,
+  formatChineseDateTime,
   formatRelativeTime,
 } from '@/utils/format'
 
@@ -53,6 +54,25 @@ describe('formatDate', () => {
   it('formats ISO date string', () => {
     const result = formatDate('2026-03-15T10:30:00Z')
     expect(result).toMatch(/2026-03-15/)
+  })
+})
+
+describe('formatChineseDateTime', () => {
+  it('formats Date objects without English weekday text', () => {
+    const result = formatChineseDateTime(new Date(2026, 4, 21, 23, 29, 10))
+
+    expect(result).toBe('2026年05月21日 23:29')
+  })
+
+  it('formats ISO values with Chinese date units', () => {
+    const result = formatChineseDateTime('2026-05-21T15:29:10.000Z')
+
+    expect(result).toMatch(/^\d{4}年\d{2}月\d{2}日 \d{2}:\d{2}$/)
+    expect(result).not.toMatch(/Thu|May|GMT|CST/)
+  })
+
+  it('returns empty string for invalid values', () => {
+    expect(formatChineseDateTime('not-a-date')).toBe('')
   })
 })
 

@@ -90,19 +90,31 @@ export function useEmergencyHelp() {
 
   /** 选择并上传图片 */
   async function addImage(): Promise<void> {
-    if (form.images.length >= MAX_HELP_IMAGES) {
+    const remaining = MAX_HELP_IMAGES - form.images.length
+    if (remaining <= 0) {
       uni.showToast({ title: `最多上传${MAX_HELP_IMAGES}张图片`, icon: 'none' })
       return
     }
 
-    const res = await uni.chooseImage({
-      count: MAX_HELP_IMAGES - form.images.length,
-      sizeType: ['compressed'],
-    })
+    try {
+      const res = await uni.chooseImage({ count: remaining, sizeType: ['compressed'] })
+      for (const path of res.tempFilePaths.slice(0, remaining)) {
+        await uploadHelpImage(path)
+      }
+    } catch (error) {
+      if (!isUserCancel(error)) {
+        uni.showToast({ title: '选择失败', icon: 'none' })
+      }
+    }
+  }
 
-    for (const path of res.tempFilePaths) {
+  async function uploadHelpImage(path: string): Promise<void> {
+    try {
       const uploaded = await uploadImage(path, 'help')
       form.images.push(uploaded.url)
+    } catch (error) {
+      console.warn('[Help] 现场图片上传失败', error)
+      uni.showToast({ title: '上传失败', icon: 'none' })
     }
   }
 
@@ -230,6 +242,10 @@ export function useEmergencyHelp() {
       console.warn('[Help] 订阅授权失败', error)
       uni.showToast({ title: '请开启通知', icon: 'none' })
     }
+  }
+
+  function isUserCancel(error: unknown): boolean {
+    return String((error as { errMsg?: string })?.errMsg || error).includes('cancel')
   }
 
   return {

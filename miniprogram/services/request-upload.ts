@@ -120,10 +120,23 @@ function uploadFileInternal(
         })
       },
       fail: (err) => {
-        reject(new Error(err.errMsg || '文件上传失败'))
+        console.warn('[Upload] uploadFile failed:', err.errMsg)
+        reject(new Error(formatUploadFailureMessage(err.errMsg || '')))
       },
     })
   })
+}
+
+function formatUploadFailureMessage(errMsg: string): string {
+  if (errMsg.includes('url not in domain list')
+    || errMsg.includes('domain list')
+    || errMsg.includes('合法域名')) {
+    return '上传域名未配置'
+  }
+
+  if (errMsg.includes('timeout')) return '上传超时'
+  if (errMsg.includes('fail')) return '网络上传失败'
+  return '文件上传失败'
 }
 
 export function uploadFile(

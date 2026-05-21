@@ -36,6 +36,22 @@ export function formatDateTime(isoString: string): string {
   return isoString.slice(0, 16).replace('T', ' ')
 }
 
+/** 格式化为中文本地时间：YYYY年MM月DD日 HH:mm */
+export function formatChineseDateTime(value: string | Date): string {
+  if (!value) return ''
+
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const year = date.getFullYear()
+  const month = padDateUnit(date.getMonth() + 1)
+  const day = padDateUnit(date.getDate())
+  const hour = padDateUnit(date.getHours())
+  const minute = padDateUnit(date.getMinutes())
+
+  return `${year}年${month}月${day}日 ${hour}:${minute}`
+}
+
 /** 格式化日期为友好相对时间 */
 export function formatRelativeTime(isoString: string): string {
   if (!isoString) return ''
@@ -54,4 +70,8 @@ export function formatRelativeTime(isoString: string): string {
   if (diffDay < 30) return `${diffDay}天前`
 
   return formatDate(isoString)
+}
+
+function padDateUnit(value: number): string {
+  return String(value).padStart(2, '0')
 }

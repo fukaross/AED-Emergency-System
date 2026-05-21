@@ -38,6 +38,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { useTheme } from '@/composables/useTheme'
 import { useHelpStore } from '@/store/help'
 import type { HelpStatus } from '@/types/help'
+import { formatChineseDateTime } from '@/utils/format'
 import { getHelpStatusClass, getHelpStatusText } from '@/utils/help-labels'
 
 const helpStore = useHelpStore()
@@ -62,7 +63,7 @@ function statusClass(status: HelpStatus): string {
 }
 
 function formatTime(value: string): string {
-  return new Date(value).toLocaleString()
+  return formatChineseDateTime(value)
 }
 </script>
 

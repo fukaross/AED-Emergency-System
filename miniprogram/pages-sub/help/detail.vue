@@ -7,6 +7,8 @@
       :scale="17"
       :markers="markers"
       :polyline="polylines"
+      :include-points="includePoints"
+      :show-location="hasUserLocation"
       @markertap="handleMarkerTap"
     />
 
@@ -56,8 +58,10 @@ import {
   type MapMarker,
   type MapPolyline,
 } from '@/services/map-service'
+import { getCurrentLocation } from '@/services/geo-service'
 import { useHelpStore } from '@/store/help'
 import type { AedItem } from '@/types/aed'
+import type { GeoPoint } from '@/types/common'
 import type { HelpRequestDetail, SubmitHelpReportPayload } from '@/types/help'
 import { MAP_CENTER } from '@/utils/constants'
 import HelpDetailInfo from './components/help-detail-info.vue'
@@ -79,6 +83,7 @@ const loading = ref(true)
 const errorMessage = ref('')
 const showReportSheet = ref(false)
 const submittingReport = ref(false)
+const userLocation = ref<GeoPoint | null>(null)
 
 const mapCenter = computed(() => {
   return detail.value
@@ -93,10 +98,29 @@ const markers = computed<MapMarker[]>(() => {
 })
 
 const polylines = computed<MapPolyline[]>(() => {
-  if (!detail.value) return []
-  const origin = { lat: MAP_CENTER.latitude, lng: MAP_CENTER.longitude }
+  if (!detail.value || !userLocation.value) return []
+  const origin = userLocation.value
   return [createRoutePolyline([origin, mapCenter.value])]
 })
+
+const includePoints = computed(() => {
+  const points: Array<{ latitude: number; longitude: number }> = []
+  if (userLocation.value) {
+    points.push({
+      latitude: userLocation.value.lat,
+      longitude: userLocation.value.lng,
+    })
+  }
+  if (detail.value) {
+    points.push({
+      latitude: detail.value.lat,
+      longitude: detail.value.lng,
+    })
+  }
+  return points
+})
+
+const hasUserLocation = computed(() => Boolean(userLocation.value))
 
 const canSubmitReport = computed(() => {
   return detail.value?.status === 'published' || detail.value?.status === 'responding'
@@ -118,7 +142,7 @@ async function loadDetail(id: string): Promise<void> {
   try {
     await helpStore.loadDetail(id)
     detail.value = helpStore.currentRequest
-    await loadNearbyAeds()
+    await Promise.all([loadNearbyAeds(), loadUserLocation()])
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '求助加载失败'
   } finally {
@@ -133,6 +157,17 @@ async function loadNearbyAeds(): Promise<void> {
     lng: detail.value.lng,
     radius: 1000,
   })
+}
+
+async function loadUserLocation(): Promise<void> {
+  const loc = await getCurrentLocation()
+  if (loc.success) {
+    userLocation.value = loc.point
+    return
+  }
+
+  userLocation.value = null
+  uni.showToast({ title: loc.errorMessage || '定位失败', icon: 'none' })
 }
 
 function buildHelpMarker(item: HelpRequestDetail): MapMarker {

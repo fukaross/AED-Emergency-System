@@ -61,6 +61,7 @@ import {
   getHelpStatusClass,
   getHelpStatusText,
 } from '@/utils/help-labels'
+import { formatChineseDateTime } from '@/utils/format'
 
 const props = defineProps<{
   readonly detail: HelpRequestDetail
@@ -75,7 +76,7 @@ const statusText = computed(() => getHelpStatusText(props.detail.status))
 const statusClass = computed(() => getHelpStatusClass(props.detail.status))
 
 function formatTime(value: string): string {
-  return new Date(value).toLocaleString()
+  return formatChineseDateTime(value)
 }
 
 function actionText(action: string): string {
