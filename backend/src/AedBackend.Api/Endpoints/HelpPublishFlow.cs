@@ -1,0 +1,213 @@
+using System.Security.Cryptography;
+using AedBackend.Core.DTOs.Help;
+using AedBackend.Core.DTOs.WeChat;
+using AedBackend.Core.Models.Help;
+using AedBackend.Core.Models.WeChat;
+using AedBackend.Core.Services.WeChat;
+using AedBackend.Infrastructure.WeChat;
+
+namespace AedBackend.Api.Endpoints;
+
+internal static class HelpPublishFlow
+{
+    private const int TemplateThingMaxLength = 20;
+    private const int ChinaUtcOffsetHours = 8;
+    private const int MaxHelpImageCount = 3;
+
+    public static string? ValidatePublishRequest(
+        PublishHelpRequest request,
+        WeChatOptions options,
+        ExperienceUserRecord? currentUser)
+    {
+        if (string.IsNullOrWhiteSpace(options.SubscribeTemplateId)) return "缺少订阅模板配置";
+        if (currentUser is null) return "请先登录";
+        if (string.IsNullOrWhiteSpace(currentUser.Phone)) return "请先授权联系电话";
+        if (request.Images?.Count > MaxHelpImageCount) return "images 最多 3 项";
+        return ValidateHelpFields(request);
+    }
+
+    public static string? ValidateReport(HelpReportRequest request, WeChatOptions options)
+    {
+        if (request.Images is null || request.Images.Count == 0) return "images 至少 1 项";
+        if (string.IsNullOrWhiteSpace(request.RecordText)) return "recordText 不能为空";
+        return request.Images.All(item => IsUploadedImageUrl(item, options))
+            ? null
+            : "images 必须是已上传图片 URL";
+    }
+
+    public static HelpRequestRecord CreateRecord(
+        PublishHelpRequest request,
+        ExperienceUserRecord currentUser)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new HelpRequestRecord
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            RequestNo = $"HELP{now.ToUnixTimeMilliseconds()}",
+            UserId = currentUser.OpenId,
+            RequestChannel = request.RequestChannel == "guest" ? "guest" : "user",
+            Lat = request.Lat,
+            Lng = request.Lng,
+            Address = request.Address.Trim(),
+            Content = request.Content.Trim(),
+            Type = request.Type,
+            CreatedAt = now,
+            RequesterPhone = currentUser.Phone!,
+            Images = request.Images?.ToArray() ?? [],
+            Timeline = [new HelpTimelineRecord(HelpStatuses.Published, now, null)],
+            GuestSession = CreateGuestSession(request)
+        };
+    }
+
+    public static PublishHelpResponse ToPublishResponse(
+        HelpRequestRecord record,
+        IReadOnlyList<BroadcastRecipientResult> recipients)
+    {
+        return new PublishHelpResponse(
+            record.Id,
+            record.RequestNo,
+            record.Status,
+            record.CreatedAt,
+            record.GuestSession?.FollowupCode,
+            record.GuestSession?.CloseToken,
+            new HelpNotificationResult(recipients.Count, recipients));
+    }
+
+    public static async Task<IReadOnlyList<BroadcastRecipientResult>> SendNotificationsAsync(
+        HelpRequestRecord record,
+        PublishHelpRequest request,
+        ExperienceUserRecord currentUser,
+        WeChatOptions options,
+        IExperienceUserStore userStore,
+        IWeChatSubscribeMessageSender sender,
+        CancellationToken cancellationToken)
+    {
+        var users = await userStore.ListUsersAsync(cancellationToken);
+        var targets = users.Where(user => IsTemplateAccepted(user, options.SubscribeTemplateId));
+        var data = CreateTemplateData(request, currentUser, record.CreatedAt);
+        var page = $"pages-sub/help/detail?id={record.Id}";
+        var results = new List<BroadcastRecipientResult>();
+
+        foreach (var target in targets)
+        {
+            results.Add(await SendNotificationAsync(target, options, sender, page, data, cancellationToken));
+        }
+
+        return results;
+    }
+
+    private static string? ValidateHelpFields(PublishHelpRequest request)
+    {
+        if (request.Lat is < -90 or > 90) return "lat 不合法";
+        if (request.Lng is < -180 or > 180) return "lng 不合法";
+        if (string.IsNullOrWhiteSpace(request.Address)) return "address 不能为空";
+        if (string.IsNullOrWhiteSpace(request.Content)) return "content 不能为空";
+        return request.Type is "help_hand" or "call_120" or "call_school" or "general"
+            ? null
+            : "type 仅支持 help_hand / call_120 / call_school / general";
+    }
+
+    private static bool IsUploadedImageUrl(string value, WeChatOptions options)
+    {
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            && value.StartsWith(options.PublicBaseUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase)
+            && uri.AbsolutePath.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static HelpGuestSessionRecord? CreateGuestSession(PublishHelpRequest request)
+    {
+        if (request.RequestChannel != "guest") return null;
+        return new HelpGuestSessionRecord(
+            request.GuestName,
+            CreateCode("Q", 3),
+            CreateCode("CLOSE", 4),
+            CreateCode("ANON", 8),
+            request.CallbackAllowed ?? false,
+            request.PrivacyConsentAt);
+    }
+
+    private static async Task<BroadcastRecipientResult> SendNotificationAsync(
+        ExperienceUserRecord target,
+        WeChatOptions options,
+        IWeChatSubscribeMessageSender sender,
+        string page,
+        IReadOnlyDictionary<string, SubscribeMessageDataValue> data,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await SendNotificationCoreAsync(
+                target,
+                options,
+                sender,
+                page,
+                data,
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return new BroadcastRecipientResult(target.OpenId, false, -1, ex.Message, null);
+        }
+    }
+
+    private static async Task<BroadcastRecipientResult> SendNotificationCoreAsync(
+        ExperienceUserRecord target,
+        WeChatOptions options,
+        IWeChatSubscribeMessageSender sender,
+        string page,
+        IReadOnlyDictionary<string, SubscribeMessageDataValue> data,
+        CancellationToken cancellationToken)
+    {
+        var command = new SubscribeMessageCommand(
+            target.OpenId,
+            options.SubscribeTemplateId,
+            page,
+            options.DefaultMiniProgramState,
+            data);
+        var result = await sender.SendAsync(command, cancellationToken);
+        return new BroadcastRecipientResult(
+            target.OpenId,
+            result.Sent,
+            result.WeChatErrorCode,
+            result.WeChatErrorMessage,
+            result.MessageId);
+    }
+
+    private static IReadOnlyDictionary<string, SubscribeMessageDataValue> CreateTemplateData(
+        PublishHelpRequest request,
+        ExperienceUserRecord currentUser,
+        DateTimeOffset createdAt)
+    {
+        return new Dictionary<string, SubscribeMessageDataValue>
+        {
+            ["thing2"] = new(CreateTemplateThing(request.Content)),
+            ["time3"] = new(ToTemplateTime(createdAt)),
+            ["thing4"] = new(CreateTemplateThing(request.GuestName ?? "微信用户")),
+            ["phone_number5"] = new(currentUser.Phone!),
+            ["thing6"] = new(CreateTemplateThing(request.Address))
+        };
+    }
+
+    private static bool IsTemplateAccepted(ExperienceUserRecord user, string templateId)
+    {
+        return user.Subscriptions.TryGetValue(templateId, out var subscription)
+            && subscription.Status is "accept" or "acceptWithAudio";
+    }
+
+    private static string CreateTemplateThing(string value)
+    {
+        var text = value.Trim();
+        return text.Length <= TemplateThingMaxLength ? text : text[..TemplateThingMaxLength];
+    }
+
+    private static string ToTemplateTime(DateTimeOffset timestamp)
+    {
+        return timestamp.ToOffset(TimeSpan.FromHours(ChinaUtcOffsetHours))
+            .ToString("yyyy年M月d日 HH:mm:ss");
+    }
+
+    private static string CreateCode(string prefix, int byteCount)
+    {
+        return $"{prefix}{Convert.ToHexString(RandomNumberGenerator.GetBytes(byteCount))}";
+    }
+}
