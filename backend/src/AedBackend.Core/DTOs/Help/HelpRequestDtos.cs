@@ -61,6 +61,7 @@ public sealed record HelpReportResponse(
 
 public sealed record HelpReportRecordResponse(
     string Id,
+    string? ReporterOpenId,
     IReadOnlyList<string> Images,
     string RecordText,
     bool IsFalseAlarm,

@@ -72,6 +72,7 @@ internal static class HelpResponseMapper
     {
         return new HelpReportRecordResponse(
             report.Id,
+            report.ReporterOpenId,
             report.Images,
             report.RecordText,
             report.IsFalseAlarm,

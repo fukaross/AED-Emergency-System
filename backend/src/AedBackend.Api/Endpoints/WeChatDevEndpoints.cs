@@ -2,6 +2,7 @@ using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.DTOs.WeChat;
 using AedBackend.Core.Models.WeChat;
+using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.WeChat;
 using AedBackend.Infrastructure.WeChat;
 using Microsoft.Extensions.Options;
@@ -30,10 +31,11 @@ public static class WeChatDevEndpoints
     private static async Task<IResult> ListExperienceUsersAsync(
         HttpRequest httpRequest,
         IOptions<WeChatOptions> options,
+        IAdminAuthorizationService authorization,
         IExperienceUserStore store,
         CancellationToken cancellationToken)
     {
-        var authFailure = ValidateAdmin(httpRequest, options.Value);
+        var authFailure = await ValidateAdminAsync(httpRequest, authorization, cancellationToken);
         if (authFailure is not null)
         {
             return authFailure;
@@ -48,11 +50,12 @@ public static class WeChatDevEndpoints
         HttpRequest httpRequest,
         SendSubscribeMessageRequest request,
         IOptions<WeChatOptions> options,
+        IAdminAuthorizationService authorization,
         IWeChatSubscribeMessageSender sender,
         CancellationToken cancellationToken)
     {
         var settings = options.Value;
-        var authFailure = ValidateAdmin(httpRequest, settings);
+        var authFailure = await ValidateAdminAsync(httpRequest, authorization, cancellationToken);
         if (authFailure is not null)
         {
             return authFailure;
@@ -73,12 +76,13 @@ public static class WeChatDevEndpoints
         HttpRequest httpRequest,
         BroadcastSubscribeMessageRequest request,
         IOptions<WeChatOptions> options,
+        IAdminAuthorizationService authorization,
         IExperienceUserStore store,
         IWeChatSubscribeMessageSender sender,
         CancellationToken cancellationToken)
     {
         var settings = options.Value;
-        var authFailure = ValidateAdmin(httpRequest, settings);
+        var authFailure = await ValidateAdminAsync(httpRequest, authorization, cancellationToken);
         if (authFailure is not null)
         {
             return authFailure;
@@ -98,19 +102,17 @@ public static class WeChatDevEndpoints
         return Results.Ok(ApiResponse.Ok(result));
     }
 
-    private static IResult? ValidateAdmin(HttpRequest request, WeChatOptions options)
+    private static async Task<IResult?> ValidateAdminAsync(
+        HttpRequest request,
+        IAdminAuthorizationService authorization,
+        CancellationToken cancellationToken)
     {
-        if (!EndpointSecurity.HasAdminKey(options))
-        {
-            return EndpointFailures.JsonFailure(
-                ErrorCodes.InternalServerError,
-                "缺少 WeChat:AdminKey 配置",
-                500);
-        }
-
-        return EndpointSecurity.IsAdminAuthorized(request, options)
-            ? null
-            : EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "缺少有效的推送调试密钥", 401);
+        var result = await authorization.RequireLegacyOrAdminAsync(
+            AdminEndpointHelpers.ReadAdminKey(request),
+            request.HttpContext.Connection.RemoteIpAddress?.ToString(),
+            request.Headers.UserAgent.ToString(),
+            cancellationToken);
+        return result.Succeeded ? null : AdminEndpointHelpers.AuthorizationFailure(result);
     }
 
     private static string? ValidateRequest(SendSubscribeMessageRequest request, WeChatOptions options)

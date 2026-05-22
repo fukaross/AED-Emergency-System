@@ -132,6 +132,7 @@ public static class HelpEndpoints
         var now = DateTimeOffset.UtcNow;
         var report = new HelpReportRecord(
             Guid.NewGuid().ToString("N"),
+            user.OpenId,
             request.Images!,
             request.RecordText.Trim(),
             request.IsFalseAlarm,

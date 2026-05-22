@@ -2,9 +2,8 @@ using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.DTOs.Help;
 using AedBackend.Core.Models.Help;
+using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
-using AedBackend.Infrastructure.WeChat;
-using Microsoft.Extensions.Options;
 
 namespace AedBackend.Api.Endpoints;
 
@@ -26,11 +25,11 @@ public static class OpsEndpoints
     private static async Task<IResult> ListHelpRequestsAsync(
         HttpRequest httpRequest,
         [AsParameters] OpsHelpRequestQuery query,
-        IOptions<WeChatOptions> options,
+        IAdminAuthorizationService authorization,
         IHelpRequestStore store,
         CancellationToken cancellationToken)
     {
-        var authFailure = ValidateAdmin(httpRequest, options.Value);
+        var authFailure = await ValidateAdminAsync(httpRequest, authorization, cancellationToken);
         if (authFailure is not null) return authFailure;
 
         var records = await store.ListAllAsync(cancellationToken);
@@ -42,11 +41,11 @@ public static class OpsEndpoints
         HttpRequest httpRequest,
         string id,
         CloseHelpRequest request,
-        IOptions<WeChatOptions> options,
+        IAdminAuthorizationService authorization,
         IHelpRequestStore store,
         CancellationToken cancellationToken)
     {
-        var authFailure = ValidateAdmin(httpRequest, options.Value);
+        var authFailure = await ValidateAdminAsync(httpRequest, authorization, cancellationToken);
         if (authFailure is not null) return authFailure;
 
         if (request.Status is not (HelpStatuses.Closed or HelpStatuses.FalseAlarm))
@@ -74,19 +73,17 @@ public static class OpsEndpoints
         }
     }
 
-    private static IResult? ValidateAdmin(HttpRequest request, WeChatOptions options)
+    private static async Task<IResult?> ValidateAdminAsync(
+        HttpRequest request,
+        IAdminAuthorizationService authorization,
+        CancellationToken cancellationToken)
     {
-        if (!EndpointSecurity.HasAdminKey(options))
-        {
-            return EndpointFailures.JsonFailure(
-                ErrorCodes.InternalServerError,
-                "缺少 WeChat:AdminKey 配置",
-                500);
-        }
-
-        return EndpointSecurity.IsAdminAuthorized(request, options)
-            ? null
-            : EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "缺少有效的管理密钥", 401);
+        var result = await authorization.RequireLegacyOrAdminAsync(
+            AdminEndpointHelpers.ReadAdminKey(request),
+            request.HttpContext.Connection.RemoteIpAddress?.ToString(),
+            request.Headers.UserAgent.ToString(),
+            cancellationToken);
+        return result.Succeeded ? null : AdminEndpointHelpers.AuthorizationFailure(result);
     }
 
     private static IReadOnlyList<HelpRequestRecord> FilterOpsRecords(

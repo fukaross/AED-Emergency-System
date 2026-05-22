@@ -27,6 +27,22 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/uploads"
 });
 
+var adminStaticRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot", "admin");
+if (Directory.Exists(adminStaticRoot))
+{
+    var adminFileProvider = new PhysicalFileProvider(adminStaticRoot);
+    app.UseDefaultFiles(new DefaultFilesOptions
+    {
+        FileProvider = adminFileProvider,
+        RequestPath = "/admin"
+    });
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = adminFileProvider,
+        RequestPath = "/admin"
+    });
+}
+
 app.MapGet("/", () => ApiResponse.Ok(new { service = "AedBackend", status = "ok" }));
 app.MapGet("/health", () => ApiResponse.Ok(new { status = "healthy" }));
 app.MapWeChatAuthEndpoints();
@@ -36,5 +52,8 @@ app.MapUploadEndpoints();
 app.MapAedEndpoints();
 app.MapHelpEndpoints();
 app.MapOpsEndpoints();
+app.MapAdminEndpoints();
 
 app.Run();
+
+public partial class Program;

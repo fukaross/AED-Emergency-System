@@ -1,7 +1,11 @@
+using AedBackend.Core.Models.Admin;
+using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.WeChat;
 using AedBackend.Core.Services.Help;
+using AedBackend.Infrastructure.Admin;
 using AedBackend.Infrastructure.Help;
 using AedBackend.Infrastructure.WeChat;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,10 +19,18 @@ public static class ServiceCollectionExtensions
     {
         services.Configure<WeChatOptions>(configuration.GetSection(WeChatOptions.SectionName));
         services.PostConfigure<WeChatOptions>(options => options.ApplyEnvironmentAliases(configuration));
+        services.Configure<AdminOptions>(configuration.GetSection(AdminOptions.SectionName));
+        services.PostConfigure<AdminOptions>(options => options.ApplyEnvironmentAliases(configuration));
         services.AddSingleton<ISessionTokenService, SessionTokenService>();
         services.AddSingleton<IExperienceUserStore, JsonExperienceUserStore>();
         services.AddSingleton<IHelpRequestStore, JsonHelpRequestStore>();
         services.AddSingleton<IAedDeviceStore, JsonAedDeviceStore>();
+        services.AddSingleton<IAdminUserStore, JsonAdminUserStore>();
+        services.AddSingleton<IAdminUserProfileStore, JsonAdminUserProfileStore>();
+        services.AddSingleton<IAdminAuditLogStore, JsonAdminAuditLogStore>();
+        services.AddSingleton<IAdminAuthorizationService, AdminAuthorizationService>();
+        services.AddSingleton<IAdminUserService, AdminUserService>();
+        services.AddSingleton<IPasswordHasher<AdminUserRecord>, PasswordHasher<AdminUserRecord>>();
         services.AddHttpClient<IWeChatLoginClient, WeChatLoginClient>();
         services.AddHttpClient<IWeChatPhoneNumberClient, WeChatPhoneNumberClient>();
         services.AddHttpClient<WeChatAccessTokenClient>();

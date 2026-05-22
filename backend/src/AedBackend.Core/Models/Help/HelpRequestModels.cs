@@ -68,6 +68,7 @@ public sealed record HelpTimelineRecord(
 
 public sealed record HelpReportRecord(
     string Id,
+    string? ReporterOpenId,
     IReadOnlyList<string> Images,
     string RecordText,
     bool IsFalseAlarm,
