@@ -1126,6 +1126,511 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /api/admin/auth/bootstrap:
+    post:
+      summary: 初始化首个超级管理员
+      operationId: bootstrapAdmin
+      security:
+        - legacyAdminKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminBootstrapRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/auth/login:
+    post:
+      summary: 管理员登录
+      description: 成功时签发固定 7 天有效的 admin session key；adminKey 使用 32 字节加密安全随机数的 base64url 无 padding 编码，且不影响既有 AED_PUSH_ADMIN_KEY。若该管理员已达到 3 个 active session，返回 SESSION_LIMIT_REACHED，且不返回设备摘要。同一 username 连续 5 次失败后锁定 15 分钟，锁定期内返回 429 OPERATION_RATE_LIMITED / 3003。
+      operationId: loginAdmin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminLoginRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminLoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/AdminSessionLimitReached'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/admin/auth/reset-super-admin:
+    post:
+      summary: 根密钥恢复超级管理员
+      description: 使用 AED_PUSH_ADMIN_KEY 重置指定 super_admin 密码，清空其 sessions[] 并写入 sessionsRevokedAt。
+      operationId: resetSuperAdmin
+      security:
+        - legacyAdminKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminResetSuperAdminRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/auth/me:
+    get:
+      summary: 获取当前管理员信息
+      operationId: getAdminMe
+      security:
+        - adminSessionKey: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminMeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/auth/sessions:
+    get:
+      summary: 查看当前管理员会话列表
+      operationId: listAdminSessions
+      security:
+        - adminSessionKey: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AdminSessionListItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/auth/sessions/{id}:
+    delete:
+      summary: 登出当前管理员指定会话
+      operationId: revokeAdminSession
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/auth/logout:
+    post:
+      summary: 登出当前管理员会话
+      operationId: logoutAdmin
+      security:
+        - adminSessionKey: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/dashboard:
+    get:
+      summary: 管理端仪表盘概览
+      operationId: getAdminDashboard
+      security:
+        - adminSessionKey: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminDashboardResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/help-requests:
+    get:
+      summary: 管理端获取求助记录列表
+      operationId: listAdminHelpRequests
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [published, responding, pending_review, closed, false_alarm]
+        - name: keyword
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminHelpListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/help-requests/{id}:
+    get:
+      summary: 管理端获取求助详情
+      operationId: getAdminHelpRequest
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminHelpDetailResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/help-requests/{id}/close:
+    put:
+      summary: 管理端关闭求助或标记误报
+      operationId: closeAdminHelpRequest
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseHelpPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/users:
+    get:
+      summary: 管理端获取用户列表
+      operationId: listAdminUsers
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: primaryRole
+          in: query
+          schema:
+            type: string
+            enum: [student, teacher, staff, admin]
+        - name: accountStatus
+          in: query
+          schema:
+            type: string
+            enum: [active, disabled]
+        - name: responderStatus
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [honor, trainee, official, core]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminUserListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/users/{openId}:
+    get:
+      summary: 管理端获取用户详情
+      operationId: getAdminUser
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: openId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminUserDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    put:
+      summary: 管理端更新用户投影
+      operationId: updateAdminUser
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: openId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserUpdatePayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/admins:
+    get:
+      summary: 管理员列表
+      description: 需要 super_admin 管理员会话。
+      x-required-role: super_admin
+      operationId: listAdminAccounts
+      security:
+        - adminSessionKey: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AdminAccountListItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      summary: 创建管理员
+      description: 需要 super_admin 管理员会话。
+      x-required-role: super_admin
+      operationId: createAdminAccount
+      security:
+        - adminSessionKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreatePayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/admins/{id}:
+    delete:
+      summary: 删除管理员
+      description: 需要 super_admin 管理员会话。
+      x-required-role: super_admin
+      operationId: deleteAdminAccount
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/admin/audit-logs:
+    get:
+      summary: 管理端查看操作日志
+      description: 需要 super_admin 管理员会话。
+      x-required-role: super_admin
+      operationId: listAdminAuditLogs
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: eventType
+          in: query
+          schema:
+            type: string
+        - name: eventName
+          in: query
+          schema:
+            type: string
+        - name: actor
+          in: query
+          schema:
+            type: string
+        - name: keyword
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminAuditLogPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /api/audit/batch:
     post:
       summary: 批量提交审计事件
@@ -1155,10 +1660,32 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    adminSessionKey:
+      type: apiKey
+      in: header
+      name: X-Aed-Admin-Key
+      description: 管理员登录后签发的 admin session key，适用于除 bootstrap / reset-super-admin 外的 /api/admin/* 端点
+    legacyAdminKey:
+      type: apiKey
+      in: header
+      name: X-Aed-Admin-Key
+      description: 既有 AED_PUSH_ADMIN_KEY，仅用于 bootstrap、reset-super-admin 和兼容 ops/dev 入口
 
   responses:
     BadRequest:
       description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    AdminSessionLimitReached:
+      description: 管理员登录设备数已达到上限
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AdminSessionLimitReachedResponse'
+    RateLimited:
+      description: 操作频率限制
       content:
         application/json:
           schema:
@@ -1623,6 +2150,9 @@ components:
       properties:
         id:
           type: string
+        reporterOpenId:
+          type: string
+          nullable: true
         images:
           type: array
           items:
@@ -1773,6 +2303,531 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OpsHelpRequestListItem'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    AdminBootstrapRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          minLength: 8
+
+    AdminLoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    AdminLoginResponse:
+      type: object
+      required: [adminKey, username, role]
+      properties:
+        adminKey:
+          type: string
+          minLength: 43
+          maxLength: 43
+          description: 32 字节加密安全随机数的 base64url 无 padding 编码结果；仅作为登录会话 key，不影响 AED_PUSH_ADMIN_KEY
+        username:
+          type: string
+        role:
+          type: string
+          enum: [super_admin, admin]
+
+    AdminSessionLimitReachedResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [SESSION_LIMIT_REACHED]
+        message:
+          type: string
+          example: 已达到最大登录设备数，请使用已登录设备管理会话，或联系超级管理员。
+
+    AdminResetSuperAdminRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          minLength: 8
+
+    AdminMeResponse:
+      type: object
+      required: [id, username, role, status]
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        role:
+          type: string
+          enum: [super_admin, admin]
+        status:
+          type: string
+          enum: [active, disabled]
+
+    AdminSessionListItem:
+      type: object
+      required: [id, current, maskedIpAddress, userAgentSummary, createdAt, expiresAt, lastSeenAt]
+      properties:
+        id:
+          type: string
+        current:
+          type: boolean
+        maskedIpAddress:
+          type: string
+          description: 脱敏 IP，不返回原始 ipAddress
+        userAgentSummary:
+          type: string
+          description: 浏览器或设备摘要，不返回完整敏感指纹
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        lastSeenAt:
+          type: string
+          format: date-time
+
+    AdminDashboardResponse:
+      type: object
+      required: [usersTotal, helpRequestsTotal, pendingReviewTotal, todayNewHelpRequests, recentLogs]
+      properties:
+        usersTotal:
+          type: integer
+        helpRequestsTotal:
+          type: integer
+        pendingReviewTotal:
+          type: integer
+        todayNewHelpRequests:
+          type: integer
+        recentLogs:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminDashboardRecentLogItem'
+
+    AdminDashboardRecentLogItem:
+      type: object
+      required: [id, eventType, eventName, actorName, summary, createdAt]
+      properties:
+        id:
+          type: string
+        eventType:
+          type: string
+        eventName:
+          type: string
+        actorName:
+          type: string
+          nullable: true
+        summary:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminHelpListItem:
+      type: object
+      required: [id, requestNo, requestChannel, content, type, status, address, createdAt, reportersCount, respondersCount]
+      properties:
+        id:
+          type: string
+        requestNo:
+          type: string
+        requestChannel:
+          type: string
+          enum: [user, guest]
+        content:
+          type: string
+        type:
+          type: string
+          enum: [help_hand, call_120, call_school, general]
+        status:
+          type: string
+          enum: [published, responding, pending_review, closed, false_alarm]
+        address:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+        closeNote:
+          type: string
+          nullable: true
+        reportersCount:
+          type: integer
+        respondersCount:
+          type: integer
+        latestEta:
+          type: string
+          nullable: true
+
+    AdminHelpListResponse:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminHelpListItem'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    AdminHelpDetailResponse:
+      type: object
+      required:
+        - id
+        - requestNo
+        - requestChannel
+        - content
+        - type
+        - status
+        - address
+        - createdAt
+        - reportersCount
+        - respondersCount
+        - images
+        - reports
+        - reporters
+        - timeline
+        - responders
+      properties:
+        id:
+          type: string
+        requestNo:
+          type: string
+        requestChannel:
+          type: string
+          enum: [user, guest]
+        content:
+          type: string
+        type:
+          type: string
+          enum: [help_hand, call_120, call_school, general]
+        status:
+          type: string
+          enum: [published, responding, pending_review, closed, false_alarm]
+        address:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+        closeNote:
+          type: string
+          nullable: true
+        reportersCount:
+          type: integer
+        respondersCount:
+          type: integer
+        latestEta:
+          type: string
+          nullable: true
+        images:
+          type: array
+          items:
+            type: string
+        reports:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminHelpReportRecord'
+        reporters:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminHelpReporter'
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminHelpTimelineEntry'
+        responders:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminHelpResponder'
+
+    AdminHelpReportRecord:
+      type: object
+      required: [id, reporterOpenId, content, images, createdAt]
+      properties:
+        id:
+          type: string
+        reporterOpenId:
+          type: string
+        content:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminHelpReporter:
+      type: object
+      required: [openId, displayName, reportsCount, lastReportedAt]
+      properties:
+        openId:
+          type: string
+        displayName:
+          type: string
+        reportsCount:
+          type: integer
+        lastReportedAt:
+          type: string
+          format: date-time
+
+    AdminHelpTimelineEntry:
+      type: object
+      required: [type, description, createdAt]
+      properties:
+        type:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminHelpResponder:
+      type: object
+      required: [openId, name]
+      properties:
+        openId:
+          type: string
+        name:
+          type: string
+        eta:
+          type: string
+          nullable: true
+        arrivedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    AdminUserListItem:
+      type: object
+      required: [openId, name, primaryRole, accountStatus, certified]
+      properties:
+        openId:
+          type: string
+        name:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        primaryRole:
+          type: string
+          enum: [student, teacher, staff, admin]
+        accountStatus:
+          type: string
+          enum: [active, disabled]
+        responderStatus:
+          type: string
+          enum: [active, inactive]
+          nullable: true
+        certified:
+          type: boolean
+        level:
+          type: string
+          enum: [honor, trainee, official, core]
+          nullable: true
+        adminRemark:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    AdminUserListResponse:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUserListItem'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    AdminUserDetail:
+      allOf:
+        - $ref: '#/components/schemas/AdminUserListItem'
+        - type: object
+          properties:
+            schoolProfile:
+              type: object
+              allOf:
+                - $ref: '#/components/schemas/SchoolProfile'
+              nullable: true
+            rescuerSummary:
+              type: object
+              allOf:
+                - $ref: '#/components/schemas/RescuerSummary'
+              nullable: true
+            subscriptions:
+              type: object
+              nullable: true
+              additionalProperties: true
+            createdAt:
+              type: string
+              format: date-time
+              nullable: true
+            lastLoginAt:
+              type: string
+              format: date-time
+              nullable: true
+
+    AdminUserUpdatePayload:
+      type: object
+      properties:
+        primaryRole:
+          type: string
+          enum: [student, teacher, staff, admin]
+        accountStatus:
+          type: string
+          enum: [active, disabled]
+        responderStatus:
+          type: string
+          enum: [active, inactive]
+        certified:
+          type: boolean
+        level:
+          type: string
+          enum: [honor, trainee, official, core]
+          nullable: true
+        adminRemark:
+          type: string
+          nullable: true
+
+    AdminAccountListItem:
+      type: object
+      required: [id, username, role, status, createdAt]
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        role:
+          type: string
+          enum: [super_admin, admin]
+        status:
+          type: string
+          enum: [active, disabled]
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminCreatePayload:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          minLength: 8
+
+    AdminAuditLogRecord:
+      type: object
+      required: [id, eventType, eventName, actorType, actorId, actorName, actorRole, createdAt]
+      properties:
+        id:
+          type: string
+        eventType:
+          type: string
+        eventName:
+          type: string
+        targetId:
+          type: string
+          nullable: true
+        actorType:
+          type: string
+        actorId:
+          type: string
+        actorName:
+          type: string
+        actorRole:
+          type: string
+          enum: [super_admin, admin, system]
+        summary:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          nullable: true
+          additionalProperties: true
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        clientPlatform:
+          type: string
+          nullable: true
+        clientVersion:
+          type: string
+          nullable: true
+        deviceModel:
+          type: string
+          nullable: true
+        ipAddress:
+          type: string
+          nullable: true
+        userAgent:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminAuditLogPage:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminAuditLogRecord'
         total:
           type: integer
         page:
