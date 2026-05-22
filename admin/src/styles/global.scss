@@ -1,0 +1,156 @@
+@use './variables' as *;
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background-color: $content-bg;
+  color: $text-primary;
+  -webkit-font-smoothing: antialiased;
+}
+
+// Layout main wrappers
+.admin-card {
+  background-color: $card-bg;
+  border-radius: $radius-card;
+  box-shadow: $card-shadow;
+  padding: 20px 24px;
+  margin-bottom: $section-gap;
+
+  &.no-padding {
+    padding: 0;
+  }
+
+  .card-header-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: $text-primary;
+  }
+}
+
+// Standard header area inside cards
+.card-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+// Filter Bar Standard Layout
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 0 24px 16px;
+
+  .el-input, .el-select {
+    // Override heights dynamically if needed
+    --el-component-size: 32px;
+  }
+}
+
+// Table Style Custom Overrides
+.el-table {
+  --el-table-header-bg-color: #fafafa;
+  --el-table-row-hover-bg-color: #f5f7fa;
+  --el-table-border-color: #ebeef5;
+
+  th.el-table__cell {
+    background-color: #fafafa !important;
+    color: $text-secondary !important;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 14px 0 !important;
+  }
+
+  td.el-table__cell {
+    padding: 16px 0 !important;
+    color: $text-regular !important;
+    font-size: 14px;
+  }
+
+  .cell {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+  }
+}
+
+// Pagination Controls Wrapper
+.pagination-container {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid #ebeef5;
+}
+
+// Two Column Grid Layout (e.g., Detail views)
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: $section-gap;
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Description lists helpers
+.description-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 24px;
+
+  &.single-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.description-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .desc-label {
+    font-size: 13px;
+    color: $text-secondary;
+  }
+
+  .desc-value {
+    font-size: 14px;
+    color: $text-primary;
+    word-break: break-all;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+// General text-link helpers
+.text-link {
+  color: $color-primary;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 14px;
+
+  &:hover {
+    color: #73b8ff;
+  }
+}
+
+// Custom animations
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}

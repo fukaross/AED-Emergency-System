@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.tsbuildinfo
+*.local
+.env
+.env.*
+!.env.example
+
+DESIGN.md
+style-preview.html
+**/INSTRUMENT.md
