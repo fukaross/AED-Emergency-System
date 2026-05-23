@@ -154,7 +154,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { LocationQueryRaw } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -163,6 +163,9 @@ import statusTag from '@/components/status-tag.vue'
 import { getHelpRequests } from '@/api/help'
 import type { AdminHelpListItem } from '@/types/help'
 import { getApiErrorMessage } from '@/api/client'
+import { createRequestSequencer } from '@/utils/request-sequencer'
+
+const POLL_INTERVAL_MS = 10_000
 
 const route = useRoute()
 const router = useRouter()
@@ -172,10 +175,13 @@ const tableData = ref<AdminHelpListItem[]>([])
 const totalItems = ref(0)
 const pageSize = ref(10)
 
-// Filters & paging state
 const filterStatus = ref('')
 const searchKeyword = ref('')
 const currentPage = ref(1)
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let isPolling = false
+const requestSequencer = createRequestSequencer()
 
 // Synchronize component state with route query params
 function syncFromRoute() {
@@ -226,6 +232,7 @@ function formatTime(dateStr: string) {
 
 async function loadData() {
   loading.value = true
+  const ticket = requestSequencer.next()
   try {
     const res = await getHelpRequests({
       page: currentPage.value,
@@ -233,13 +240,52 @@ async function loadData() {
       status: filterStatus.value || undefined,
       keyword: searchKeyword.value || undefined,
     })
+    if (!requestSequencer.isCurrent(ticket)) return
     tableData.value = res.data.data.items
     totalItems.value = res.data.data.total
   } catch (error: unknown) {
+    if (!requestSequencer.isCurrent(ticket)) return
     console.error(error)
     ElMessage.error(getApiErrorMessage(error, '加载求助列表数据失败'))
   } finally {
     loading.value = false
+  }
+}
+
+async function pollData() {
+  if (isPolling) return
+  isPolling = true
+  const ticket = requestSequencer.next()
+  try {
+    const res = await getHelpRequests({
+      page: currentPage.value,
+      pageSize: pageSize.value,
+      status: filterStatus.value || undefined,
+      keyword: searchKeyword.value || undefined,
+    })
+    if (!requestSequencer.isCurrent(ticket)) return
+    tableData.value = res.data.data.items
+    totalItems.value = res.data.data.total
+  } catch { /* silently ignore poll errors */ }
+  finally { isPolling = false }
+}
+
+function startPolling() {
+  stopPolling()
+  pollTimer = setInterval(pollData, POLL_INTERVAL_MS)
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+  isPolling = false
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) {
+    stopPolling()
+  } else {
+    pollData()
+    startPolling()
   }
 }
 
@@ -255,6 +301,13 @@ watch(
 onMounted(() => {
   syncFromRoute()
   loadData()
+  startPolling()
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+})
+
+onUnmounted(() => {
+  stopPolling()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 

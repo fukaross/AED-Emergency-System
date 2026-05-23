@@ -193,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import adminLayout from '@/components/admin-layout.vue'
@@ -206,10 +206,15 @@ const route = useRoute()
 const router = useRouter()
 const requestId = route.params.id as string
 
+const POLL_INTERVAL_MS = 10_000
+
 const loading = ref(true)
 const actionLoading = ref(false)
 const detail = ref<AdminHelpDetailResponse | null>(null)
 const closeNote = ref('')
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let isPolling = false
 
 const typeCnMap: Record<string, string> = {
   help_hand: '求助帮手',
@@ -305,7 +310,39 @@ async function handleCloseRequest(targetStatus: 'closed' | 'false_alarm') {
 
 onMounted(() => {
   loadDetail()
+  startPolling()
 })
+
+onUnmounted(() => {
+  stopPolling()
+})
+
+async function pollDetail() {
+  if (isPolling || !detail.value) return
+  if (detail.value.status === 'closed' || detail.value.status === 'false_alarm') {
+    stopPolling()
+    return
+  }
+  isPolling = true
+  try {
+    const res = await getHelpRequestDetail(requestId)
+    detail.value = res.data.data
+    if (res.data.data.status === 'closed' || res.data.data.status === 'false_alarm') {
+      stopPolling()
+    }
+  } catch { /* silently ignore poll errors */ }
+  finally { isPolling = false }
+}
+
+function startPolling() {
+  stopPolling()
+  pollTimer = setInterval(pollDetail, POLL_INTERVAL_MS)
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+  isPolling = false
+}
 </script>
 
 <style scoped lang="scss">

@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import adminLayout from '@/components/admin-layout.vue'
@@ -95,6 +95,8 @@ const router = useRouter()
 const store = useAdminStore()
 const loading = ref(true)
 
+const POLL_INTERVAL_MS = 5_000
+
 const data = ref<AdminDashboardResponse>({
   usersTotal: 0,
   helpRequestsTotal: 0,
@@ -104,6 +106,9 @@ const data = ref<AdminDashboardResponse>({
 })
 
 const isSuperAdmin = computed(() => store.isSuperAdmin)
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let isPolling = false
 
 // Event mapping dictionary
 const eventNameMap: Record<string, string> = {
@@ -169,7 +174,32 @@ async function loadDashboardData() {
 
 onMounted(() => {
   loadDashboardData()
+  startPolling()
 })
+
+onUnmounted(() => {
+  stopPolling()
+})
+
+async function pollDashboard() {
+  if (isPolling) return
+  isPolling = true
+  try {
+    const res = await getDashboard()
+    data.value = res.data.data
+  } catch { /* silently ignore poll errors */ }
+  finally { isPolling = false }
+}
+
+function startPolling() {
+  stopPolling()
+  pollTimer = setInterval(pollDashboard, POLL_INTERVAL_MS)
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+  isPolling = false
+}
 </script>
 
 <style scoped lang="scss">

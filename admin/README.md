@@ -7,6 +7,7 @@ Vue 3 + Vite + TypeScript 管理端 Web SPA，用于校园 AED 急救小程序�
 - 管理员登录、超级管理员初始化与会话管理
 - 仪表盘概览
 - 求助列表、求助详情、审核关闭与误报标记
+- 仪表盘 5 秒刷新，求助列表 / 详情 10 秒刷新，减少小程序与管理端状态滞后
 - 用户投影列表、详情与局部更新
 - 超级管理员创建、查看、删除普通管理员，并可重置普通管理员密码
 - 管理端审计日志查询
@@ -15,6 +16,7 @@ Vue 3 + Vite + TypeScript 管理端 Web SPA，用于校园 AED 急救小程序�
 
 ```powershell
 pnpm install
+pnpm test
 pnpm lint
 pnpm typecheck
 pnpm build
