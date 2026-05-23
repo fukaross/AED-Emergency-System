@@ -16,6 +16,7 @@ public abstract class AdminApiTestBase : IAsyncLifetime
 
     protected HttpClient Client => client ?? throw new InvalidOperationException("Client not initialized.");
     protected string AdminAuditLogsPath => Path.Combine(dataRoot, "admin-audit-logs.json");
+    protected string AdminUsersPath => Path.Combine(dataRoot, "admin-users.json");
 
     public Task InitializeAsync()
     {

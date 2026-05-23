@@ -12,9 +12,15 @@ public sealed class AdminManagementAuditApiTests : AdminApiTestBase
     {
         UseAdminKey(await BootstrapAndLoginAsync());
         await CreateAdminAsync("operator");
+        var admins = await Client.GetAsync("/api/admin/admins");
+        var operatorId = FindAdminId((await ReadAsync<ApiResponse<JsonElement>>(admins)).Data, "operator");
 
         UseAdminKey(await LoginAndGetKeyAsync("operator"));
         Assert.Equal(HttpStatusCode.Forbidden, (await Client.GetAsync("/api/admin/admins")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client.GetAsync($"/api/admin/admins/{operatorId}")).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await Client.PostAsJsonAsync($"/api/admin/admins/{operatorId}/password-reset", new { password = "NewPassword123!" })).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await Client.GetAsync("/api/admin/audit-logs")).StatusCode);
     }
 
@@ -35,6 +41,59 @@ public sealed class AdminManagementAuditApiTests : AdminApiTestBase
         var afterDelete = await Client.GetAsync("/api/admin/admins");
         var remaining = (await ReadAsync<ApiResponse<JsonElement>>(afterDelete)).Data;
         Assert.DoesNotContain(remaining.EnumerateArray(), item => item.GetProperty("username").GetString() == "operator");
+    }
+
+    [Fact]
+    public async Task SuperAdmin_CanGetAdminDetail()
+    {
+        UseAdminKey(await BootstrapAndLoginAsync());
+        await CreateAdminAsync("operator");
+        var operatorKey = await LoginAndGetKeyAsync("operator");
+
+        var admins = await Client.GetAsync("/api/admin/admins");
+        var operatorId = FindAdminId((await ReadAsync<ApiResponse<JsonElement>>(admins)).Data, "operator");
+        var detail = await Client.GetAsync($"/api/admin/admins/{operatorId}");
+        var data = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
+
+        Assert.Equal("operator", data.GetProperty("username").GetString());
+        Assert.Equal("admin", data.GetProperty("role").GetString());
+        Assert.Single(data.GetProperty("activeSessions").EnumerateArray());
+        Assert.DoesNotContain(operatorKey, data.ToString());
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await Client.GetAsync("/api/admin/admins/not-found")).StatusCode);
+    }
+
+    [Fact]
+    public async Task SuperAdmin_CanResetOrdinaryAdminPasswordOnce()
+    {
+        UseAdminKey(await BootstrapAndLoginAsync());
+        await CreateAdminAsync("operator");
+        var operatorKey = await LoginAndGetKeyAsync("operator");
+
+        var admins = await Client.GetAsync("/api/admin/admins");
+        var items = (await ReadAsync<ApiResponse<JsonElement>>(admins)).Data;
+        var rootId = FindAdminId(items, "root");
+        var operatorId = FindAdminId(items, "operator");
+        const string resetPassword = "OperatorNew123!";
+        var reset = await Client.PostAsJsonAsync(
+            $"/api/admin/admins/{operatorId}/password-reset",
+            new { password = resetPassword });
+        Assert.Equal(HttpStatusCode.OK, reset.StatusCode);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            (await Client.PostAsJsonAsync($"/api/admin/admins/{rootId}/password-reset", new { password = resetPassword })).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            (await Client.PostAsJsonAsync("/api/admin/admins/not-found/password-reset", new { password = resetPassword })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await LoginAsync("operator", DefaultPassword)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync("operator", resetPassword)).StatusCode);
+
+        UseAdminKey(operatorKey);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Client.GetAsync("/api/admin/auth/me")).StatusCode);
+        Assert.DoesNotContain(resetPassword, File.ReadAllText(AdminUsersPath));
+        Assert.DoesNotContain(resetPassword, File.ReadAllText(AdminAuditLogsPath));
     }
 
     [Fact]

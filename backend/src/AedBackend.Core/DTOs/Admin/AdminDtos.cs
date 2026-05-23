@@ -166,7 +166,24 @@ public sealed record AdminAccountListItem(
     string Status,
     DateTimeOffset CreatedAt);
 
+public sealed record AdminAccountDetail(
+    string Id,
+    string Username,
+    string Role,
+    string Status,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? UpdatedAt,
+    DateTimeOffset? SessionsRevokedAt,
+    DateTimeOffset? LockedUntil,
+    IReadOnlyList<AdminSessionListItem> ActiveSessions);
+
 public sealed record AdminCreatePayload(string Username, string Password);
+
+public sealed record AdminPasswordResetPayload(string Password);
+
+public sealed record AdminPasswordResetResponse(
+    string Id,
+    string Username);
 
 public sealed record AdminAuditLogDto(
     string Id,
