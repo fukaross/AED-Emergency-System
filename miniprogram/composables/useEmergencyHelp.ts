@@ -244,6 +244,14 @@ export function useEmergencyHelp() {
     }
   }
 
+  function previewImage(index: number): void {
+    uni.previewImage({ current: form.images[index], urls: form.images })
+  }
+
+  function removeImage(index: number): void {
+    form.images.splice(index, 1)
+  }
+
   function isUserCancel(error: unknown): boolean {
     return String((error as { errMsg?: string })?.errMsg || error).includes('cancel')
   }
@@ -260,6 +268,8 @@ export function useEmergencyHelp() {
     quickCall120,
     quickCallSchool,
     addImage,
+    previewImage,
+    removeImage,
     bindPhone,
     bindManualPhone,
     submit,

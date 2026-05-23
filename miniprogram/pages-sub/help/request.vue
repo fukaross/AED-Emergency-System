@@ -44,11 +44,27 @@
         maxlength="200"
         placeholder="请简要描述现场情况，例如：有人晕倒、呼吸微弱、地点在 XX 楼梯口"
       />
-      <view class="section-actions">
-        <view class="mini-btn" @click="addImage">
-          <text class="mini-btn__text">
-           上传图片（{{ form.images.length }}/3）
-          </text>
+      <view class="image-grid">
+        <view
+          v-for="(url, index) in form.images"
+          :key="url"
+          class="image-item"
+          @click="previewHelpImage(index)"
+        >
+          <image class="help-image" :src="url" mode="aspectFill" />
+          <view class="image-remove" @click.stop="removeHelpImage(index)">
+            <text class="image-remove__icon">×</text>
+          </view>
+        </view>
+        <view
+          v-if="form.images.length < maxHelpImages"
+          class="upload-card"
+          @click="addImage"
+        >
+          <view class="upload-icon">
+            <text class="upload-icon__plus">+</text>
+          </view>
+          <text class="upload-text">上传图片（{{ form.images.length }}/{{ maxHelpImages }}）</text>
         </view>
       </view>
     </view>
@@ -138,6 +154,7 @@
  */
 import { useEmergencyHelp } from '@/composables/useEmergencyHelp'
 import { useTheme } from '@/composables/useTheme'
+import { MAX_HELP_IMAGES } from '@/utils/constants'
 
 const {
   form,
@@ -151,11 +168,23 @@ const {
   quickCall120,
   quickCallSchool,
   addImage,
+  previewImage,
+  removeImage,
   bindPhone,
   bindManualPhone,
   submit,
 } = useEmergencyHelp()
 const { themeClass } = useTheme()
+
+const maxHelpImages = MAX_HELP_IMAGES
+
+function previewHelpImage(index: number): void {
+  previewImage(index)
+}
+
+function removeHelpImage(index: number): void {
+  removeImage(index)
+}
 
 interface PhoneNumberEvent {
   readonly detail: {
@@ -276,9 +305,75 @@ async function submitHelp(): Promise<void> {
   }
 }
 
-// 操作按钮
-.section-actions {
+// 图片网格
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $spacing-sm;
   margin-top: $spacing-sm;
+}
+
+.image-item,
+.upload-card {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: $radius-md;
+  overflow: hidden;
+}
+
+.help-image {
+  width: 100%;
+  height: 100%;
+}
+
+.image-remove {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: $radius-full;
+  background: rgb(0 0 0 / 50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-remove__icon {
+  color: $text-white;
+  font-size: $font-size-base;
+  line-height: 36rpx;
+}
+
+.upload-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: $background;
+  border: 1rpx dashed $divider;
+}
+
+.upload-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+  border: 2rpx solid $text-tertiary-a11y;
+  border-radius: $radius-full;
+}
+
+.upload-icon__plus {
+  color: $text-tertiary-a11y;
+  font-size: $font-size-xl;
+  line-height: 48rpx;
+}
+
+.upload-text {
+  margin-top: $spacing-xs;
+  color: $text-secondary;
+  font-size: $font-size-sm;
 }
 
 .mini-btn {
