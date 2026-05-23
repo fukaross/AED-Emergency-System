@@ -134,6 +134,7 @@ const MAP_ID = 'aedMap'
 const MARKER_TAP_GUARD_MS = 250
 const MAP_LOAD_ERROR_TEXT = '地图加载失败，请检查网络后重试'
 const SUBSCRIBE_PROMPT_DELAY_MS = 800
+const HELP_POLL_INTERVAL_MS = 30_000
 
 let hasPromptedSubscribeThisSession = false
 
@@ -168,6 +169,8 @@ const selectedAed = ref<AedItem | null>(null)
 
 let lastMarkerTapAt = 0
 let subscribePromptTimer: ReturnType<typeof setTimeout> | null = null
+let helpPollTimer: ReturnType<typeof setInterval> | null = null
+let isHelpPolling = false
 
 onMounted(() => {
   createMapCtx(MAP_ID)
@@ -184,16 +187,19 @@ onShow(() => {
   })
   vitalsStore.startMonitoring()
   scheduleSubscribePrompt()
+  startHelpPolling()
 })
 
 onHide(() => {
   vitalsStore.stopMonitoring()
   clearSubscribePromptTimer()
+  stopHelpPolling()
 })
 
 onUnmounted(() => {
   vitalsStore.stopMonitoring()
   clearSubscribePromptTimer()
+  stopHelpPolling()
 })
 
 const statusMessage = computed(() => {
@@ -202,6 +208,24 @@ const statusMessage = computed(() => {
   if (aedStore.error) return aedStore.error
   return ''
 })
+
+async function pollHelpList() {
+  if (isHelpPolling) return
+  isHelpPolling = true
+  try { await helpStore.loadList(1, 20, true) }
+  catch { /* silently ignore poll errors */ }
+  finally { isHelpPolling = false }
+}
+
+function startHelpPolling() {
+  stopHelpPolling()
+  helpPollTimer = setInterval(pollHelpList, HELP_POLL_INTERVAL_MS)
+}
+
+function stopHelpPolling() {
+  if (helpPollTimer) { clearInterval(helpPollTimer); helpPollTimer = null }
+  isHelpPolling = false
+}
 
 function openHelpPage(): void {
   uni.navigateTo({ url: '/pages-sub/help/request' })

@@ -68,25 +68,37 @@ export function publishHelp(
   })
 }
 
+export interface FetchHelpOptions {
+  readonly silent?: boolean
+}
+
 /** 获取已登录用户求助列表 */
 export function fetchHelpList(
   page = 1,
   pageSize = 20,
+  opts: FetchHelpOptions = {},
 ): Promise<PaginatedData<HelpListItem>> {
   if (USE_LOCAL_HELP_READ_MODEL) {
     return Promise.resolve(listMockHelpRequests(page, pageSize))
   }
 
-  return get<PaginatedData<HelpListItem>>('/api/help/list', { page, pageSize })
+  return get<PaginatedData<HelpListItem>>(
+    '/api/help/list',
+    { page, pageSize },
+    { skipErrorHandler: opts.silent },
+  )
 }
 
 /** 获取求助详情 */
-export function fetchHelpDetail(id: string): Promise<HelpRequestDetail> {
+export function fetchHelpDetail(
+  id: string,
+  opts: FetchHelpOptions = {},
+): Promise<HelpRequestDetail> {
   if (USE_LOCAL_HELP_READ_MODEL) {
     return Promise.resolve(getMockHelpDetail(id))
   }
 
-  return get<HelpRequestDetail>(`/api/help/${id}`)
+  return get<HelpRequestDetail>(`/api/help/${id}`, undefined, { skipErrorHandler: opts.silent })
 }
 
 /** 急救员提交救助报告 */

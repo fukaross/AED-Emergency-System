@@ -36,11 +36,17 @@
         },
         {
           "path": "help/detail",
-          "style": { "navigationBarTitleText": "急救信息" }
+          "style": {
+            "navigationBarTitleText": "急救信息",
+            "enablePullDownRefresh": true
+          }
         },
         {
           "path": "help/history",
-          "style": { "navigationBarTitleText": "求助历史" }
+          "style": {
+            "navigationBarTitleText": "求助历史",
+            "enablePullDownRefresh": true
+          }
         },
         {
           "path": "knowledge/detail",

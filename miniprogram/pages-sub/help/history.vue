@@ -34,20 +34,54 @@
 </template>
 
 <script setup lang="ts">
-import { onShow } from '@dcloudio/uni-app'
+import { onHide, onPullDownRefresh, onShow, onUnload } from '@dcloudio/uni-app'
 import { useTheme } from '@/composables/useTheme'
 import { useHelpStore } from '@/store/help'
 import type { HelpStatus } from '@/types/help'
 import { formatChineseDateTime } from '@/utils/format'
 import { getHelpStatusClass, getHelpStatusText } from '@/utils/help-labels'
 
+const POLL_INTERVAL_MS = 20_000
+
 const helpStore = useHelpStore()
 const { themeClass } = useTheme()
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let isPolling = false
+
+async function pollList() {
+  if (isPolling) return
+  isPolling = true
+  try { await helpStore.loadList(1, 20, true) }
+  catch { /* silently ignore poll errors */ }
+  finally { isPolling = false }
+}
+
+function startPolling() {
+  stopPolling()
+  pollTimer = setInterval(pollList, POLL_INTERVAL_MS)
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+  isPolling = false
+}
 
 onShow(() => {
   helpStore.loadList().catch(() => {
     uni.showToast({ title: '加载失败', icon: 'none' })
   })
+  startPolling()
+})
+
+onHide(() => { stopPolling() })
+
+onUnload(() => { stopPolling() })
+
+onPullDownRefresh(async () => {
+  try { await helpStore.loadList() }
+  catch { /* ignore */ }
+  finally { uni.stopPullDownRefresh() }
 })
 
 function openDetail(id: string): void {

@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onHide, onLoad, onPullDownRefresh, onShow, onUnload } from '@dcloudio/uni-app'
 import { fetchNearbyAed } from '@/api/aed'
 import { useTheme } from '@/composables/useTheme'
 import {
@@ -74,6 +74,8 @@ interface MarkerTapEvent {
 
 const HELP_MARKER_ID = 9000
 const AED_MARKER_OFFSET = 100
+const POLL_INTERVAL_MS = 10_000
+
 const helpStore = useHelpStore()
 const { themeClass } = useTheme()
 
@@ -84,6 +86,9 @@ const errorMessage = ref('')
 const showReportSheet = ref(false)
 const submittingReport = ref(false)
 const userLocation = ref<GeoPoint | null>(null)
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let isPolling = false
 
 const mapCenter = computed(() => {
   return detail.value
@@ -125,6 +130,33 @@ const hasUserLocation = computed(() => Boolean(userLocation.value))
 const canSubmitReport = computed(() => {
   return detail.value?.status === 'published' || detail.value?.status === 'responding'
 })
+
+async function refreshDetail(): Promise<void> {
+  if (isPolling || !detail.value?.id) return
+  if (detail.value.status === 'closed' || detail.value.status === 'false_alarm') {
+    stopPolling()
+    return
+  }
+  isPolling = true
+  try {
+    await helpStore.loadDetail(detail.value.id, true)
+    detail.value = helpStore.currentRequest
+    if (detail.value?.status === 'closed' || detail.value?.status === 'false_alarm') {
+      stopPolling()
+    }
+  } catch { /* silently ignore poll errors */ }
+  finally { isPolling = false }
+}
+
+function startPolling() {
+  stopPolling()
+  pollTimer = setInterval(refreshDetail, POLL_INTERVAL_MS)
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+  isPolling = false
+}
 
 onLoad((query = {}) => {
   const id = String(query.id || query.requestNo || '')
@@ -169,6 +201,32 @@ async function loadUserLocation(): Promise<void> {
   userLocation.value = null
   uni.showToast({ title: loc.errorMessage || '定位失败', icon: 'none' })
 }
+
+onShow(() => {
+  if (detail.value?.id) {
+    helpStore.loadDetail(detail.value.id).then(() => {
+      detail.value = helpStore.currentRequest
+    }).catch(() => {})
+  }
+  startPolling()
+})
+
+onHide(() => { stopPolling() })
+
+onUnload(() => { stopPolling() })
+
+onPullDownRefresh(async () => {
+  if (!detail.value?.id) {
+    uni.stopPullDownRefresh()
+    return
+  }
+  try {
+    await helpStore.loadDetail(detail.value.id)
+    detail.value = helpStore.currentRequest
+    await loadNearbyAeds()
+  } catch { /* ignore */ }
+  finally { uni.stopPullDownRefresh() }
+})
 
 function buildHelpMarker(item: HelpRequestDetail): MapMarker {
   return {

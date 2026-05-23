@@ -97,17 +97,17 @@ export const useHelpStore = defineStore('help', () => {
     }
   }
 
-  async function loadDetail(id: string): Promise<void> {
-    currentRequest.value = await fetchHelpDetail(id)
+  async function loadDetail(id: string, silent = false): Promise<void> {
+    currentRequest.value = await fetchHelpDetail(id, { silent })
   }
 
-  async function loadList(page = 1, pageSize = 20): Promise<void> {
-    loadingList.value = true
+  async function loadList(page = 1, pageSize = 20, silent = false): Promise<void> {
+    if (!silent) loadingList.value = true
     try {
-      const result = await fetchHelpList(page, pageSize)
+      const result = await fetchHelpList(page, pageSize, { silent })
       helpList.value = result.items
     } finally {
-      loadingList.value = false
+      if (!silent) loadingList.value = false
     }
   }
 
