@@ -58,6 +58,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '创建管理员', requiresAuth: true, requiresSuperAdmin: true },
   },
   {
+    path: '/admins/:id',
+    name: 'adminDetail',
+    component: () => import('@/pages/admins/detail.vue'),
+    meta: { title: '管理员详情', requiresAuth: true, requiresSuperAdmin: true },
+  },
+  {
     path: '/audit-logs',
     name: 'auditLogs',
     component: () => import('@/pages/audit-logs/index.vue'),

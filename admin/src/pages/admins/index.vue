@@ -2,15 +2,13 @@
   <admin-layout>
     <div class="admins-container">
       <div class="admin-card no-padding">
-        <!-- Card Header Bar -->
         <div class="card-header-bar">
           <span class="card-header-title">管理员列表</span>
-          <el-button type="primary" size="small" @click="goToCreate">
+          <el-button :icon="Plus" type="primary" size="small" @click="goToCreate">
             创建管理员
           </el-button>
         </div>
 
-        <!-- Table Content -->
         <el-table v-loading="loading" :data="adminsList" style="width: 100%">
           <el-table-column label="用户名" width="160">
             <template #default="{ row }">
@@ -36,19 +34,38 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="操作" width="100">
+          <el-table-column label="操作" width="240" fixed="right">
             <template #default="{ row }">
-              <span v-if="row.username === adminStore.username || row.role === 'super_admin'">
-                —
-              </span>
-              <el-button
-                v-else
-                link
-                type="danger"
-                @click="handleDelete(row)"
-              >
-                删除
-              </el-button>
+              <div class="action-buttons">
+                <el-button
+                  :icon="View"
+                  link
+                  type="primary"
+                  @click="goToDetail(row)"
+                >
+                  详情
+                </el-button>
+                <template v-if="canManage(row)">
+                  <el-button
+                    :icon="RefreshLeft"
+                    :loading="resetLoadingId === row.id"
+                    link
+                    type="warning"
+                    @click="handleResetPassword(row)"
+                  >
+                    重置
+                  </el-button>
+                  <el-button
+                    :icon="Delete"
+                    link
+                    type="danger"
+                    @click="handleDelete(row)"
+                  >
+                    删除
+                  </el-button>
+                </template>
+                <span v-else class="disabled-action">—</span>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -61,9 +78,15 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { Delete, Plus, RefreshLeft, View } from '@element-plus/icons-vue'
 import AdminLayout from '@/components/admin-layout.vue'
 import StatusTag from '@/components/status-tag.vue'
-import { getAdmins, deleteAdmin, type AdminAccountListItem } from '@/api/admins'
+import {
+  getAdmins,
+  deleteAdmin,
+  resetAdminPassword,
+  type AdminAccountListItem,
+} from '@/api/admins'
 import { useAdminStore } from '@/stores/admin'
 import { getApiErrorMessage } from '@/api/client'
 
@@ -71,10 +94,19 @@ const router = useRouter()
 const adminStore = useAdminStore()
 
 const loading = ref(false)
+const resetLoadingId = ref<string | null>(null)
 const adminsList = ref<AdminAccountListItem[]>([])
+
+function canManage(row: AdminAccountListItem) {
+  return row.username !== adminStore.username && row.role === 'admin'
+}
 
 function goToCreate() {
   router.push('/admins/create')
+}
+
+function goToDetail(row: AdminAccountListItem) {
+  router.push(`/admins/${row.id}`)
 }
 
 function formatTime(dateStr: string | null) {
@@ -102,6 +134,35 @@ async function fetchAdmins() {
   }
 }
 
+function handleResetPassword(row: AdminAccountListItem) {
+  ElMessageBox.prompt(
+    `请输入管理员 ${row.username} 的新密码。提交后该账号所有活跃会话会立即失效。`,
+    '确认重置密码',
+    {
+      confirmButtonText: '确认重置',
+      cancelButtonText: '取消',
+      confirmButtonClass: 'el-button--warning',
+      inputType: 'password',
+      inputValidator: validatePassword,
+    }
+  ).then(async ({ value }) => {
+    resetLoadingId.value = row.id
+    try {
+      await resetAdminPassword(row.id, { password: value })
+      ElMessage.success('密码已重置')
+    } catch (error: unknown) {
+      console.error(error)
+      ElMessage.error(getApiErrorMessage(error, '重置密码失败'))
+    } finally {
+      resetLoadingId.value = null
+    }
+  }).catch(() => {})
+}
+
+function validatePassword(value: string) {
+  return value && value.length >= 8 ? true : '密码长度最短为 8 位'
+}
+
 function handleDelete(row: AdminAccountListItem) {
   ElMessageBox.confirm(
     `确定要删除管理员 ${row.username}？删除后该账号将无法登录，且所有活跃会话立即失效。`,
@@ -121,9 +182,7 @@ function handleDelete(row: AdminAccountListItem) {
       console.error(error)
       ElMessage.error(getApiErrorMessage(error, '删除管理员失败'))
     }
-  }).catch(() => {
-    // Cancelled
-  })
+  }).catch(() => {})
 }
 
 onMounted(() => {
@@ -140,5 +199,15 @@ onMounted(() => {
   font-size: 14px;
   color: #303133;
   font-weight: 500;
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.disabled-action {
+  color: #c0c4cc;
 }
 </style>
