@@ -1,4 +1,5 @@
 import { clearAuthSession } from '@/services/auth-session'
+import { useAuthStore } from '@/store/auth'
 import { ERROR_CODES, ERROR_MESSAGES } from '@/utils/constants'
 
 export function handleErrorCode(code: number, message: string): void {
@@ -9,6 +10,7 @@ export function handleErrorCode(code: number, message: string): void {
       showCancel: false,
       success: () => {
         clearAuthSession()
+        useAuthStore().isLoggedIn = false
       },
     })
     return

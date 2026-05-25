@@ -834,7 +834,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/auth/login:
+  /api/auth/wechat-login:
     post:
       summary: 微信登录
       operationId: loginByWechatCode
@@ -860,7 +860,7 @@ paths:
                   - type: object
                     properties:
                       data:
-                        $ref: '#/components/schemas/LoginResponse'
+                        $ref: '#/components/schemas/WeChatLoginResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -881,7 +881,9 @@ paths:
                   - type: object
                     properties:
                       data:
-                        $ref: '#/components/schemas/LoginResponse'
+                        $ref: '#/components/schemas/WeChatLoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -1674,6 +1676,12 @@ components:
   responses:
     BadRequest:
       description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    Unauthorized:
+      description: 未登录或 Token 已过期
       content:
         application/json:
           schema:
@@ -3398,6 +3406,26 @@ components:
               type: string
             isNewUser:
               type: boolean
+
+    WeChatLoginResponse:
+      type: object
+      required: [token, openId, isNewUser, expiresIn]
+      properties:
+        token:
+          type: string
+          description: 自定义不透明 token（非 JWT）
+        openId:
+          type: string
+          description: 微信 openid
+        isNewUser:
+          type: boolean
+        expiresIn:
+          type: integer
+          description: 有效期（秒），当前 2592000（30 天）
+        phone:
+          type: string
+          nullable: true
+          description: 已绑定手机号（脱敏）
 
     UploadImageResponse:
       type: object

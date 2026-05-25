@@ -3,6 +3,12 @@
  *
  * 职责：微信登录流程、Token 管理、登录态判断
  * 不管用户资料（由 user store 管理）
+ *
+ * 2026-05-25:
+ * - 移除 REAL_EXPIRES_IN 硬编码 7 天，改用服务端返回的 expiresIn
+ * - 兜底 DEFAULT_EXPIRES_IN = 30 天
+ * - initializeAuthState() 不再在检查前清除 token，改为信任本地 token
+ *   真正失效由服务端 401 → refresh → 最终失败时再清除
  */
 import { post } from '@/services/request'
 import {
@@ -23,12 +29,13 @@ import { buildWeChatDisplayName } from '@/utils/wechat-display'
 
 const MOCK_TOKEN = 'mock-token'
 const MOCK_EXPIRES_IN = 7 * 24 * 60 * 60
-const REAL_EXPIRES_IN = 7 * 24 * 60 * 60
+const DEFAULT_EXPIRES_IN = 30 * 24 * 60 * 60
 
 interface WeChatLoginResponse {
   readonly token: string
   readonly openId: string
   readonly isNewUser: boolean
+  readonly expiresIn?: number
   readonly phone?: string | null
 }
 
@@ -91,7 +98,7 @@ export async function bindManualPhone(phone: string): Promise<WeChatPhoneRespons
   return post<WeChatPhoneResponse>('/api/auth/wechat-phone', { phone })
 }
 
-/** 判断当前是否已登录且 Token 未过期 */
+/** 判断当前是否已登录且 Token 未过期（仅本地时间判断） */
 export function isAuthenticated(): boolean {
   const token = readToken()
   const expireAt = getTokenExpireAt()
@@ -99,13 +106,23 @@ export function isAuthenticated(): boolean {
   return Date.now() < expireAt
 }
 
+/**
+ * 启动时初始化登录态。
+ *
+ * RESTORE_AUTH_SESSION = false（如开发环境）时，清除所有登录数据。
+ * RESTORE_AUTH_SESSION = true  时，只要本地有 token 就恢复登录态；
+ * token 是否真正有效由服务端鉴权结果决定，前端不基于本地时间提前判定过期。
+ */
 export function initializeAuthState(): boolean {
-  const authenticated = isAuthenticated()
-  if (!authenticated) return false
-  if (RESTORE_AUTH_SESSION) return true
+  const token = readToken()
+  if (!token) return false
 
-  clearAuthSession()
-  return false
+  if (!RESTORE_AUTH_SESSION) {
+    clearAuthSession()
+    return false
+  }
+
+  return true
 }
 
 /** 清除登录态 */
@@ -121,7 +138,7 @@ export function getToken(): string {
 function toLoginResponse(response: WeChatLoginResponse): LoginResponse {
   return {
     token: response.token,
-    expiresIn: REAL_EXPIRES_IN,
+    expiresIn: response.expiresIn ?? DEFAULT_EXPIRES_IN,
     userInfo: {
       id: response.openId,
       name: buildWeChatDisplayName(response.openId),

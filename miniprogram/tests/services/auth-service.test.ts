@@ -47,4 +47,17 @@ describe('auth service', () => {
     expect(storage.has(CURRENT_USER_ID_STORAGE_KEY)).toBe(false)
     expect(storage.has(AUTH_USER_INFO_STORAGE_KEY)).toBe(false)
   })
+
+  it('returns false when no token in storage', () => {
+    expect(initializeAuthState()).toBe(false)
+  })
+
+  it('clears session when restore disabled even with valid token', () => {
+    storage.set(TOKEN_STORAGE_KEY, 'valid-token')
+    storage.set(TOKEN_EXPIRE_KEY, Date.now() + 3600000)
+    storage.set(AUTH_USER_INFO_STORAGE_KEY, { id: 'x' })
+
+    expect(initializeAuthState()).toBe(false)
+    expect(storage.has(TOKEN_STORAGE_KEY)).toBe(false)
+  })
 })

@@ -3,6 +3,17 @@ import { AUTH_LOGIN_PATH, AUTH_REFRESH_PATH, BASE_URL } from '@/services/request
 import { createApiError, extractApiResponse } from '@/services/request-response'
 import type { LoginResponse } from '@/types/common'
 import { ERROR_CODES } from '@/utils/constants'
+import { buildWeChatDisplayName } from '@/utils/wechat-display'
+
+const DEFAULT_EXPIRES_IN = 30 * 24 * 60 * 60
+
+interface WeChatRefreshResponse {
+  readonly token: string
+  readonly openId: string
+  readonly isNewUser: boolean
+  readonly expiresIn?: number
+  readonly phone?: string | null
+}
 
 export function canRefreshAuth(url: string, skipAuthRefresh: boolean): boolean {
   if (skipAuthRefresh || url === AUTH_LOGIN_PATH || url === AUTH_REFRESH_PATH) {
@@ -25,7 +36,7 @@ export function refreshAuthSession(timeout: number): Promise<void> {
       header: { Authorization: `Bearer ${token}` },
       timeout,
       success: (res) => {
-        const body = extractApiResponse<LoginResponse>(res.data)
+        const body = extractApiResponse<WeChatRefreshResponse>(res.data)
         if (!body) {
           reject(createApiError('刷新 Token 响应格式不正确', undefined, res.statusCode))
           return
@@ -36,7 +47,7 @@ export function refreshAuthSession(timeout: number): Promise<void> {
           return
         }
 
-        persistAuthSession(body.data)
+        persistAuthSession(toLoginResponse(body.data))
         resolve()
       },
       fail: (err) => {
@@ -44,4 +55,17 @@ export function refreshAuthSession(timeout: number): Promise<void> {
       },
     })
   })
+}
+
+function toLoginResponse(response: WeChatRefreshResponse): LoginResponse {
+  return {
+    token: response.token,
+    expiresIn: response.expiresIn ?? DEFAULT_EXPIRES_IN,
+    userInfo: {
+      id: response.openId,
+      name: buildWeChatDisplayName(response.openId),
+      avatarUrl: '',
+      isNewUser: response.isNewUser,
+    },
+  }
 }
