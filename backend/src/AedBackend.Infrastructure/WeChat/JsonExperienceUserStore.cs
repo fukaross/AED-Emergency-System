@@ -8,6 +8,8 @@ namespace AedBackend.Infrastructure.WeChat;
 
 public sealed class JsonExperienceUserStore : IExperienceUserStore
 {
+    private const int TokenLifetimeSeconds = 30 * 24 * 3600;
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
@@ -50,7 +52,49 @@ public sealed class JsonExperienceUserStore : IExperienceUserStore
         try
         {
             var database = await ReadDatabaseAsync(cancellationToken);
-            return database.Users.FirstOrDefault(user => user.SessionTokenHash == tokenHash);
+            var user = database.Users.FirstOrDefault(u => u.SessionTokenHash == tokenHash);
+            if (user is null) return null;
+
+            var expiry = user.LastLoginAt.AddSeconds(TokenLifetimeSeconds);
+            return DateTimeOffset.UtcNow > expiry ? null : user;
+        }
+        finally
+        {
+            fileLock.Release();
+        }
+    }
+
+    public async Task<SaveLoginResult?> RefreshTokenAsync(
+        string oldTokenHash,
+        string newTokenHash,
+        CancellationToken cancellationToken)
+    {
+        await fileLock.WaitAsync(cancellationToken);
+
+        try
+        {
+            var database = await ReadDatabaseAsync(cancellationToken);
+            var index = database.Users.FindIndex(user => user.SessionTokenHash == oldTokenHash);
+            if (index < 0)
+            {
+                return null;
+            }
+
+            var expiry = database.Users[index].LastLoginAt.AddSeconds(TokenLifetimeSeconds);
+            if (DateTimeOffset.UtcNow > expiry)
+            {
+                return null;
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var updated = database.Users[index] with
+            {
+                SessionTokenHash = newTokenHash,
+                LastLoginAt = now
+            };
+            database.Users[index] = updated;
+            await WriteDatabaseAsync(database, cancellationToken);
+            return new SaveLoginResult(updated, false);
         }
         finally
         {

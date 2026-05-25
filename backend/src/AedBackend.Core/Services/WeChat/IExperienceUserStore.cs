@@ -14,6 +14,11 @@ public interface IExperienceUserStore
         string tokenHash,
         CancellationToken cancellationToken);
 
+    Task<SaveLoginResult?> RefreshTokenAsync(
+        string oldTokenHash,
+        string newTokenHash,
+        CancellationToken cancellationToken);
+
     Task SaveSubscriptionAsync(
         string tokenHash,
         SaveSubscribeDecisionRequest request,

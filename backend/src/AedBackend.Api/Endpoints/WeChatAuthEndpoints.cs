@@ -11,6 +11,8 @@ namespace AedBackend.Api.Endpoints;
 
 public static class WeChatAuthEndpoints
 {
+    private const int SessionExpiresIn = 30 * 24 * 3600;
+
     private static readonly Regex MainlandPhonePattern = new(
         @"^1[3-9]\d{9}$",
         RegexOptions.Compiled);
@@ -25,6 +27,9 @@ public static class WeChatAuthEndpoints
 
         group.MapPost("/wechat-phone", BindPhoneAsync)
             .WithName("BindWeChatPhone");
+
+        group.MapPost("/refresh", RefreshAsync)
+            .WithName("AuthRefresh");
 
         return app;
     }
@@ -57,6 +62,39 @@ public static class WeChatAuthEndpoints
             token,
             result.User.OpenId,
             result.IsNewUser,
+            SessionExpiresIn,
+            result.User.Phone);
+
+        return Results.Ok(ApiResponse.Ok(response));
+    }
+
+    private static async Task<IResult> RefreshAsync(
+        HttpRequest httpRequest,
+        ISessionTokenService tokenService,
+        IExperienceUserStore store,
+        CancellationToken cancellationToken)
+    {
+        var oldToken = EndpointSecurity.ReadBearerToken(httpRequest);
+        if (string.IsNullOrWhiteSpace(oldToken))
+        {
+            return EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "缺少登录凭证", 401);
+        }
+
+        var oldTokenHash = tokenService.HashToken(oldToken);
+        var newToken = tokenService.CreateToken();
+        var newTokenHash = tokenService.HashToken(newToken);
+
+        var result = await store.RefreshTokenAsync(oldTokenHash, newTokenHash, cancellationToken);
+        if (result is null)
+        {
+            return EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "Token 无效或已过期", 401);
+        }
+
+        var response = new WeChatLoginResponse(
+            newToken,
+            result.User.OpenId,
+            false,
+            SessionExpiresIn,
             result.User.Phone);
 
         return Results.Ok(ApiResponse.Ok(response));

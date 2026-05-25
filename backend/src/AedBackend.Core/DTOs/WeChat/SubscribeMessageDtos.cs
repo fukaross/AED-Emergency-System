@@ -30,6 +30,7 @@ public sealed record WeChatLoginResponse(
     string Token,
     string OpenId,
     bool IsNewUser,
+    int ExpiresIn,
     string? Phone);
 
 public sealed record BindWeChatPhoneRequest(
