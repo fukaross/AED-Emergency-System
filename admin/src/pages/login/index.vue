@@ -252,11 +252,16 @@ function toggleBootstrapMode() {
 
 .login-card {
   width: 400px;
+  max-width: calc(100% - 32px);
   background-color: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   padding: 40px;
   margin-bottom: 24px;
+
+  @media (max-width: 767px) {
+    padding: 24px 20px;
+  }
 }
 
 .logo-section {

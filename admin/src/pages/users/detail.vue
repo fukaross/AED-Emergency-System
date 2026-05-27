@@ -417,6 +417,10 @@ onMounted(() => {
 <style scoped lang="scss">
 .detail-container {
   padding: 24px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
 }
 
 .detail-header-action {
@@ -429,7 +433,7 @@ onMounted(() => {
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 20px;
 
-  @media (max-width: 960px) {
+  @media (max-width: 1023px) {
     grid-template-columns: 1fr;
   }
 }

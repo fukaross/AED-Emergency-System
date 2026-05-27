@@ -348,6 +348,10 @@ function stopPolling() {
 <style scoped lang="scss">
 .detail-container {
   padding: 24px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
 }
 
 .detail-header-action {

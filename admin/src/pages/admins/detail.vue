@@ -25,7 +25,7 @@
           </el-button>
         </div>
 
-        <el-descriptions v-if="detail" :column="2" border>
+        <el-descriptions v-if="detail" :column="isMobile ? 1 : 2" border>
           <el-descriptions-item label="用户名">{{ detail.username }}</el-descriptions-item>
           <el-descriptions-item label="账号 ID">{{ detail.id }}</el-descriptions-item>
           <el-descriptions-item label="角色">
@@ -72,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, RefreshLeft } from '@element-plus/icons-vue'
@@ -91,6 +91,7 @@ const resetLoading = ref(false)
 const detail = ref<AdminAccountDetail | null>(null)
 
 const adminId = computed(() => String(route.params.id || ''))
+const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false)
 const canReset = computed(() => {
   return detail.value?.role === 'admin' && detail.value.username !== adminStore.username
 })
@@ -154,8 +155,17 @@ async function resetPassword(password: string) {
   }
 }
 
+function handleResize() {
+  isMobile.value = window.innerWidth < 768
+}
+
 onMounted(() => {
   fetchDetail()
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -165,6 +175,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
 }
 
 .page-actions {

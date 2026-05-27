@@ -56,95 +56,97 @@
         </div>
 
         <!-- Logs Table -->
-        <el-table
-          v-loading="loading"
-          :data="logsList"
-          style="width: 100%"
-        >
-          <!-- Expand Column -->
-          <el-table-column type="expand">
-            <template #default="{ row }">
-              <div class="expand-detail-container">
-                <div class="metadata-block">
-                  <!-- User IP address masked -->
-                  <div class="meta-item">
-                    <span class="meta-label">IP 地址：</span>
-                    <span class="meta-value">{{ maskIp(row.ipAddress) }}</span>
-                  </div>
+        <div class="table-responsive">
+          <el-table
+            v-loading="loading"
+            :data="logsList"
+            style="width: 100%"
+          >
+            <!-- Expand Column -->
+            <el-table-column type="expand">
+              <template #default="{ row }">
+                <div class="expand-detail-container">
+                  <div class="metadata-block">
+                    <!-- User IP address masked -->
+                    <div class="meta-item">
+                      <span class="meta-label">IP 地址：</span>
+                      <span class="meta-value">{{ maskIp(row.ipAddress) }}</span>
+                    </div>
 
-                  <!-- Target ID if exists -->
-                  <div v-if="row.targetId" class="meta-item">
-                    <span class="meta-label">目标 ID：</span>
-                    <span class="meta-value"><code>{{ row.targetId }}</code></span>
-                  </div>
+                    <!-- Target ID if exists -->
+                    <div v-if="row.targetId" class="meta-item">
+                      <span class="meta-label">目标 ID：</span>
+                      <span class="meta-value"><code>{{ row.targetId }}</code></span>
+                    </div>
 
-                  <!-- Metadata Changed fields tags -->
-                  <div v-if="row.metadata && row.metadata.changedFields && Array.isArray(row.metadata.changedFields)" class="meta-item">
-                    <span class="meta-label">修改字段：</span>
-                    <span class="meta-value">
-                      <el-tag
-                        v-for="field in row.metadata.changedFields"
-                        :key="field"
-                        size="small"
-                        class="meta-field-tag"
-                      >
-                        {{ field }}
-                      </el-tag>
-                    </span>
-                  </div>
+                    <!-- Metadata Changed fields tags -->
+                    <div v-if="row.metadata && row.metadata.changedFields && Array.isArray(row.metadata.changedFields)" class="meta-item">
+                      <span class="meta-label">修改字段：</span>
+                      <span class="meta-value">
+                        <el-tag
+                          v-for="field in row.metadata.changedFields"
+                          :key="field"
+                          size="small"
+                          class="meta-field-tag"
+                        >
+                          {{ field }}
+                        </el-tag>
+                      </span>
+                    </div>
 
-                  <!-- Full Pretty Metadata JSON representation -->
-                  <div class="meta-item">
-                    <span class="meta-label">附加元数据：</span>
-                    <div class="meta-value">
-                      <pre class="metadata-json">{{ formatJson(row.metadata) }}</pre>
+                    <!-- Full Pretty Metadata JSON representation -->
+                    <div class="meta-item">
+                      <span class="meta-label">附加元数据：</span>
+                      <div class="meta-value">
+                        <pre class="metadata-json">{{ formatJson(row.metadata) }}</pre>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </template>
-          </el-table-column>
+              </template>
+            </el-table-column>
 
-          <!-- Column DateTime -->
-          <el-table-column label="时间" width="150">
-            <template #default="{ row }">
-              {{ formatTimeSeconds(row.createdAt) }}
-            </template>
-          </el-table-column>
+            <!-- Column DateTime -->
+            <el-table-column label="时间" width="150">
+              <template #default="{ row }">
+                {{ formatTimeSeconds(row.createdAt) }}
+              </template>
+            </el-table-column>
 
-          <!-- Column Actor -->
-          <el-table-column label="操作人" width="100">
-            <template #default="{ row }">
-              <span class="actor-name">{{ row.actorName || '—' }}</span>
-            </template>
-          </el-table-column>
+            <!-- Column Actor -->
+            <el-table-column label="操作人" width="100">
+              <template #default="{ row }">
+                <span class="actor-name">{{ row.actorName || '—' }}</span>
+              </template>
+            </el-table-column>
 
-          <!-- Column Event Type -->
-          <el-table-column label="事件类型" width="100">
-            <template #default="{ row }">
-              <span
-                class="event-type-tag"
-                :style="getEventTypeStyle(row.eventType)"
-              >
-                {{ getEventTypeLabel(row.eventType) }}
-              </span>
-            </template>
-          </el-table-column>
+            <!-- Column Event Type -->
+            <el-table-column label="事件类型" width="100">
+              <template #default="{ row }">
+                <span
+                  class="event-type-tag"
+                  :style="getEventTypeStyle(row.eventType)"
+                >
+                  {{ getEventTypeLabel(row.eventType) }}
+                </span>
+              </template>
+            </el-table-column>
 
-          <!-- Column Event Name -->
-          <el-table-column label="事件名称" width="160">
-            <template #default="{ row }">
-              {{ getEventNameCn(row.eventName) }}
-            </template>
-          </el-table-column>
+            <!-- Column Event Name -->
+            <el-table-column label="事件名称" width="160">
+              <template #default="{ row }">
+                {{ getEventNameCn(row.eventName) }}
+              </template>
+            </el-table-column>
 
-          <!-- Column Summary -->
-          <el-table-column label="摘要">
-            <template #default="{ row }">
-              <span class="summary-text" :title="row.summary || ''">{{ row.summary || '—' }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
+            <!-- Column Summary -->
+            <el-table-column label="摘要">
+              <template #default="{ row }">
+                <span class="summary-text" :title="row.summary || ''">{{ row.summary || '—' }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
 
         <!-- Pagination -->
         <div class="pagination-container">
@@ -338,6 +340,10 @@ onMounted(() => {
 <style scoped lang="scss">
 .audit-logs-container {
   padding: 24px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
 }
 
 .filter-section {

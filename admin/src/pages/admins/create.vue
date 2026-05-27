@@ -166,6 +166,10 @@ async function submitForm() {
 <style scoped lang="scss">
 .create-container {
   padding: 24px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
 }
 
 .header-action-row {
@@ -178,6 +182,11 @@ async function submitForm() {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   max-width: 520px;
   padding: 32px;
+
+  @media (max-width: 767px) {
+    max-width: 100%;
+    padding: 20px 16px;
+  }
 }
 
 .card-title-custom {

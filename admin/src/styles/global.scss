@@ -1,5 +1,30 @@
 @use './variables' as *;
 
+// Responsive Mixins
+@mixin mobile {
+  @media (max-width: ($breakpoint-mobile - 1px)) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media (min-width: $breakpoint-mobile) and (max-width: ($breakpoint-tablet - 1px)) {
+    @content;
+  }
+}
+
+@mixin mobile-tablet {
+  @media (max-width: ($breakpoint-tablet - 1px)) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: $breakpoint-tablet) {
+    @content;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -51,8 +76,28 @@ html, body, #app {
   padding: 0 24px 16px;
 
   .el-input, .el-select {
-    // Override heights dynamically if needed
     --el-component-size: 32px;
+  }
+
+  @include mobile {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 16px 16px;
+
+    .el-input, .el-select, .el-button {
+      width: 100% !important;
+    }
+  }
+}
+
+// Table responsive wrapper for mobile/tablet horizontal scroll
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  .el-table {
+    min-width: 600px;
   }
 }
 
@@ -88,6 +133,11 @@ html, body, #app {
   justify-content: flex-end;
   padding: 16px 24px;
   border-top: 1px solid #ebeef5;
+
+  @include mobile {
+    justify-content: center;
+    padding: 12px 16px;
+  }
 }
 
 // Two Column Grid Layout (e.g., Detail views)
@@ -96,7 +146,7 @@ html, body, #app {
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: $section-gap;
 
-  @media (max-width: 960px) {
+  @include mobile-tablet {
     grid-template-columns: 1fr;
   }
 }
@@ -109,6 +159,11 @@ html, body, #app {
 
   &.single-col {
     grid-template-columns: 1fr;
+  }
+
+  @include mobile {
+    grid-template-columns: 1fr;
+    gap: 12px 16px;
   }
 }
 
@@ -153,4 +208,49 @@ html, body, #app {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+// Responsive visibility utilities
+@include mobile {
+  .hide-on-mobile { display: none !important; }
+}
+
+@include tablet {
+  .hide-on-tablet { display: none !important; }
+}
+
+@include mobile-tablet {
+  .show-only-desktop { display: none !important; }
+}
+
+@include desktop {
+  .show-only-mobile { display: none !important; }
+}
+
+// Page padding responsive
+.page-content-padding {
+  padding: $page-padding;
+
+  @include mobile {
+    padding: 12px;
+  }
+}
+
+// Card responsive inner spacing
+@include mobile {
+  .admin-card {
+    padding: 16px;
+
+    &.no-padding {
+      padding: 0;
+    }
+  }
+
+  .card-header-bar {
+    padding: 12px 16px;
+  }
+
+  .pagination-container {
+    padding: 12px 16px;
+  }
 }

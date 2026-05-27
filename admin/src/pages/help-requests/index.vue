@@ -39,103 +39,105 @@
         </div>
 
         <!-- Data table -->
-        <el-table
-          v-loading="loading"
-          :data="tableData"
-          style="width: 100%;"
-          class="data-table"
-        >
-          <!-- Request No. Column -->
-          <el-table-column
-            prop="requestNo"
-            label="编号"
-            width="160"
-            align="left"
-          />
-
-          <!-- Content Column -->
-          <el-table-column
-            prop="content"
-            label="内容"
-            min-width="200"
-            align="left"
-            show-overflow-tooltip
-          />
-
-          <!-- Channel Column -->
-          <el-table-column
-            prop="requestChannel"
-            label="渠道"
-            width="80"
-            align="center"
+        <div class="table-responsive">
+          <el-table
+            v-loading="loading"
+            :data="tableData"
+            style="width: 100%;"
+            class="data-table"
           >
-            <template #default="{ row }">
-              <status-tag :status="row.requestChannel" category="channel" />
+            <!-- Request No. Column -->
+            <el-table-column
+              prop="requestNo"
+              label="编号"
+              width="160"
+              align="left"
+            />
+
+            <!-- Content Column -->
+            <el-table-column
+              prop="content"
+              label="内容"
+              min-width="200"
+              align="left"
+              show-overflow-tooltip
+            />
+
+            <!-- Channel Column -->
+            <el-table-column
+              prop="requestChannel"
+              label="渠道"
+              width="80"
+              align="center"
+            >
+              <template #default="{ row }">
+                <status-tag :status="row.requestChannel" category="channel" />
+              </template>
+            </el-table-column>
+
+            <!-- Status Column -->
+            <el-table-column
+              prop="status"
+              label="状态"
+              width="100"
+              align="center"
+            >
+              <template #default="{ row }">
+                <status-tag :status="row.status" category="help" />
+              </template>
+            </el-table-column>
+
+            <!-- Address Column -->
+            <el-table-column
+              prop="address"
+              label="位置"
+              width="140"
+              align="left"
+              show-overflow-tooltip
+            />
+
+            <el-table-column
+              prop="reportersCount"
+              label="报告上传者"
+              width="110"
+              align="center"
+            >
+              <template #default="{ row }">
+                {{ row.reportersCount || 0 }}人
+              </template>
+            </el-table-column>
+
+            <!-- Timestamp Column -->
+            <el-table-column
+              prop="createdAt"
+              label="时间"
+              width="150"
+              align="left"
+            >
+              <template #default="{ row }">
+                {{ formatTime(row.createdAt) }}
+              </template>
+            </el-table-column>
+
+            <!-- Operation Column -->
+            <el-table-column
+              label="操作"
+              width="80"
+              align="center"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <el-button text type="primary" size="small" @click="viewDetail(row.id)">
+                  详情
+                </el-button>
+              </template>
+            </el-table-column>
+
+            <template #empty>
+              <el-empty description="暂无符合要求的求助记录" />
             </template>
-          </el-table-column>
-
-          <!-- Status Column -->
-          <el-table-column
-            prop="status"
-            label="状态"
-            width="100"
-            align="center"
-          >
-            <template #default="{ row }">
-              <status-tag :status="row.status" category="help" />
-            </template>
-          </el-table-column>
-
-          <!-- Address Column -->
-          <el-table-column
-            prop="address"
-            label="位置"
-            width="140"
-            align="left"
-            show-overflow-tooltip
-          />
-
-          <el-table-column
-            prop="reportersCount"
-            label="报告上传者"
-            width="110"
-            align="center"
-          >
-            <template #default="{ row }">
-              {{ row.reportersCount || 0 }}人
-            </template>
-          </el-table-column>
-
-          <!-- Timestamp Column -->
-          <el-table-column
-            prop="createdAt"
-            label="时间"
-            width="150"
-            align="left"
-          >
-            <template #default="{ row }">
-              {{ formatTime(row.createdAt) }}
-            </template>
-          </el-table-column>
-
-          <!-- Operation Column -->
-          <el-table-column
-            label="操作"
-            width="80"
-            align="center"
-            fixed="right"
-          >
-            <template #default="{ row }">
-              <el-button text type="primary" size="small" @click="viewDetail(row.id)">
-                详情
-              </el-button>
-            </template>
-          </el-table-column>
-
-          <template #empty>
-            <el-empty description="暂无符合要求的求助记录" />
-          </template>
-        </el-table>
+          </el-table>
+        </div>
 
         <!-- Table pagination -->
         <div class="pagination-container">
@@ -314,6 +316,10 @@ onUnmounted(() => {
 <style scoped lang="scss">
 .page-content {
   padding: 24px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
 }
 
 .filter-section {

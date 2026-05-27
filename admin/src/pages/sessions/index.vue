@@ -163,6 +163,10 @@ onMounted(() => {
 <style scoped lang="scss">
 .sessions-container {
   padding: 24px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
 }
 
 .sessions-card {

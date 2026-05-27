@@ -205,17 +205,25 @@ function stopPolling() {
 <style scoped lang="scss">
 .dashboard-container {
   padding: 24px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
 }
 
-// Stat Card Grid system
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
   margin-bottom: 20px;
 
-  @media (max-width: 1200px) {
+  @media (max-width: 1023px) {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 
@@ -303,6 +311,12 @@ function stopPolling() {
 
   &:hover {
     background-color: #f5f7fa;
+  }
+
+  @media (max-width: 767px) {
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    gap: 4px 8px;
   }
 }
 

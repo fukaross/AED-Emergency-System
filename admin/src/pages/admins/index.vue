@@ -9,66 +9,68 @@
           </el-button>
         </div>
 
-        <el-table v-loading="loading" :data="adminsList" style="width: 100%">
-          <el-table-column label="用户名" width="160">
-            <template #default="{ row }">
-              <span class="username-text">{{ row.username }}</span>
-            </template>
-          </el-table-column>
+        <div class="table-responsive">
+          <el-table v-loading="loading" :data="adminsList" style="width: 100%">
+            <el-table-column label="用户名" width="160">
+              <template #default="{ row }">
+                <span class="username-text">{{ row.username }}</span>
+              </template>
+            </el-table-column>
 
-          <el-table-column label="角色" width="120">
-            <template #default="{ row }">
-              <status-tag category="admin" :status="row.role" />
-            </template>
-          </el-table-column>
+            <el-table-column label="角色" width="120">
+              <template #default="{ row }">
+                <status-tag category="admin" :status="row.role" />
+              </template>
+            </el-table-column>
 
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <status-tag category="account" :status="row.status" />
-            </template>
-          </el-table-column>
+            <el-table-column label="状态" width="100">
+              <template #default="{ row }">
+                <status-tag category="account" :status="row.status" />
+              </template>
+            </el-table-column>
 
-          <el-table-column label="创建时间" width="160">
-            <template #default="{ row }">
-              {{ formatTime(row.createdAt) }}
-            </template>
-          </el-table-column>
+            <el-table-column label="创建时间" width="160">
+              <template #default="{ row }">
+                {{ formatTime(row.createdAt) }}
+              </template>
+            </el-table-column>
 
-          <el-table-column label="操作" width="240" fixed="right">
-            <template #default="{ row }">
-              <div class="action-buttons">
-                <el-button
-                  :icon="View"
-                  link
-                  type="primary"
-                  @click="goToDetail(row)"
-                >
-                  详情
-                </el-button>
-                <template v-if="canManage(row)">
+            <el-table-column label="操作" width="240" fixed="right">
+              <template #default="{ row }">
+                <div class="action-buttons">
                   <el-button
-                    :icon="RefreshLeft"
-                    :loading="resetLoadingId === row.id"
+                    :icon="View"
                     link
-                    type="warning"
-                    @click="handleResetPassword(row)"
+                    type="primary"
+                    @click="goToDetail(row)"
                   >
-                    重置
+                    详情
                   </el-button>
-                  <el-button
-                    :icon="Delete"
-                    link
-                    type="danger"
-                    @click="handleDelete(row)"
-                  >
-                    删除
-                  </el-button>
-                </template>
-                <span v-else class="disabled-action">—</span>
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
+                  <template v-if="canManage(row)">
+                    <el-button
+                      :icon="RefreshLeft"
+                      :loading="resetLoadingId === row.id"
+                      link
+                      type="warning"
+                      @click="handleResetPassword(row)"
+                    >
+                      重置
+                    </el-button>
+                    <el-button
+                      :icon="Delete"
+                      link
+                      type="danger"
+                      @click="handleDelete(row)"
+                    >
+                      删除
+                    </el-button>
+                  </template>
+                  <span v-else class="disabled-action">—</span>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </div>
     </div>
   </admin-layout>
@@ -193,6 +195,10 @@ onMounted(() => {
 <style scoped lang="scss">
 .admins-container {
   padding: 24px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
 }
 
 .username-text {

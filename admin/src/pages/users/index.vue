@@ -54,118 +54,120 @@
         </div>
 
         <!-- User Data Table -->
-        <el-table
-          v-loading="loading"
-          :data="tableData"
-          style="width: 100%;"
-          class="data-table"
-        >
-          <!-- User Profile Column (Avatar + Name) -->
-          <el-table-column
-            label="用户"
-            width="180"
-            align="left"
+        <div class="table-responsive">
+          <el-table
+            v-loading="loading"
+            :data="tableData"
+            style="width: 100%;"
+            class="data-table"
           >
-            <template #default="{ row }">
-              <div class="user-profile-cell">
-                <el-avatar
-                  v-if="row.avatarUrl"
-                  :size="32"
-                  :src="row.avatarUrl"
-                  class="user-avatar"
-                />
-                <div v-else class="avatar-placeholder">
-                  {{ getInitials(row.name) }}
+            <!-- User Profile Column (Avatar + Name) -->
+            <el-table-column
+              label="用户"
+              width="180"
+              align="left"
+            >
+              <template #default="{ row }">
+                <div class="user-profile-cell">
+                  <el-avatar
+                    v-if="row.avatarUrl"
+                    :size="32"
+                    :src="row.avatarUrl"
+                    class="user-avatar"
+                  />
+                  <div v-else class="avatar-placeholder">
+                    {{ getInitials(row.name) }}
+                  </div>
+                  <span class="user-name">{{ row.name }}</span>
                 </div>
-                <span class="user-name">{{ row.name }}</span>
-              </div>
-            </template>
-          </el-table-column>
+              </template>
+            </el-table-column>
 
-          <!-- Role Column -->
-          <el-table-column
-            prop="primaryRole"
-            label="身份"
-            width="80"
-            align="center"
-          >
-            <template #default="{ row }">
-              {{ getRoleCn(row.primaryRole) }}
-            </template>
-          </el-table-column>
+            <!-- Role Column -->
+            <el-table-column
+              prop="primaryRole"
+              label="身份"
+              width="80"
+              align="center"
+            >
+              <template #default="{ row }">
+                {{ getRoleCn(row.primaryRole) }}
+              </template>
+            </el-table-column>
 
-          <!-- Certification Column -->
-          <el-table-column
-            prop="certified"
-            label="资格"
-            width="80"
-            align="center"
-          >
-            <template #default="{ row }">
-              <el-tag
-                :type="row.certified ? 'success' : 'info'"
-                size="small"
-                class="tag-small"
-              >
-                {{ row.certified ? '已认证' : '未认证' }}
-              </el-tag>
-            </template>
-          </el-table-column>
+            <!-- Certification Column -->
+            <el-table-column
+              prop="certified"
+              label="资格"
+              width="80"
+              align="center"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.certified ? 'success' : 'info'"
+                  size="small"
+                  class="tag-small"
+                >
+                  {{ row.certified ? '已认证' : '未认证' }}
+                </el-tag>
+              </template>
+            </el-table-column>
 
-          <!-- Level Column -->
-          <el-table-column
-            prop="level"
-            label="等级"
-            width="80"
-            align="center"
-          >
-            <template #default="{ row }">
-              {{ getLevelCn(row.level) }}
-            </template>
-          </el-table-column>
+            <!-- Level Column -->
+            <el-table-column
+              prop="level"
+              label="等级"
+              width="80"
+              align="center"
+            >
+              <template #default="{ row }">
+                {{ getLevelCn(row.level) }}
+              </template>
+            </el-table-column>
 
-          <!-- Account Status Column -->
-          <el-table-column
-            prop="accountStatus"
-            label="账号状态"
-            width="90"
-            align="center"
-          >
-            <template #default="{ row }">
-              <status-tag :status="row.accountStatus" category="account" />
-            </template>
-          </el-table-column>
+            <!-- Account Status Column -->
+            <el-table-column
+              prop="accountStatus"
+              label="账号状态"
+              width="90"
+              align="center"
+            >
+              <template #default="{ row }">
+                <status-tag :status="row.accountStatus" category="account" />
+              </template>
+            </el-table-column>
 
-          <!-- Update time Column -->
-          <el-table-column
-            prop="updatedAt"
-            label="更新时间"
-            width="120"
-            align="left"
-          >
-            <template #default="{ row }">
-              {{ formatTime(row.updatedAt) }}
-            </template>
-          </el-table-column>
+            <!-- Update time Column -->
+            <el-table-column
+              prop="updatedAt"
+              label="更新时间"
+              width="120"
+              align="left"
+            >
+              <template #default="{ row }">
+                {{ formatTime(row.updatedAt) }}
+              </template>
+            </el-table-column>
 
-          <!-- Actions Column -->
-          <el-table-column
-            label="操作"
-            width="80"
-            align="center"
-            fixed="right"
-          >
-            <template #default="{ row }">
-              <el-button text type="primary" size="small" @click="viewDetail(row.openId)">
-                详情
-              </el-button>
-            </template>
-          </el-table-column>
+            <!-- Actions Column -->
+            <el-table-column
+              label="操作"
+              width="80"
+              align="center"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <el-button text type="primary" size="small" @click="viewDetail(row.openId)">
+                  详情
+                </el-button>
+              </template>
+            </el-table-column>
 
-          <template #empty>
-            <el-empty description="暂无符合条件的用户记录" />
-          </template>
-        </el-table>
+            <template #empty>
+              <el-empty description="暂无符合条件的用户记录" />
+            </template>
+          </el-table>
+        </div>
 
         <!-- Pagination -->
         <div class="pagination-container">
@@ -321,6 +323,10 @@ onMounted(() => {
 <style scoped lang="scss">
 .page-content {
   padding: 24px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
 }
 
 .filter-section {

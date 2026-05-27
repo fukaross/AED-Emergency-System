@@ -43,6 +43,11 @@ $sidebar-width-expanded: 220px;
 $sidebar-width-collapsed: 64px;
 $sidebar-transition: width 0.3s ease;
 
+// Responsive Breakpoints
+$breakpoint-mobile: 768px;
+$breakpoint-tablet: 1024px;
+$header-height: 60px;
+
 // Rounded corners
 $radius-card: 8px;
 $radius-btn: 4px;
