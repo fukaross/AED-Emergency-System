@@ -110,14 +110,4 @@ public sealed class AdminAedApiTests : AdminApiTestBase
             maintainer = "测试维护员"
         };
     }
-
-    private static async Task AssertErrorAsync(
-        HttpResponseMessage response,
-        HttpStatusCode statusCode,
-        int errorCode)
-    {
-        var body = await ReadAsync<ApiResponse<JsonElement>>(response);
-        Assert.Equal(statusCode, response.StatusCode);
-        Assert.Equal(errorCode, body.Code);
-    }
 }

@@ -51,6 +51,7 @@ app.MapWeChatDevEndpoints();
 app.MapUploadEndpoints();
 app.MapAedEndpoints();
 app.MapHelpEndpoints();
+app.MapRescuerEndpoints();
 app.MapOpsEndpoints();
 app.MapAdminEndpoints();
 

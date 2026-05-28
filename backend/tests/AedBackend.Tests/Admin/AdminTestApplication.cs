@@ -25,6 +25,7 @@ internal sealed class AdminTestApplication : WebApplicationFactory<Program>
                 ["WeChat:HelpRequestsFilePath"] = Path.Combine(dataRoot, "help-requests.json"),
                 ["WeChat:AedDevicesFilePath"] = Path.Combine(dataRoot, "aed-devices.json"),
                 ["WeChat:UploadsDirectory"] = Path.Combine(dataRoot, "uploads"),
+                ["WeChat:RescuerProfilesFilePath"] = Path.Combine(dataRoot, "rescuer-profiles.json"),
                 ["Admin:AdminUsersFilePath"] = Path.Combine(dataRoot, "admin-users.json"),
                 ["Admin:AdminUserProfilesFilePath"] = Path.Combine(dataRoot, "admin-user-profiles.json"),
                 ["Admin:AdminAuditLogsFilePath"] = Path.Combine(dataRoot, "admin-audit-logs.json")

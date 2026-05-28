@@ -25,6 +25,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IExperienceUserStore, JsonExperienceUserStore>();
         services.AddSingleton<IHelpRequestStore, JsonHelpRequestStore>();
         services.AddSingleton<IAedDeviceStore, JsonAedDeviceStore>();
+        services.AddSingleton<IResponderStore, JsonResponderStore>();
         services.AddSingleton<IAdminUserStore, JsonAdminUserStore>();
         services.AddSingleton<IAdminUserProfileStore, JsonAdminUserProfileStore>();
         services.AddSingleton<IAdminAuditLogStore, JsonAdminAuditLogStore>();

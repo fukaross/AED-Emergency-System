@@ -11,6 +11,7 @@ public static class AdminEndpoints
         group.MapAdminHelpEndpoints();
         group.MapAdminUserEndpoints();
         group.MapAdminAedEndpoints();
+        group.MapAdminRescuerEndpoints();
         group.MapAdminManagementEndpoints();
         group.MapAdminAuditEndpoints();
 

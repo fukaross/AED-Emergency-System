@@ -1,4 +1,8 @@
+using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.Models.Help;
@@ -9,6 +13,7 @@ public abstract class AdminApiTestBase : IAsyncLifetime
 {
     public const string LegacyAdminKey = "legacy-test-key";
     protected const string DefaultPassword = "Password123!";
+    protected const string DefaultUserToken = "user-test-token";
 
     private readonly string dataRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
     private AdminTestApplication? application;
@@ -74,6 +79,23 @@ public abstract class AdminApiTestBase : IAsyncLifetime
         UseAdminKey(LegacyAdminKey);
     }
 
+    protected void UseUserToken(string token = DefaultUserToken)
+    {
+        Client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", token);
+    }
+
+    protected void SeedLoggedInExperienceUser(
+        string openId = "openid-1",
+        string phone = "REDACTED",
+        string token = DefaultUserToken)
+    {
+        WriteExperienceUsers([
+            new ExperienceUserSeed(openId, phone, HashToken(token))
+        ]);
+        UseUserToken(token);
+    }
+
     protected async Task CreateAdminAsync(string username, string password = DefaultPassword)
     {
         var create = await Client.PostAsJsonAsync(
@@ -96,12 +118,18 @@ public abstract class AdminApiTestBase : IAsyncLifetime
 
     protected void SeedExperienceUsers(params (string OpenId, string Phone)[] users)
     {
+        WriteExperienceUsers(users.Select(user =>
+            new ExperienceUserSeed(user.OpenId, user.Phone, $"hash-{user.OpenId}")));
+    }
+
+    private void WriteExperienceUsers(IEnumerable<ExperienceUserSeed> users)
+    {
         var items = users.Select(user => $$"""
                 {
                   "openId": "{{user.OpenId}}",
                   "unionId": null,
                   "phone": "{{user.Phone}}",
-                  "sessionTokenHash": "hash-{{user.OpenId}}",
+                  "sessionTokenHash": "{{user.TokenHash}}",
                   "createdAt": "2026-05-23T00:00:00+00:00",
                   "lastLoginAt": "2026-05-23T00:00:00+00:00",
                   "subscriptions": {}
@@ -114,6 +142,12 @@ public abstract class AdminApiTestBase : IAsyncLifetime
           ]
         }
         """);
+    }
+
+    private static string HashToken(string token)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToBase64String(hash);
     }
 
     protected void SeedHelpRequests(params HelpSeed[] requests)
@@ -192,5 +226,20 @@ public abstract class AdminApiTestBase : IAsyncLifetime
     {
         public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.Parse("2026-05-23T00:00:00+00:00");
         public DateTimeOffset? ClosedAt { get; init; }
+    }
+
+    private sealed record ExperienceUserSeed(
+        string OpenId,
+        string Phone,
+        string TokenHash);
+
+    protected static async Task AssertErrorAsync(
+        HttpResponseMessage response,
+        HttpStatusCode statusCode,
+        int errorCode)
+    {
+        var body = await ReadAsync<ApiResponse<JsonElement>>(response);
+        Assert.Equal(statusCode, response.StatusCode);
+        Assert.Equal(errorCode, body.Code);
     }
 }

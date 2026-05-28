@@ -15,6 +15,7 @@ public sealed class WeChatOptions
     public string HelpRequestsFilePath { get; set; } = "data/help-requests.json";
     public string AedDevicesFilePath { get; set; } = "data/aed-devices.json";
     public string UploadsDirectory { get; set; } = "data/uploads";
+    public string RescuerProfilesFilePath { get; set; } = "data/rescuer-profiles.json";
     public string PublicBaseUrl { get; set; } = "REDACTED";
 
     public void ApplyEnvironmentAliases(IConfiguration configuration)
