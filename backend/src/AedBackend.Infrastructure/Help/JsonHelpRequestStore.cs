@@ -44,7 +44,8 @@ public sealed class JsonHelpRequestStore : IHelpRequestStore
     {
         return await WithReadAsync(
             database => database.Requests
-                .Where(item => item.UserId == userId)
+                .Where(item => item.UserId == userId
+                    || item.Reports.Any(r => r.ReporterOpenId == userId))
                 .OrderByDescending(item => item.CreatedAt)
                 .ToArray(),
             cancellationToken);

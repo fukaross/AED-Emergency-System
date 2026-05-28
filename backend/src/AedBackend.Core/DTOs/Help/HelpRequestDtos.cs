@@ -36,7 +36,8 @@ public sealed record HelpListItem(
     string Address,
     DateTimeOffset CreatedAt,
     int RespondersCount,
-    string LatestEta);
+    string LatestEta,
+    string UserRole);
 
 public sealed record HelpResponderResponse(
     string Name,

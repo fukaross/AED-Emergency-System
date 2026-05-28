@@ -5,8 +5,9 @@ namespace AedBackend.Api.Endpoints;
 
 internal static class HelpResponseMapper
 {
-    public static HelpListItem ToListItem(HelpRequestRecord record)
+    public static HelpListItem ToListItem(HelpRequestRecord record, string? userId = null)
     {
+        var userRole = userId is null || record.UserId == userId ? "requester" : "reporter";
         return new HelpListItem(
             record.Id,
             record.RequestNo,
@@ -16,7 +17,8 @@ internal static class HelpResponseMapper
             record.Address,
             record.CreatedAt,
             record.Responders.Count,
-            GetEstimatedArrivalTime(record));
+            GetEstimatedArrivalTime(record),
+            userRole);
     }
 
     public static HelpDetailResponse ToDetail(HelpRequestRecord record)

@@ -1,6 +1,7 @@
 using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.DTOs.Upload;
+using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.WeChat;
 using AedBackend.Infrastructure.WeChat;
 using Microsoft.Extensions.Options;
@@ -28,6 +29,11 @@ public static class UploadEndpoints
         "volunteer"
     };
 
+    private static readonly IReadOnlySet<string> AdminScenes = new HashSet<string>
+    {
+        "device"
+    };
+
     private static readonly IReadOnlyDictionary<string, string> AllowedContentTypes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -52,6 +58,7 @@ public static class UploadEndpoints
         IOptions<WeChatOptions> options,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
+        IAdminAuthorizationService adminAuthorization,
         CancellationToken cancellationToken)
     {
         if (!request.HasFormContentType)
@@ -66,6 +73,7 @@ public static class UploadEndpoints
             request,
             tokenService,
             userStore,
+            adminAuthorization,
             cancellationToken);
         if (validationError is not null) return validationError;
 
@@ -87,21 +95,36 @@ public static class UploadEndpoints
         HttpRequest request,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
+        IAdminAuthorizationService adminAuthorization,
         CancellationToken cancellationToken)
     {
-        if (!PublicScenes.Contains(scene) && !AuthScenes.Contains(scene))
+        if (!PublicScenes.Contains(scene) && !AuthScenes.Contains(scene) && !AdminScenes.Contains(scene))
         {
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "scene 不支持", 400);
         }
 
         if (PublicScenes.Contains(scene)) return null;
 
-        var user = await EndpointUsers.FindCurrentUserAsync(
-            request,
-            tokenService,
-            userStore,
-            cancellationToken);
-        return user is null ? EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "登录 token 无效", 401) : null;
+        if (AuthScenes.Contains(scene))
+        {
+            var user = await EndpointUsers.FindCurrentUserAsync(
+                request,
+                tokenService,
+                userStore,
+                cancellationToken);
+            return user is null ? EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "登录 token 无效", 401) : null;
+        }
+
+        var adminKey = request.Headers.TryGetValue(EndpointSecurity.AdminKeyHeader, out var values)
+            ? values.ToString()
+            : null;
+        var clientIp = request.HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = request.Headers.UserAgent.ToString();
+
+        var adminAuth = await adminAuthorization.RequireAdminSessionAsync(
+            adminKey, clientIp, userAgent, cancellationToken);
+        return adminAuth.Succeeded ? null
+            : EndpointFailures.JsonFailure(adminAuth.ErrorCode, adminAuth.ErrorMessage, adminAuth.StatusCode);
     }
 
     private static async Task<FileValidationResult> ValidateFileAsync(

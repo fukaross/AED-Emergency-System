@@ -23,6 +23,8 @@ public static class ErrorCodes
     public const int AedNotFound = 2001;
     public const int CourseNotFound = 2002;
     public const int ArchiveNotFound = 2003;
+    public const int AedOfflineRequiresNote = 2004;
+    public const int AedNameDuplicate = 2005;
 
     public const int FileTooLarge = 3001;
     public const int FileTypeNotAllowed = 3002;

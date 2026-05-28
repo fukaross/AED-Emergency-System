@@ -12,11 +12,12 @@ internal static class HelpListPaging
     public static PaginatedData<HelpListItem> ToPage(
         IReadOnlyList<HelpRequestRecord> records,
         int? page,
-        int? pageSize)
+        int? pageSize,
+        string? userId = null)
     {
         var safePage = Math.Max(DefaultPage, page ?? DefaultPage);
         var safePageSize = Math.Clamp(pageSize ?? DefaultPageSize, 1, 100);
-        var items = records.Select(HelpResponseMapper.ToListItem).ToArray();
+        var items = records.Select(r => HelpResponseMapper.ToListItem(r, userId)).ToArray();
         var paged = items.Skip((safePage - 1) * safePageSize).Take(safePageSize).ToArray();
         return new PaginatedData<HelpListItem>(
             paged,

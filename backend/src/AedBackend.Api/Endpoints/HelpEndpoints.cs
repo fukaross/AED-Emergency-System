@@ -89,9 +89,11 @@ public static class HelpEndpoints
 
         var records = await helpStore.ListByUserAsync(user.OpenId, cancellationToken);
         var filtered = HelpListPaging.FilterByStatus(records, status);
-        return Results.Ok(ApiResponse.Ok(HelpListPaging.ToPage(filtered, page, pageSize)));
+        return Results.Ok(ApiResponse.Ok(HelpListPaging.ToPage(filtered, page, pageSize, user.OpenId)));
     }
 
+    // TODO: Tighten detail access to role / notification-recipient snapshot once responder_profiles / push-recipient tracking lands.
+    //       Current JSON transition keeps detail open to any authenticated user so rescuers can view before submitting a report.
     private static async Task<IResult> GetHelpDetailAsync(
         HttpRequest httpRequest,
         string id,

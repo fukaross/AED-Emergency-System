@@ -102,6 +102,153 @@ public sealed class JsonAedDeviceStore : IAedDeviceStore
         return degrees * Math.PI / 180;
     }
 
+    public async Task<IReadOnlyList<AedDeviceRecord>> GetAllAsync(
+        CancellationToken cancellationToken)
+    {
+        return await LoadDevicesAsync(cancellationToken);
+    }
+
+    public async Task<AedDeviceRecord> AddAsync(
+        AedDeviceRecord device,
+        CancellationToken cancellationToken)
+    {
+        await fileLock.WaitAsync(cancellationToken);
+        try
+        {
+            var devices = await LoadUnsafeAsync(cancellationToken);
+            var list = devices.ToList();
+
+            if (list.Any(d => d.Name.Equals(device.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException("设备名称已存在");
+            }
+
+            var newId = GenerateNextId(list);
+            device.Id = newId;
+            if (string.IsNullOrWhiteSpace(device.Status))
+            {
+                device.Status = "online";
+            }
+
+            list.Add(device);
+            await WriteDevicesAsync(list, cancellationToken);
+            return device;
+        }
+        finally
+        {
+            fileLock.Release();
+        }
+    }
+
+    public async Task<AedDeviceRecord?> UpdateAsync(
+        string id,
+        AedDeviceRecord updated,
+        CancellationToken cancellationToken)
+    {
+        await fileLock.WaitAsync(cancellationToken);
+        try
+        {
+            var devices = await LoadUnsafeAsync(cancellationToken);
+            var list = devices.ToList();
+            var existing = list.FirstOrDefault(d =>
+                d.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+
+            if (existing is null) return null;
+
+            if (updated.Status == "offline" && string.IsNullOrWhiteSpace(updated.StatusNote))
+            {
+                throw new InvalidOperationException("设备离线时必须填写状态备注");
+            }
+
+            if (!string.IsNullOrWhiteSpace(updated.Name)
+                && !updated.Name.Equals(existing.Name, StringComparison.OrdinalIgnoreCase)
+                && list.Any(d => d.Id != existing.Id
+                    && d.Name.Equals(updated.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException("设备名称已存在");
+            }
+
+            existing.Name = updated.Name;
+            existing.Lat = updated.Lat;
+            existing.Lng = updated.Lng;
+            existing.Status = updated.Status;
+            existing.StatusNote = updated.StatusNote;
+            existing.Image = updated.Image;
+            existing.Address = updated.Address;
+            existing.LastMaintenance = updated.LastMaintenance;
+            existing.NextMaintenance = updated.NextMaintenance;
+            existing.Maintainer = updated.Maintainer;
+
+            await WriteDevicesAsync(list, cancellationToken);
+            return existing;
+        }
+        finally
+        {
+            fileLock.Release();
+        }
+    }
+
+    public async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken)
+    {
+        await fileLock.WaitAsync(cancellationToken);
+        try
+        {
+            var devices = await LoadUnsafeAsync(cancellationToken);
+            var list = devices.ToList();
+            var removed = list.RemoveAll(d =>
+                d.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+
+            if (removed == 0) return false;
+
+            await WriteDevicesAsync(list, cancellationToken);
+            return true;
+        }
+        finally
+        {
+            fileLock.Release();
+        }
+    }
+
+    public async Task<bool> ExistsByNameAsync(
+        string name,
+        string? excludeId,
+        CancellationToken cancellationToken)
+    {
+        var devices = await LoadDevicesAsync(cancellationToken);
+        return devices.Any(d =>
+            d.Name.Equals(name, StringComparison.OrdinalIgnoreCase)
+            && (excludeId is null || !d.Id.Equals(excludeId, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private async Task<IReadOnlyList<AedDeviceRecord>> LoadUnsafeAsync(
+        CancellationToken cancellationToken)
+    {
+        if (!File.Exists(filePath))
+        {
+            return DefaultDevices;
+        }
+
+        await using var stream = File.OpenRead(filePath);
+        return await JsonSerializer.DeserializeAsync<IReadOnlyList<AedDeviceRecord>>(
+            stream,
+            JsonOptions,
+            cancellationToken) ?? [];
+    }
+
+    private static string GenerateNextId(IReadOnlyList<AedDeviceRecord> devices)
+    {
+        if (devices.Count == 0) return "AED-01";
+
+        var maxNum = devices
+            .Select(d => d.Id)
+            .Where(id => id.StartsWith("AED-", StringComparison.OrdinalIgnoreCase))
+            .Select(id => int.TryParse(id.AsSpan(4), out var n) ? n : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        return $"AED-{(maxNum + 1):D2}";
+    }
+
     private async Task WriteDevicesAsync(
         IReadOnlyList<AedDeviceRecord> devices,
         CancellationToken cancellationToken)
@@ -129,7 +276,19 @@ public sealed class JsonAedDeviceStore : IAedDeviceStore
         Create("AED-09", "REDACTED", 19.972782, 110.517886, "online"),
         Create("AED-10", "美术楼", 19.974215, 110.518559, "online"),
         Create("AED-11", "REDACTED", 19.974997, 110.518831, "offline"),
-        Create("AED-12", "REDACTED", 19.975272, 110.518919, "online")
+        Create("AED-12", "REDACTED", 19.975272, 110.518919, "online"),
+        Create("AED-13", "理科楼", 19.974603, 110.517886, "online"),
+        Create("AED-14", "一号宿舍楼", 19.976578, 110.518246, "online"),
+        Create("AED-15", "二号宿舍楼", 19.976579, 110.517988, "online"),
+        Create("AED-16", "三号宿舍楼", 19.977330, 110.518251, "online"),
+        Create("AED-17", "四号宿舍楼", 19.977328, 110.518030, "online"),
+        Create("AED-18", "五号宿舍楼", 19.977660, 110.518515, "online"),
+        Create("AED-19", "六号宿舍楼", 19.977682, 110.517733, "online"),
+        Create("AED-20", "七号宿舍楼", 19.977712, 110.516753, "online"),
+        Create("AED-21", "八号宿舍楼", 19.977382, 110.516761, "online"),
+        Create("AED-22", "九号宿舍楼", 19.972088, 110.518046, "online"),
+        Create("AED-23", "十号宿舍楼", 19.971530, 110.518043, "online"),
+        Create("AED-24", "十一号宿舍楼", 19.970989, 110.518041, "online")
     ];
 
     private static AedDeviceRecord Create(
@@ -146,6 +305,7 @@ public sealed class JsonAedDeviceStore : IAedDeviceStore
             Lat = lat,
             Lng = lng,
             Status = status,
+            StatusNote = status == "offline" ? "历史遗留离线，原因待确认" : null,
             Address = $"REDACTED{name}（具体位置待标注）",
             LastMaintenance = status == "offline" ? "2026-01-20" : "2026-03-15",
             NextMaintenance = status == "offline" ? "2026-07-20" : "2026-09-15",
