@@ -114,7 +114,7 @@ import { useAuthStore } from '@/store/auth'
 import { useHelpStore } from '@/store/help'
 import { useVitalsStore } from '@/store/vitals'
 import type { AedItem } from '@/types/aed'
-import { MAP_CENTER, WECHAT_ALERT_TEMPLATE_ID } from '@/utils/constants'
+import { WECHAT_ALERT_TEMPLATE_ID } from '@/utils/constants'
 import { USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
 import AedDetailModal from './components/aed-detail-modal.vue'
 import CurrentHelpCard from './components/current-help-card.vue'
@@ -135,6 +135,7 @@ const MARKER_TAP_GUARD_MS = 250
 const MAP_LOAD_ERROR_TEXT = '地图加载失败，请检查网络后重试'
 const SUBSCRIBE_PROMPT_DELAY_MS = 800
 const HELP_POLL_INTERVAL_MS = 30_000
+const AED_POLL_INTERVAL_MS = 60_000
 
 let hasPromptedSubscribeThisSession = false
 
@@ -152,6 +153,7 @@ const {
   isLocating,
   hasRealLocation,
   isNearestActive,
+  refreshCurrentAed,
   focusAedById,
   relocate,
   goToNearestAed,
@@ -170,35 +172,36 @@ const selectedAed = ref<AedItem | null>(null)
 let lastMarkerTapAt = 0
 let subscribePromptTimer: ReturnType<typeof setTimeout> | null = null
 let helpPollTimer: ReturnType<typeof setInterval> | null = null
+let aedPollTimer: ReturnType<typeof setInterval> | null = null
 let isHelpPolling = false
+let isAedPolling = false
 
 onMounted(() => {
   createMapCtx(MAP_ID)
 })
 
 onShow(() => {
-  const loc = aedStore.userLocation
-  aedStore.loadNearbyAed(
-    loc?.lat ?? MAP_CENTER.latitude,
-    loc?.lng ?? MAP_CENTER.longitude,
-  )
+  pollAedList()
   helpStore.loadList().catch(() => {
     console.warn('[MapHome] 求助列表加载失败')
   })
   vitalsStore.startMonitoring()
   scheduleSubscribePrompt()
+  startAedPolling()
   startHelpPolling()
 })
 
 onHide(() => {
   vitalsStore.stopMonitoring()
   clearSubscribePromptTimer()
+  stopAedPolling()
   stopHelpPolling()
 })
 
 onUnmounted(() => {
   vitalsStore.stopMonitoring()
   clearSubscribePromptTimer()
+  stopAedPolling()
   stopHelpPolling()
 })
 
@@ -208,6 +211,31 @@ const statusMessage = computed(() => {
   if (aedStore.error) return aedStore.error
   return ''
 })
+
+async function pollAedList(): Promise<void> {
+  if (isAedPolling) return
+  isAedPolling = true
+  try {
+    await refreshCurrentAed()
+  } catch {
+    console.warn('[MapHome] AED 列表刷新失败')
+  } finally {
+    isAedPolling = false
+  }
+}
+
+function startAedPolling(): void {
+  stopAedPolling()
+  aedPollTimer = setInterval(pollAedList, AED_POLL_INTERVAL_MS)
+}
+
+function stopAedPolling(): void {
+  if (aedPollTimer) {
+    clearInterval(aedPollTimer)
+    aedPollTimer = null
+  }
+  isAedPolling = false
+}
 
 async function pollHelpList() {
   if (isHelpPolling) return

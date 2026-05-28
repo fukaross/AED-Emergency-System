@@ -1,11 +1,4 @@
-/**
- * 地图页交互编排 composable
- *
- * 连接 AED Store、地图服务、定位服务
- * 编排"加载 AED → 定位 → 找最近 → 路线规划"流程
- *
- * D-05 基线要求
- */
+// 地图页交互编排 —— 加载 AED → 定位 → 找最近 → 路线规划
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { onShow, onHide } from '@dcloudio/uni-app'
 import { useAedStore } from '@/store/aed'
@@ -55,7 +48,7 @@ export function useAedMap() {
     () => animMarkers.value.length > 0 || polylines.value.length > 0,
   )
 
-  // ===== 动画（呼吸 + 涟漪，CLAUDE.md §7.1 §7.2） =====
+  // ===== 动画（呼吸 + 涟漪）=====
   const ANIM_INTERVAL_MS = 200
   const ANIM_CYCLE_STEPS = 10
   const RIPPLE_RING_COUNT = 2
@@ -113,12 +106,48 @@ export function useAedMap() {
     return activeNearestAed
   }
 
+  function syncActiveNearestAfterRefresh(): void {
+    if (!activeNearestAed) return
+    const latest = aedStore.aedList.find(item => item.id === activeNearestAed?.id)
+    if (!latest || latest.status !== 'online') {
+      stopNearestAnimation()
+      animMarkers.value = []
+      polylines.value = []
+      aedStore.clearRoute()
+      return
+    }
+    activeNearestAed = latest
+    activeMarkerId = aedStore.aedList.findIndex(item => item.id === latest.id)
+  }
+
+  function rebuildBaseMarkers(): void {
+    const nextMarkers = aedListToMarkers(aedStore.aedList)
+    if (!activeNearestAed) {
+      baseMarkers.value = nextMarkers
+      return
+    }
+    const activeIndex = aedStore.aedList.findIndex(item => item.id === activeNearestAed?.id)
+    baseMarkers.value = activeIndex >= 0
+      ? nextMarkers.filter((_, index) => index !== activeIndex)
+      : nextMarkers
+  }
+
   async function refreshAed(point: { lat: number; lng: number }): Promise<void> {
     aedStore.setUserLocation(point)
     mapCenter.value = { latitude: point.lat, longitude: point.lng }
     await aedStore.loadNearbyAed(point.lat, point.lng)
-    baseMarkers.value = aedListToMarkers(aedStore.aedList)
-    animMarkers.value = []
+    syncActiveNearestAfterRefresh()
+    rebuildBaseMarkers()
+    if (!activeNearestAed) {
+      animMarkers.value = []
+    }
+  }
+
+  async function refreshCurrentAed(): Promise<void> {
+    const point = aedStore.userLocation
+      ?? { lat: mapCenter.value.latitude, lng: mapCenter.value.longitude }
+    await refreshAed(point)
+    applyPendingFocus()
   }
 
   const FOCUS_ZOOM = DEFAULT_MAP_ZOOM + 2
@@ -308,6 +337,7 @@ export function useAedMap() {
     hasRealLocation,
     isNearestActive,
     init,
+    refreshCurrentAed,
     focusAedById,
     relocate,
     goToNearestAed,
