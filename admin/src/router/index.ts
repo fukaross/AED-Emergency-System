@@ -46,6 +46,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '用户详情', requiresAuth: true },
   },
   {
+    path: '/devices',
+    name: 'devices',
+    component: () => import('@/pages/devices/index.vue'),
+    meta: { title: 'AED 管理', requiresAuth: true },
+  },
+  {
+    path: '/devices/:id',
+    name: 'deviceDetail',
+    component: () => import('@/pages/devices/detail.vue'),
+    meta: { title: 'AED 详情', requiresAuth: true },
+  },
+  {
     path: '/admins',
     name: 'admins',
     component: () => import('@/pages/admins/index.vue'),

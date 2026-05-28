@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-type StatusCategory = 'help' | 'channel' | 'account' | 'responder' | 'admin'
+type StatusCategory = 'help' | 'channel' | 'account' | 'responder' | 'admin' | 'device'
 
 interface StatusConfig {
   label: string
@@ -47,6 +47,10 @@ const statusMaps: Record<StatusCategory, Record<string, StatusConfig>> = {
   admin: {
     super_admin: { label: '超级管理员', background: '#ecf5ff', color: '#409eff' },
     admin: { label: '管理员', background: '#f4f4f5', color: '#909399' },
+  },
+  device: {
+    online: { label: '在线', background: '#f0f9eb', color: '#67c23a' },
+    offline: { label: '离线', background: '#fef0f0', color: '#f56c6c' },
   },
 }
 

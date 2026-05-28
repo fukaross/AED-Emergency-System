@@ -30,6 +30,10 @@
           <el-icon><User /></el-icon>
           <template #title>用户管理</template>
         </el-menu-item>
+        <el-menu-item index="/devices">
+          <el-icon><Place /></el-icon>
+          <template #title>AED 管理</template>
+        </el-menu-item>
         <el-menu-item v-if="isSuperAdmin" index="/admins">
           <el-icon><Setting /></el-icon>
           <template #title>管理员</template>
@@ -83,6 +87,10 @@
         <el-menu-item index="/users">
           <el-icon><User /></el-icon>
           <template #title>用户管理</template>
+        </el-menu-item>
+        <el-menu-item index="/devices">
+          <el-icon><Place /></el-icon>
+          <template #title>AED 管理</template>
         </el-menu-item>
         <el-menu-item index="/sessions">
           <el-icon><Monitor /></el-icon>
@@ -141,7 +149,8 @@ import {
   Fold,
   Expand,
   Menu,
-  Monitor
+  Monitor,
+  Place
 } from '@element-plus/icons-vue'
 
 const BREAKPOINT_TABLET = 1024
@@ -161,6 +170,7 @@ const activeMenu = computed(() => {
   const path = route.path
   if (path.startsWith('/help-requests')) return '/help-requests'
   if (path.startsWith('/users')) return '/users'
+  if (path.startsWith('/devices')) return '/devices'
   if (path.startsWith('/admins')) return '/admins'
   return path
 })
