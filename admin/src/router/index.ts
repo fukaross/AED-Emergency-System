@@ -58,6 +58,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'AED 详情', requiresAuth: true },
   },
   {
+    path: '/rescuers',
+    name: 'rescuers',
+    component: () => import('@/pages/rescuers/index.vue'),
+    meta: { title: '急救员管理', requiresAuth: true },
+  },
+  {
+    path: '/rescuers/:id',
+    name: 'rescuerDetail',
+    component: () => import('@/pages/rescuers/detail.vue'),
+    meta: { title: '急救员详情', requiresAuth: true },
+  },
+  {
     path: '/admins',
     name: 'admins',
     component: () => import('@/pages/admins/index.vue'),

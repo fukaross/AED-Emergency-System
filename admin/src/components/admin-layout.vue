@@ -34,6 +34,10 @@
           <el-icon><Place /></el-icon>
           <template #title>AED 管理</template>
         </el-menu-item>
+        <el-menu-item index="/rescuers">
+          <el-icon><Avatar /></el-icon>
+          <template #title>急救员管理</template>
+        </el-menu-item>
         <el-menu-item v-if="isSuperAdmin" index="/admins">
           <el-icon><Setting /></el-icon>
           <template #title>管理员</template>
@@ -91,6 +95,10 @@
         <el-menu-item index="/devices">
           <el-icon><Place /></el-icon>
           <template #title>AED 管理</template>
+        </el-menu-item>
+        <el-menu-item index="/rescuers">
+          <el-icon><Avatar /></el-icon>
+          <template #title>急救员管理</template>
         </el-menu-item>
         <el-menu-item index="/sessions">
           <el-icon><Monitor /></el-icon>
@@ -150,7 +158,8 @@ import {
   Expand,
   Menu,
   Monitor,
-  Place
+  Place,
+  Avatar
 } from '@element-plus/icons-vue'
 
 const BREAKPOINT_TABLET = 1024
@@ -171,6 +180,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/help-requests')) return '/help-requests'
   if (path.startsWith('/users')) return '/users'
   if (path.startsWith('/devices')) return '/devices'
+  if (path.startsWith('/rescuers')) return '/rescuers'
   if (path.startsWith('/admins')) return '/admins'
   return path
 })
