@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
@@ -79,6 +80,37 @@ public sealed class RescuerApiTests : AdminApiTestBase
         Assert.Equal("REDACTED校区", data.GetProperty("campusName").GetString());
         Assert.Equal("online", data.GetProperty("availabilityStatus").GetString());
         Assert.True(data.GetProperty("skills").GetProperty("aed").GetBoolean());
+    }
+
+    [Fact]
+    public async Task AdminAvatarUpdate_IsVisibleInPublicRescuerApis()
+    {
+        UseAdminKey(await BootstrapAndLoginAsync());
+        const string avatarUrl = "https://cdn.example.test/uploads/rescuer/avatar-new.jpg";
+
+        var updated = await Client.PutAsJsonAsync(
+            "/api/admin/rescuers/rescuer-001",
+            new { avatarUrl });
+        var adminData = (await ReadAsync<ApiResponse<JsonElement>>(updated)).Data;
+
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        Assert.Equal(avatarUrl, adminData.GetProperty("avatarUrl").GetString());
+
+        SeedLoggedInExperienceUser();
+        var nearby = await Client.GetAsync(
+            "/api/rescuers/nearby?lat=REDACTED&lng=REDACTED");
+        var nearbyData = (await ReadAsync<ApiResponse<JsonElement>>(nearby)).Data;
+        var item = nearbyData.GetProperty("items").EnumerateArray()
+            .First(item => item.GetProperty("id").GetString() == "rescuer-001");
+
+        Assert.Equal(HttpStatusCode.OK, nearby.StatusCode);
+        Assert.Equal(avatarUrl, item.GetProperty("avatarUrl").GetString());
+
+        var detail = await Client.GetAsync("/api/rescuers/rescuer-001");
+        var detailData = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
+
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        Assert.Equal(avatarUrl, detailData.GetProperty("avatarUrl").GetString());
     }
 
     [Fact]
