@@ -139,6 +139,39 @@
       <text class="result-hint">请妥善保管以上信息，用于后续查询</text>
     </view>
 
+    <!-- 温馨提示 -->
+    <view class="section-card notice-card">
+      <text class="section-title">温馨提示</text>
+      <view class="notice-list">
+        <view class="notice-item">
+          <text class="notice-index">1.</text>
+          <text class="notice-text">
+            紧急求助信息会向附近急救志愿者发送系统求助信息；是否应答由志愿者决定；如有应答志愿者会通过电话联系您。
+          </text>
+        </view>
+        <view class="notice-item">
+          <text class="notice-index">2.</text>
+          <text class="notice-text">
+            如遇紧急情况，请优先拨打110、120等公共急救电话进行报警求助。
+          </text>
+        </view>
+        <view class="notice-item">
+          <text class="notice-index">3.</text>
+          <view class="notice-body">
+            <text class="notice-text">
+              免责声明：《中华人民共和国民法总则》第184条于2017年3月15日，第十二届全国人民代表大会第五次会议通过。规定：
+            </text>
+            <text class="notice-highlight">
+              "因自愿实施紧急救助行为造成受助人损害的，救助人不承担民事责任。"
+            </text>
+            <text class="notice-text">
+              这一善意救助者责任豁免规则，被称作"好人法"，其用意是鼓励善意救助伤病的高尚行为。
+            </text>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <!-- 底部安全区 -->
     <view class="safe-bottom" />
   </scroll-view>
@@ -510,5 +543,53 @@ async function submitHelp(): Promise<void> {
 // 底部安全区
 .safe-bottom {
   height: calc(#{$spacing-xl} + env(safe-area-inset-bottom));
+}
+
+// 温馨提示
+.notice-card {
+  background-color: #F0F6FF;
+}
+
+.notice-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.notice-item {
+  display: flex;
+  gap: $spacing-xs;
+}
+
+.notice-index {
+  flex-shrink: 0;
+  width: 28rpx;
+  font-size: $font-size-sm;
+  color: $text-tertiary;
+  line-height: $line-height-relaxed;
+}
+
+.notice-text {
+  font-size: $font-size-sm;
+  color: $text-secondary;
+  line-height: $line-height-relaxed;
+}
+
+.notice-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: $spacing-xs;
+  min-width: 0;
+}
+
+.notice-highlight {
+  display: block;
+  padding-left: $spacing-sm;
+  border-left: 4rpx solid $primary;
+  font-size: $font-size-lg;
+  color: $text-primary;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-relaxed;
 }
 </style>
