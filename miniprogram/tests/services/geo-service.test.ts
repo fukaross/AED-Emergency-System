@@ -80,6 +80,28 @@ describe('chooseLocationPoint', () => {
       name: '理科楼',
     })
   })
+
+  it('uses the provided center coordinate for initial map view', async () => {
+    const chooseLocation = vi.fn().mockResolvedValue({
+      latitude: 19.98,
+      longitude: 110.52,
+      name: '三号宿舍楼',
+      address: 'REDACTED三号宿舍楼',
+    })
+    vi.stubGlobal('uni', { chooseLocation })
+
+    const result = await chooseLocationPoint({ lat: 19.98, lng: 110.52 })
+
+    expect(chooseLocation).toHaveBeenCalledWith({
+      latitude: 19.98,
+      longitude: 110.52,
+    })
+    expect(result).toMatchObject({
+      success: true,
+      point: { lat: 19.98, lng: 110.52 },
+      name: '三号宿舍楼',
+    })
+  })
 })
 
 describe('calculateDistance (Haversine)', () => {

@@ -7,7 +7,7 @@ import {
   bindManualPhone as bindManualPhoneApi,
   bindWeChatPhone,
 } from '@/services/auth-service'
-import { chooseLocationPoint } from '@/services/geo-service'
+import { chooseLocationPoint, getCurrentLocation } from '@/services/geo-service'
 import { mergeLocationText } from '@/services/location-address-service'
 import { uploadImage } from '@/api/common'
 import type { PublishHelpPayload, PublishHelpResponse } from '@/types/help'
@@ -17,6 +17,7 @@ import { USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
 export type HelpType = 'help_hand' | 'call_120' | 'call_school' | 'general'
 
 const PHONE_PATTERN = /^1[3-9]\d{9}$/
+const HELP_LOCATION_PREFETCH_TIMEOUT_MS = 3000
 
 export function useEmergencyHelp() {
   const helpStore = useHelpStore()
@@ -40,7 +41,10 @@ export function useEmergencyHelp() {
 
   /** 选择求助发生位置 */
   async function selectLocation(): Promise<void> {
-    const loc = await chooseLocationPoint()
+    const userLoc = await getCurrentLocation({ timeoutMs: HELP_LOCATION_PREFETCH_TIMEOUT_MS })
+    const loc = await chooseLocationPoint(
+      userLoc.success ? userLoc.point : undefined,
+    )
 
     if (loc.success) {
       form.lat = loc.point.lat

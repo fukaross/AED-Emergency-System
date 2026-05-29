@@ -56,13 +56,9 @@ const SHOULD_USE_DEFAULT_LOCATION = shouldUseDefaultLocation(
   USE_REAL_LOCATION,
 )
 
-/** 角度转弧度 */
-function toRad(deg: number): number {
-  return (deg * Math.PI) / 180
-}
-
 /** Haversine 公式计算两点间球面距离 (米) */
 export function calculateDistance(a: GeoPoint, b: GeoPoint): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180
   const dLat = toRad(b.lat - a.lat)
   const dLng = toRad(b.lng - a.lng)
   const sinLat = Math.sin(dLat / 2)
@@ -85,6 +81,7 @@ export interface LocationResult {
 
 interface GetCurrentLocationOptions {
   readonly mode?: GetCurrentLocationMode
+  readonly timeoutMs?: number
 }
 
 function createDefaultLocation(errorMessage: string): LocationResult {
@@ -169,6 +166,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 
 async function requestCurrentLocation(
   mode: GetCurrentLocationMode,
+  timeoutMs?: number,
 ): Promise<LocationResult> {
   const hasPermission = await ensureLocationPermission()
   if (!hasPermission) {
@@ -178,7 +176,7 @@ async function requestCurrentLocation(
   try {
     const res = await withTimeout(
       uni.getLocation(buildLocationOptions(mode)),
-      LOCATION_TIMEOUT_MS,
+      timeoutMs ?? LOCATION_TIMEOUT_MS,
       'getLocation',
     )
 
@@ -206,11 +204,13 @@ async function requestCurrentLocation(
   }
 }
 
-export async function chooseLocationPoint(): Promise<LocationResult> {
+export async function chooseLocationPoint(
+  center?: GeoPoint,
+): Promise<LocationResult> {
   try {
     const res = await uni.chooseLocation({
-      latitude: MAP_CENTER.latitude,
-      longitude: MAP_CENTER.longitude,
+      latitude: center?.lat ?? MAP_CENTER.latitude,
+      longitude: center?.lng ?? MAP_CENTER.longitude,
     })
 
     return {
@@ -241,14 +241,7 @@ export async function chooseLocationPoint(): Promise<LocationResult> {
   }
 }
 
-/**
- * 获取当前位置 (GCJ-02)
- * 降级策略：
- * 1. 开发者工具中的 interactive 模式使用 chooseLocation 手动选点
- * 2. 其他场景尝试 uni.getLocation
- * 3. 权限拒绝 → 引导开启，回退校园中心
- * 4. 超时/失败 → 回退校园中心
- */
+/** 获取当前位置 (GCJ-02)。降级：devtools interactive→手动选点；权限拒绝/超时→校园中心 */
 export async function getCurrentLocation(
   options: GetCurrentLocationOptions = {},
 ): Promise<LocationResult> {
@@ -263,7 +256,7 @@ export async function getCurrentLocation(
     return chooseLocationPoint()
   }
 
-  return requestCurrentLocation(mode)
+  return requestCurrentLocation(mode, options.timeoutMs)
 }
 
 /** 引导用户开启定位权限 */
