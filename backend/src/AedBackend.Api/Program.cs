@@ -52,6 +52,8 @@ app.MapUploadEndpoints();
 app.MapAedEndpoints();
 app.MapHelpEndpoints();
 app.MapRescuerEndpoints();
+app.MapKnowledgeEndpoints();
+app.MapCourseEndpoints().MapQuickActionEndpoints();
 app.MapOpsEndpoints();
 app.MapAdminEndpoints();
 
