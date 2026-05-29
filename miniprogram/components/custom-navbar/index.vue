@@ -24,15 +24,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 自定义沉浸式导航栏
- *
- * 使用页面：地图主页（透明渐变）、个人中心（融合头部）
- * 适配：优先使用 getWindowInfo + getMenuButtonBoundingClientRect
- * 右侧预留 ≥200rpx 避免与系统胶囊重叠
- *
- * 详细设计见 CLAUDE.md §4.1.2 + GEMINI.md §4.1
- */
+// 自定义沉浸式导航栏 —— 右侧预留 200rpx 避开系统胶囊按钮
 import { ref, computed, onMounted } from 'vue'
 
 interface Props {

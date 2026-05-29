@@ -1,11 +1,4 @@
-/**
- * 登录鉴权状态 Store
- *
- * 职责：管理 token、登录状态、登录方法
- * 不管用户资料（由 user store 管理）
- *
- * 扩展保留（D-03）
- */
+// 登录鉴权状态 —— token、登录态、登录/登出方法（不管用户资料）
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {

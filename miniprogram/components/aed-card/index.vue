@@ -31,14 +31,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * AED 设备卡片组件
- *
- * 可用态：白底红标签，中间信息区可点击弹出详情
- * 不可用态：灰底灰标签，中间信息区不可点击
- *
- * 详细设计见 CLAUDE.md §4.2.1
- */
+// AED 设备卡片 —— 可用=白底红标可点击，不可用=灰底灰标不可点
 import { computed } from 'vue'
 import StatusTag from '@/components/status-tag/index.vue'
 

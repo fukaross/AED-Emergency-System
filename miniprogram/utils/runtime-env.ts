@@ -9,6 +9,8 @@ const rawUseRealWeChatFlow =
 const rawRestoreAuthSession = import.meta.env.VITE_RESTORE_AUTH_SESSION
 const rawHelpBackendReady = import.meta.env.VITE_HELP_BACKEND_READY === 'true'
 const rawAedBackendReady = import.meta.env.VITE_AED_BACKEND_READY === 'true'
+const rawRescuerBackendReady =
+  import.meta.env.VITE_RESCUER_BACKEND_READY === 'true'
 
 export const API_BASE_URL = rawApiBaseUrl
 export const IS_PLACEHOLDER_API_BASE_URL =
@@ -22,6 +24,8 @@ export const USE_PUBLIC_DEMO_DATA =
 export const HELP_BACKEND_READY = rawHelpBackendReady
 
 export const AED_BACKEND_READY = rawAedBackendReady
+
+export const RESCUER_BACKEND_READY = rawRescuerBackendReady
 
 export const USE_REAL_WECHAT_FLOW =
   !USE_MOCK || rawUseRealWeChatFlow

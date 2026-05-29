@@ -1,8 +1,4 @@
-/**
- * 自定义导航栏安全区计算
- *
- * 地图页右上浮层需要避开系统状态栏与微信胶囊按钮。
- */
+// 计算自定义导航栏的安全区，避开状态栏和微信胶囊按钮
 import { onMounted, ref } from 'vue'
 
 const DEFAULT_NAVBAR_HEIGHT = 44

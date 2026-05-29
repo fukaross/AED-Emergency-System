@@ -51,14 +51,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 个人中心页面
- *
- * 沉浸式头部（模糊背景 + 头像 + 用户名 + 认证/级别标签）
- * 选项列表 + 游客态登录引导
- *
- * 设计来源：CLAUDE.md §4.4 + page-Instrument.md
- */
+// 个人中心 —— 沉浸式头部 + 用户信息 + 选项列表 + 游客登录引导
 import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useTheme } from '@/composables/useTheme'

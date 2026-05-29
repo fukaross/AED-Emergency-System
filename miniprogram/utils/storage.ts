@@ -1,9 +1,4 @@
-/**
- * 本地缓存封装
- *
- * 对 uni.getStorageSync / uni.setStorageSync 的类型安全封装
- * 支持 TTL 过期机制
- */
+// 本地缓存的类型安全封装，支持 TTL 过期
 
 interface CacheEntry<T> {
   readonly data: T

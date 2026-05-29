@@ -1993,7 +1993,7 @@ components:
 
     HelpListItem:
       type: object
-      required: [id, requestNo, content, type, status, address, createdAt, respondersCount, latestEta]
+      required: [id, requestNo, content, type, status, address, createdAt, respondersCount, latestEta, userRole]
       properties:
         id:
           type: string
@@ -2016,6 +2016,9 @@ components:
           type: integer
         latestEta:
           type: string
+        userRole:
+          type: string
+          enum: [requester, reporter]
 
     HelpListPage:
       type: object

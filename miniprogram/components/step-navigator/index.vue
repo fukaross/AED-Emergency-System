@@ -25,14 +25,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 步骤指引导航组件
- *
- * 上一步（次要按钮） + 下一步（主按钮，红色）
- * 步骤计数器显示当前/总步骤
- *
- * 详细设计见 CLAUDE.md §4.5.8
- */
+// 步骤控制器 —— 上一步 + 下一步（红色主按钮），顶部显示 步骤 1/5
 interface Props {
   current: number
   total: number

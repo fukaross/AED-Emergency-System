@@ -1,3 +1,4 @@
+// 登录 token 自动刷新逻辑
 import { persistAuthSession, getToken } from '@/services/auth-session'
 import { AUTH_LOGIN_PATH, AUTH_REFRESH_PATH, BASE_URL } from '@/services/request-config'
 import { createApiError, extractApiResponse } from '@/services/request-response'

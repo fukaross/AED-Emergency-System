@@ -6,15 +6,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 状态标签组件
- *
- * 在线：绿色圆点 + "可用"
- * 离线：灰色圆点 + "不可用"
- * 颜色不作为唯一区分手段，始终附带文字标签
- *
- * 详细设计见 GEMINI.md §3.4 + §6.4
- */
+// 状态标签 —— 在线=绿点+可用，离线=灰点+不可用，颜色不作为唯一区分手段
 import { computed } from 'vue'
 
 interface Props {

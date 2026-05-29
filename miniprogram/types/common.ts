@@ -1,24 +1,16 @@
-/**
- * 通用类型定义
- *
- * 后端通用响应格式、分页、错误码、认证相关 DTO
- * 来源：BackEnd.md §4.1 + CLAUDE.md §8.2
- */
+// 通用类型 —— 后端响应格式、分页、坐标、认证、上传
 
-/** 后端统一响应包装 */
 export interface ApiResponse<T = unknown> {
   readonly code: number
   readonly message: string
   readonly data: T
 }
 
-/** 分页请求参数 */
 export interface PaginationParams {
   readonly page?: number
   readonly pageSize?: number
 }
 
-/** 分页响应数据 */
 export interface PaginatedData<T> {
   readonly items: readonly T[]
   readonly total: number
@@ -27,18 +19,16 @@ export interface PaginatedData<T> {
   readonly totalPages: number
 }
 
-/** 地理坐标点 (GCJ-02) */
+// 使用 GCJ-02 坐标系
 export interface GeoPoint {
   readonly lat: number
   readonly lng: number
 }
 
-/** 登录请求 */
 export interface LoginRequest {
   readonly code: string
 }
 
-/** 登录响应 */
 export interface LoginResponse {
   readonly token: string
   readonly expiresIn: number
@@ -50,13 +40,11 @@ export interface LoginResponse {
   }
 }
 
-/** 图片上传响应 */
 export interface UploadImageResponse {
   readonly url: string
   readonly thumbnail: string
   readonly fileId: string
 }
 
-/** 上传场景 */
 export type UploadScene = 'avatar' | 'report' | 'help' | 'volunteer'
 

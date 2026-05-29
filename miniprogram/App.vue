@@ -1,8 +1,5 @@
 <script setup lang="ts">
-/**
- * AED 急救小程序 — 应用入口
- * REDACTED AED Emergency Mini-Program
- */
+// AED 急救小程序 应用入口
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import { useSettingsStore } from '@/store/settings'
 

@@ -1,12 +1,8 @@
-/**
- * AED 急救小程序 — 常用 SCSS Mixins
- *
- * 来源：GEMINI.md §3 + CLAUDE.md §11.1
- */
+// 常用 SCSS Mixins
 
 @use './variables.scss' as *;
 
-// ===== 布局 =====
+// 布局
 
 /// Flex 居中（水平 + 垂直）
 @mixin flex-center {

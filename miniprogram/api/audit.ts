@@ -1,9 +1,4 @@
-/**
- * 审计日志 API
- *
- * 极薄封装，调用 POST /api/audit/batch
- * 不阻断主流程，但审计失败至少 console.warn
- */
+// 审计日志相关的接口 —— 操作上报，失败不打断主流程
 import { getToken } from '@/services/auth-service'
 import { post } from '@/services/request'
 import { CURRENT_USER_ID_STORAGE_KEY } from '@/utils/constants'

@@ -1,6 +1,4 @@
-/**
- * 志愿者入队申请类型
- */
+// 志愿者入队申请的类型
 import type { Gender } from './user'
 
 export type VolunteerApplicationStatus =

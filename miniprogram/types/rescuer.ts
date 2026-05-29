@@ -1,9 +1,4 @@
-/**
- * 急救员中心相关类型定义
- *
- * 来源：CLAUDE.md §4.2 / §8.1
- * 来源：BackEnd.md §3.2.15 / §4.4
- */
+// 急救员中心相关的类型
 import type { GeoPoint } from '@/types/common'
 import type { RescuerLevel } from '@/types/user'
 

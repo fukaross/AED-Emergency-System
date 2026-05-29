@@ -1,11 +1,4 @@
-/**
- * 全局展示设置 Store
- *
- * 管理通知、主题、字号、减弱动画等全局展示配置
- * 与 Storage 键保持单一映射
- *
- * 来源：CLAUDE.md §6.3
- */
+// 全局展示设置 —— 通知、主题、字号、动画等
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 

@@ -84,14 +84,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * AED 问题报告表单（Bottom Sheet 容器）
- *
- * 设备选择器 + 问题类型单选 + 描述 + 图片上传 + 提交
- * 关闭时自动重置表单
- *
- * 设计来源：CLAUDE.md §4.5.5 + page-Instrument.md §5.2
- */
+// AED 问题报告表单 —— 选设备 + 问题类型 + 描述 + 图片，关闭自动重置
 import { ref, computed, watch } from 'vue'
 import BottomSheet from '@/components/bottom-sheet/index.vue'
 import type { AedReportType } from '@/types/aed'

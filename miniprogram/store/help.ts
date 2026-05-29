@@ -1,10 +1,4 @@
-/**
- * 求助 Store
- *
- * 管理求助发布、求助详情、游客匿名会话
- *
- * 来源：CLAUDE.md §6.3
- */
+// 求助相关状态 —— 发布、详情、游客匿名会话
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type {
@@ -64,9 +58,10 @@ export const useHelpStore = defineStore('help', () => {
 
   const activeRequest = computed(() =>
     helpList.value.find((item) =>
-      item.status === 'published'
-        || item.status === 'responding'
-        || item.status === 'pending_review',
+      item.userRole === 'requester' && (
+        item.status === 'published'
+          || item.status === 'responding'
+          || item.status === 'pending_review'),
     ) ?? null,
   )
 

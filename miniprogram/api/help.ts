@@ -1,21 +1,4 @@
-/**
- * 求助相关 API
- *
- * 接口来源：CLAUDE.md §8.1 + BackEnd.md §4.5
- *
- * POST /api/help/request       — 发布求助 [登录可选]
- * GET  /api/help/list           — 已登录用户求助列表 [登录]
- * GET  /api/help/:id            — 求助详情 [登录]
- * POST /api/help/:id/respond    — 响应求助 [登录 + 权限]
- * PUT  /api/help/:id/close      — 关闭求助 [登录]
- * POST /api/help/:id/report     — 提交救助报告 [登录 + 权限]
- * POST /api/help/guest/query    — 游客查询 [公开]
- * POST /api/help/guest/close    — 游客关闭误报 [公开]
- *
- * [G-04] POST /api/help/{id}/respond 仅值班老师
- *        或学校导入且 status=active 的急救员可调用。
- *        其他登录用户返回 1003 (FORBIDDEN)。
- */
+// 求助相关的接口 —— 发布、列表、详情、响应、报告、游客查询
 import { get, post, put } from '@/services/request'
 import type {
   CloseHelpPayload,
@@ -117,10 +100,7 @@ export function submitHelpReport(
 }
 
 /**
- * 响应求助
- *
- * [G-04] 仅值班老师或学校导入且 status=active 的急救员可调用。
- * 其他登录用户返回错误码 1003 (FORBIDDEN)。
+ * 响应求助 —— 只有值班老师或已激活的急救员才能调
  */
 export function respondToHelp(
   id: string,

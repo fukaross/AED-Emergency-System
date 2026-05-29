@@ -5,14 +5,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 步骤指引页（心肺复苏 / AED使用 / 海姆立克急救法）
- *
- * 步骤计数 + 大图展示 + 标题 + 说明 + 上下步切换
- * 底部固定关键要点提示
- *
- * 详细设计见 CLAUDE.md §4.5.8
- */
+// 步骤指引（心肺复苏 / AED / 海姆立克）—— 大图 + 标题 + 上下步切换
 import { useTheme } from '@/composables/useTheme'
 const { themeClass } = useTheme()
 </script>

@@ -43,15 +43,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 通用底部弹出面板 (Bottom Sheet)
- *
- * 动画采用单一 transition 方案：
- *   - 挂载后延迟一帧再进入可见态，确保小程序端能播出打开动画
- *   - 关闭时只移除可见态，不再叠加 closing class
- *
- * 这样在小程序端关闭时不会出现先抖一下、再收起的缩放错觉。
- */
+// 通用底部弹窗 —— 挂载后延迟一帧播打开动画，关闭时直接收起来不抖
 import { ref, useSlots, watch } from 'vue'
 
 interface Props {

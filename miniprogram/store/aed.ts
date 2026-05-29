@@ -1,11 +1,4 @@
-/**
- * AED 设备 + 地图状态 Store
- *
- * 管理 AED 列表、最近 AED、用户位置、导航路线
- * 地图状态不拆独立 store（D-03 决策）
- *
- * 来源：CLAUDE.md §6.3
- */
+// AED 设备 + 地图状态
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AedItem } from '@/types/aed'

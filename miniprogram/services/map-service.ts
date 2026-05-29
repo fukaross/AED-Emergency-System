@@ -1,13 +1,4 @@
-/**
- * 地图显示与导航编排服务
- *
- * 职责：
- * - 地图上下文管理（初始化、marker 管理、polyline 绘制）
- * - 导航路线规划（腾讯地图 WebService API）
- * - 地图中心移动、缩放控制
- *
- * 详细设计见 CLAUDE.md §4.1
- */
+// 地图操作相关 —— marker 管理、路线绘制、导航跳转
 import type { GeoPoint } from '@/types/common'
 import type { AedItem } from '@/types/aed'
 

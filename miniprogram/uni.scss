@@ -1,12 +1,4 @@
-/**
- * AED 急救小程序 — 全局 SCSS 变量入口
- *
- * 本文件由 uni-app 自动注入到每个 Vue SFC 的 <style lang="scss"> 中，
- * 无需手动 @import。
- *
- * 自定义设计令牌定义在 common/styles/variables.scss，
- * 将在 Phase 2 完善后通过此处引入。
- */
+// 全局 SCSS 变量入口，uni-app 自动注入到所有组件的 style 里，不用手动 import
 
 @use './common/styles/variables.scss' as *;
 @use './common/styles/mixins.scss' as *;

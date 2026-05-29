@@ -1,11 +1,4 @@
-/**
- * 游客查询/关闭求助 composable
- *
- * 通过 requestNo + followupCode 查询求助状态
- * 通过 closeToken 关闭误报
- *
- * D-05 基线要求
- */
+// 游客查求助/关误报 —— 通过 requestNo + followupCode 或 closeToken
 import { ref } from 'vue'
 import { useHelpStore } from '@/store/help'
 import type { GuestHelpLookupResult, GuestCloseResult } from '@/types/help'

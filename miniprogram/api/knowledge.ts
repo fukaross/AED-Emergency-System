@@ -1,8 +1,4 @@
-/**
- * 急救课堂相关 API
- *
- * GET /api/knowledge/summary — 获取课堂顶部统计横幅数据 [公开]
- */
+// 急救课堂相关的接口 —— 顶部统计横幅
 import { get } from '@/services/request'
 import { KNOWLEDGE_SUMMARY_MOCK } from '@/mock/knowledge'
 import type { KnowledgeSummary } from '@/types/knowledge'

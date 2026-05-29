@@ -1,8 +1,4 @@
-/**
- * 生命体征相关 API
- *
- * 接口来源：CLAUDE.md §8.1 + BackEnd.md §4.7A
- */
+// 生命体征相关的接口 —— 当前体征、心率趋势、异常告警
 import { get, post } from '@/services/request'
 import {
   createMockVitalAlert,

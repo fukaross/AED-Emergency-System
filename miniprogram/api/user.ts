@@ -1,15 +1,4 @@
-/**
- * 用户与档案相关 API
- *
- * 接口来源：CLAUDE.md §8.1 + BackEnd.md §4.6
- *
- * GET  /api/user/profile             — 获取用户信息 [登录]
- * PUT  /api/user/profile             — 更新用户信息 [登录]
- * GET  /api/user/archives            — 急救档案列表 [登录]
- * GET  /api/user/archives/:id        — 急救档案详情 [登录]
- * GET  /api/user/archives/:id/phone  — 查看完整电话 [登录 + 权限]
- * POST /api/user/volunteer-applications — 提交志愿者入队申请 [登录]
- */
+// 用户、档案、志愿者入队相关的接口
 import { get, post, put } from '@/services/request'
 import type {
   ArchiveDetail,
@@ -82,8 +71,7 @@ export function fetchArchiveDetail(
 }
 
 /**
- * 查看档案完整电话号码
- * 仅值班老师/管理员可调用，需填写用途，后端记录审计日志
+ * 查看档案完整电话 —— 只有值班老师/管理员能调，需要填用途
  */
 export function fetchArchivePhone(
   archiveId: string,

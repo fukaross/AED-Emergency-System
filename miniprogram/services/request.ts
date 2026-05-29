@@ -1,16 +1,4 @@
-/**
- * 统一网络请求基座
- *
- * [G-05] 页面禁止直调 uni.request，所有请求必须通过本模块发起。
- * [G-07] API 基地址不含 /api，API 模块使用完整路径如 /api/aed/nearby。
- *
- * 功能：
- * - 自动注入 Authorization header (Bearer token)
- * - 统一超时 (默认 10s)
- * - 错误码映射 (BackEnd.md §4.1)
- * - 开发环境请求/响应日志
- * - 错误分级提示 (Toast / Modal)
- */
+// 统一网络请求 —— 自动带 token、超时 10s、错误分级提示。页面别自己调 uni.request
 import {
   ERROR_CODES,
   REQUEST_TIMEOUT,

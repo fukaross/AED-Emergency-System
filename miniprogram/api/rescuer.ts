@@ -1,13 +1,4 @@
-/**
- * 急救员中心相关 API
- *
- * 接口来源：CLAUDE.md §8.1 + BackEnd.md §4.4
- *
- * GET /api/rescuers/nearby          — 获取当前校区急救员列表 [登录]
- * GET /api/rescuers/:id             — 获取急救员联络详情 [登录]
- * GET /api/rescuers/me/availability — 获取我的运行态配置 [登录 + 急救员]
- * PUT /api/rescuers/me/availability — 设置我的限时离线窗口 [登录 + 急救员]
- */
+// 急救员中心相关的接口 —— 附近列表、详情、运行态配置
 import { get, put } from '@/services/request'
 import {
   getMockMyRescuerAvailability,
@@ -22,13 +13,17 @@ import type {
   RescuerListResponse,
   UpdateRescuerAvailabilityPayload,
 } from '@/types/rescuer'
-import { USE_MOCK } from '@/utils/runtime-env'
+import {
+  RESCUER_BACKEND_READY,
+  USE_MOCK,
+  USE_PUBLIC_DEMO_DATA,
+} from '@/utils/runtime-env'
 
 /** 获取当前校区急救员列表 */
 export function fetchNearbyRescuers(
   params: NearbyRescuerParams,
 ): Promise<RescuerListResponse> {
-  if (USE_MOCK) {
+  if (!RESCUER_BACKEND_READY && USE_PUBLIC_DEMO_DATA) {
     return Promise.resolve(queryMockNearbyRescuers(params))
   }
 
@@ -40,7 +35,7 @@ export function fetchNearbyRescuers(
 
 /** 获取急救员联络详情 */
 export function fetchRescuerDetail(rescuerId: string): Promise<RescuerDetail> {
-  if (USE_MOCK) {
+  if (!RESCUER_BACKEND_READY && USE_PUBLIC_DEMO_DATA) {
     const detail = getMockRescuerDetail(rescuerId)
     if (!detail) {
       return Promise.reject(new Error('急救员不存在'))

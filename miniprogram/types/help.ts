@@ -1,14 +1,8 @@
-/**
- * 求助相关类型定义
- *
- * 来源：CLAUDE.md §8.1 (help 系列接口)
- * 来源：BackEnd.md §4.5
- */
+// 求助发布、响应、报告、游客查询相关的类型
 
-/** 求助类型 */
 export type HelpRequestType = 'help_hand' | 'call_120' | 'call_school' | 'general'
 
-/** 求助状态 */
+// published → responding → pending_review → closed（或直接 false_alarm）
 export type HelpStatus =
   | 'published'
   | 'responding'
@@ -16,10 +10,8 @@ export type HelpStatus =
   | 'closed'
   | 'false_alarm'
 
-/** 求助渠道 */
 export type RequestChannel = 'user' | 'guest'
 
-/** 发布求助请求 */
 export interface PublishHelpPayload {
   readonly lat: number
   readonly lng: number
@@ -33,7 +25,6 @@ export interface PublishHelpPayload {
   readonly privacyConsentAt?: string
 }
 
-/** 发布求助响应 */
 export interface PublishHelpResponse {
   readonly id: string
   readonly requestNo: string
@@ -43,7 +34,6 @@ export interface PublishHelpResponse {
   readonly closeToken?: string
 }
 
-/** 求助列表项 */
 export interface HelpListItem {
   readonly id: string
   readonly requestNo: string
@@ -54,9 +44,9 @@ export interface HelpListItem {
   readonly createdAt: string
   readonly respondersCount: number
   readonly latestEta: string
+  readonly userRole: 'requester' | 'reporter'
 }
 
-/** 求助响应者 */
 export interface HelpResponder {
   readonly name: string
   readonly role: string
@@ -64,34 +54,29 @@ export interface HelpResponder {
   readonly estimatedArrivalTime: string
 }
 
-/** 响应求助请求 */
 export interface RespondToHelpPayload {
   readonly lat: number
   readonly lng: number
   readonly eta?: number
 }
 
-/** 关闭求助请求 */
 export interface CloseHelpPayload {
   readonly status: 'closed' | 'false_alarm'
   readonly note?: string
 }
 
-/** 急救员报告提交请求 */
 export interface SubmitHelpReportPayload {
   readonly images: readonly string[]
   readonly recordText: string
   readonly isFalseAlarm: boolean
 }
 
-/** 急救员报告提交响应 */
 export interface SubmitHelpReportResponse {
   readonly id: string
   readonly status: 'pending_review' | 'false_alarm'
   readonly submittedAt: string
 }
 
-/** 求助报告记录 */
 export interface HelpReportRecord {
   readonly id: string
   readonly images: readonly string[]
@@ -100,7 +85,6 @@ export interface HelpReportRecord {
   readonly submittedAt: string
 }
 
-/** 求助详情 */
 export interface HelpRequestDetail {
   readonly id: string
   readonly requestNo: string
@@ -119,20 +103,17 @@ export interface HelpRequestDetail {
   readonly reports: readonly HelpReportRecord[]
 }
 
-/** 时间线条目 */
 export interface HelpTimelineEntry {
   readonly action: string
   readonly timestamp: string
   readonly note?: string
 }
 
-/** 游客查询请求 */
 export interface GuestLookupPayload {
   readonly requestNo: string
   readonly followupCode: string
 }
 
-/** 游客查询响应 */
 export interface GuestHelpLookupResult {
   readonly requestNo: string
   readonly status: HelpStatus
@@ -145,21 +126,19 @@ export interface GuestHelpLookupResult {
   readonly closedAt?: string
 }
 
-/** 游客关闭请求 */
 export interface GuestClosePayload {
   readonly requestNo: string
   readonly closeToken: string
   readonly note?: string
 }
 
-/** 游客关闭响应 */
 export interface GuestCloseResult {
   readonly requestNo: string
   readonly status: 'false_alarm'
   readonly closedAt: string
 }
 
-/** 游客会话状态（前端本地维护） */
+// 游客本地会话状态，用于追踪自己的求助
 export interface GuestHelpSession {
   readonly requestNo: string
   readonly followupCode: string

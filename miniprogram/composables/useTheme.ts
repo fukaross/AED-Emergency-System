@@ -1,13 +1,4 @@
-/**
- * 主题切换 composable
- *
- * 提供 themeClass（CSS 类名）用于页面根元素绑定，
- * 并通过 uni API 同步原生 page 背景和导航栏颜色。
- *
- * 使用方式：每页根元素 :class="themeClass"
- *
- * 深色模式在设置页持久化，本 composable 只读取 store。
- */
+// 主题切换 —— 从 settings store 读当前主题，同步原生导航栏颜色
 import { computed, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useSettingsStore } from '@/store/settings'

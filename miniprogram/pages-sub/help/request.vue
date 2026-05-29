@@ -145,13 +145,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 寻求帮助页（独立子页面，含四合一快捷操作）
- *
- * 表单区：当前位置（地图选点后可编辑）+ 帮助内容 + 现场图片
- * 快捷操作：找人手 / 找120 / 找校方 / 重新选点
- * 支持游客匿名会话，成功后返回 requestNo / followupCode / closeToken
- */
+// 寻求帮助页 —— 选点 + 填内容 + 拍照，支持游客匿名会话
 import { useEmergencyHelp } from '@/composables/useEmergencyHelp'
 import { useTheme } from '@/composables/useTheme'
 import { MAX_HELP_IMAGES } from '@/utils/constants'

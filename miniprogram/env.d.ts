@@ -14,6 +14,7 @@ interface ImportMetaEnv {
   readonly VITE_USE_MOCK: string
   readonly VITE_USE_PUBLIC_DEMO_DATA: string
   readonly VITE_USE_REAL_WECHAT_FLOW: string
+  readonly VITE_RESCUER_BACKEND_READY: string
   readonly VITE_RESTORE_AUTH_SESSION: string
   readonly VITE_USE_REAL_LOCATION: string
   readonly VITE_AUTO_LOCATE_ON_INIT: string

@@ -1,12 +1,4 @@
-/**
- * AED 设备相关 API
- *
- * 接口来源：CLAUDE.md §8.1 + BackEnd.md §4.3
- *
- * GET  /api/aed/nearby — 获取附近 AED 列表 [公开]
- * GET  /api/aed/:id    — 获取单个 AED 详情 [公开]
- * POST /api/aed/:id/report — 提交问题报告 [登录可选]
- */
+// AED 设备相关的接口 —— 附近列表、详情、设备报修
 import { get, post } from '@/services/request'
 import type { AedItem, NearbyAedParams, AedReportRequest } from '@/types/aed'
 import { AED_MOCK_DATA } from '@/mock/aed'

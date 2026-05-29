@@ -1,8 +1,4 @@
-/**
- * 生命体征相关类型定义
- *
- * 来源：CLAUDE.md §4.1.4 + BackEnd.md §4.7A
- */
+// 生命体征（心率、血压）相关的类型
 
 export type VitalSource = 'mock' | 'device' | 'manual'
 

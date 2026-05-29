@@ -1,12 +1,4 @@
-/**
- * 用户信息 Store
- *
- * 管理用户资料、学校档案摘要
- * 不管 token/登录状态（由 auth store 管理）
- * Mock 与真实接口分流统一在 API 层处理
- *
- * 来源：CLAUDE.md §6.3
- */
+// 用户资料、学校档案摘要（不管 token/登录，那归 auth store 管）
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserProfile, UpdateUserProfilePayload } from '@/types/user'

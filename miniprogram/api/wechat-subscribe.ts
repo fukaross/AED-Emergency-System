@@ -1,3 +1,4 @@
+// 微信订阅消息 —— 请求授权、发送告警通知
 import { post } from '@/services/request'
 import { WECHAT_ALERT_TEMPLATE_ID } from '@/utils/constants'
 import { USE_MOCK, USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'

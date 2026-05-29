@@ -1,8 +1,4 @@
-/**
- * 格式化工具函数
- *
- * 纯函数，无副作用，不调用任何平台 API
- */
+// 日期、距离、脱敏等格式化工具
 
 /** 手机号脱敏：中间 4 位替换为 **** */
 export function maskPhone(phone: string): string {

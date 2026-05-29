@@ -1,12 +1,4 @@
-/**
- * 课程相关 API
- *
- * 接口来源：CLAUDE.md §8.1 + BackEnd.md §4.4
- *
- * GET /api/courses          — 课程列表 [公开]
- * GET /api/courses/by-type  — 按类型获取预置课程 [公开]
- * GET /api/courses/:id      — 课程详情 [公开]
- */
+// 课程相关的接口 —— 列表、详情、按类型获取预置课程
 import { get } from '@/services/request'
 import type {
   CourseSummary,
@@ -82,8 +74,7 @@ export function fetchCourseList(
 }
 
 /**
- * 按课程类型获取预置课程
- * 前端禁止维护 type → courseId 硬编码映射
+ * 按课程类型获取预置课程（类型→课程的映射由后端决定，前端别自己硬编码）
  */
 export function fetchCourseByType(
   type: CourseTypeKey,

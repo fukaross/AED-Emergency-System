@@ -1,8 +1,4 @@
-/**
- * 急救课堂统计类型
- *
- * 来源：BackEnd.md §4.6A + CLAUDE.md §4.3
- */
+// 急救课堂统计相关的类型
 
 export type KnowledgeStatKey =
   | 'aed_count'

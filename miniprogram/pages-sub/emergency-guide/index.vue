@@ -5,15 +5,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 急救教程紧急入口页
- *
- * 来源：设备中心错误页面"急救教程"链接
- * 紧急场景设计：大号卡片、显眼操作按钮、减少阅读量
- * 入口：心肺复苏 / AED使用指南 / 海姆立克 / 一键拨打120
- *
- * 详细设计见 CLAUDE.md §4.5.6
- */
+// 急救教程紧急入口 —— 大卡片 + 显眼按钮，心肺复苏 / AED / 海姆立克 / 一键拨120
 import { useTheme } from '@/composables/useTheme'
 const { themeClass } = useTheme()
 </script>

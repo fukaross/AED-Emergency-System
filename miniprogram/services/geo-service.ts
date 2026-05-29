@@ -1,15 +1,4 @@
-/**
- * 定位、距离、坐标工具服务
- *
- * 职责：
- * - 获取用户位置 + 授权检测 + 降级处理
- * - Haversine 球面距离计算
- * - 坐标相关工具函数
- *
- * 前端默认只消费 GCJ-02 坐标，禁止页面自行做坐标转换
- *
- * 详细设计见 CLAUDE.md §4.1.5 + TECHNICAL_SUPPLEMENT.md §5.2
- */
+// 定位、授权、距离计算 —— 全程使用 GCJ-02 坐标，别自己瞎转
 import type { GeoPoint } from '@/types/common'
 import { MAP_CENTER } from '@/utils/constants'
 import { APP_ENV, USE_MOCK, USE_REAL_LOCATION } from '@/utils/runtime-env'

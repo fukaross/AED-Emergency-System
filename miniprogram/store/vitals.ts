@@ -1,8 +1,4 @@
-/**
- * 生命体征 Store
- *
- * 管理当前心率、最近血压、短期缓存与告警状态机。
- */
+// 生命体征 —— 心率、血压、缓存和告警状态机
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {

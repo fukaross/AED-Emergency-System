@@ -51,14 +51,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 急救课堂页面
- *
- * 数据展示横幅 + 快速操作入口（CPR/海姆立克）+ 课程网格
- * 前两格固定：AED使用教程、心肺复苏教程
- *
- * 设计来源：CLAUDE.md §4.3 + page-Instrument.md
- */
+// 急救课堂 —— 统计横幅 + CPR/海姆立克入口 + 课程网格
 import { onShow } from '@dcloudio/uni-app'
 import { useTheme } from '@/composables/useTheme'
 import { useCourseStore } from '@/store/course'

@@ -78,15 +78,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 设置页
- *
- * 消息通知 / 位置权限 / 清除缓存 / 深色模式 / 大字模式 / 减弱动画 / 退出登录
- * 本页仅操作本地 Storage，无后端接口依赖。
- * 深色模式通过 CSS 自定义属性全局生效，本页开关即时同步。
- *
- * 设计来源：pages-sub/profile/settings/page-Instrument.md
- */
+// 设置页 —— 通知、位置、缓存、深色模式、大字、动画、退出
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import CustomNavbar from '@/components/custom-navbar/index.vue'
@@ -137,10 +129,7 @@ function refreshCacheSize(): void {
   }
 }
 
-/**
- * 从 uni-app switch @change 事件中提取布尔值。
- * vue-tsc 将 <switch> 回退为 SVG 元素类型，故签名使用 Event，内部 cast 取 detail.value。
- */
+// vue-tsc 把 switch 当 SVG 元素了，这里用 Event 再 cast 拿到 detail.value
 function getSwitchValue(e: Event): boolean {
   return (e as Event & { detail: { value: boolean } }).detail.value
 }

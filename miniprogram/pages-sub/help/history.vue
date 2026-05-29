@@ -17,7 +17,12 @@
       >
         <view class="item-main">
           <view class="item-title-row">
-            <text class="item-title">{{ item.requestNo }}</text>
+            <view class="title-group">
+              <text v-if="roleText(item.userRole)" class="role-tag" :class="roleClass(item.userRole)">
+                {{ roleText(item.userRole) }}
+              </text>
+              <text class="item-title">{{ item.requestNo }}</text>
+            </view>
             <text class="status-tag" :class="statusClass(item.status)">
               {{ statusText(item.status) }}
             </text>
@@ -39,7 +44,7 @@ import { useTheme } from '@/composables/useTheme'
 import { useHelpStore } from '@/store/help'
 import type { HelpStatus } from '@/types/help'
 import { formatChineseDateTime } from '@/utils/format'
-import { getHelpStatusClass, getHelpStatusText } from '@/utils/help-labels'
+import { getHelpStatusClass, getHelpStatusText, getHelpUserRoleClass, getHelpUserRoleText } from '@/utils/help-labels'
 
 const POLL_INTERVAL_MS = 20_000
 
@@ -96,6 +101,14 @@ function statusClass(status: HelpStatus): string {
   return getHelpStatusClass(status)
 }
 
+function roleText(role: string): string {
+  return getHelpUserRoleText(role)
+}
+
+function roleClass(role: string): string {
+  return getHelpUserRoleClass(role)
+}
+
 function formatTime(value: string): string {
   return formatChineseDateTime(value)
 }
@@ -135,6 +148,30 @@ function formatTime(value: string): string {
 .item-title-row {
   @include flex-between;
   gap: $spacing-sm;
+}
+
+.title-group {
+  @include flex-align-center;
+  gap: $spacing-xs;
+  flex: 1;
+  min-width: 0;
+}
+
+.role-tag {
+  flex-shrink: 0;
+  padding: 2rpx 8rpx;
+  border-radius: $radius-pill;
+  font-size: $font-size-xs;
+}
+
+.role-tag--requester {
+  color: $status-info;
+  background: rgba($status-info, 0.08);
+}
+
+.role-tag--reporter {
+  color: $status-online;
+  background: rgba($status-online, 0.08);
 }
 
 .item-title {

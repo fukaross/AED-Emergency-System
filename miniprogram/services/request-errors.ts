@@ -1,3 +1,4 @@
+// 请求层的全局错误处理 —— 401 自动登出 + 统一 toast
 import { clearAuthSession } from '@/services/auth-session'
 import { useAuthStore } from '@/store/auth'
 import { ERROR_CODES, ERROR_MESSAGES } from '@/utils/constants'

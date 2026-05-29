@@ -1,12 +1,5 @@
-/**
- * AED 急救小程序 — 深色/浅色主题 CSS 自定义属性
- *
- * .theme-light 定义亮色默认值，.theme-dark 覆写为暗色值。
- * 级联方式：每页根元素 :class="themeClass"。
- * 本文件在 App.vue 全局 style 中引入，不作为 SCSS 变量注入。
- *
- * [G-06] 本文件与 variables.scss 的 fallback 值严格对齐。
- */
+// 深色/浅色主题 CSS 自定义属性
+// 每页根元素 :class="themeClass" 切换，App.vue 里全局引入
 
 // ===== Light（默认）=====
 .theme-light {

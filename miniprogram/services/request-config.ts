@@ -1,3 +1,4 @@
+// 请求层的通用配置 —— base URL、认证路径、占位值检测
 import {
   API_BASE_URL,
   IS_PLACEHOLDER_API_BASE_URL,

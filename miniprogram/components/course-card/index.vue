@@ -15,13 +15,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 课程卡片组件
- *
- * 2 列网格布局，缩略图比例 16:10，标题最多 2 行省略
- *
- * 详细设计见 CLAUDE.md §4.3.4
- */
+// 课程卡片 —— 2列网格，缩略图 16:10，标题最多两行省略
 interface Props {
   title: string
   thumbnail: string

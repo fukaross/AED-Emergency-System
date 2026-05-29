@@ -1,11 +1,4 @@
-/**
- * 课程 Store
- *
- * 管理课程列表、当前课程详情
- * Mock 与真实接口分流统一在 API 层处理，Store 不做静默回退
- *
- * 来源：CLAUDE.md §6.3
- */
+// 课程列表和详情
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { CourseSummary, CourseDetail } from '@/types/user'

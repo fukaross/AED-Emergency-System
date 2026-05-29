@@ -1,11 +1,4 @@
-/**
- * 求助页面与匿名会话流程 composable
- *
- * 编排求助发布流程：选点 → 填写 → 上传图片 → 发布
- * 支持游客匿名会话（返回 requestNo/followupCode/closeToken）
- *
- * D-05 基线要求
- */
+// 求助发布流程 —— 选点 → 填写 → 上传图片 → 发布（支持游客匿名会话）
 import { ref, reactive } from 'vue'
 import { useHelpStore } from '@/store/help'
 import { useAuthStore } from '@/store/auth'

@@ -1,3 +1,4 @@
+// 微信用户默认显示名和脱敏工具
 const DEFAULT_WECHAT_NAME = '微信用户'
 const OPEN_ID_VISIBLE_CHARS = 4
 

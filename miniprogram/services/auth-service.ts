@@ -1,15 +1,4 @@
-/**
- * 登录与鉴权服务
- *
- * 职责：微信登录流程、Token 管理、登录态判断
- * 不管用户资料（由 user store 管理）
- *
- * 2026-05-25:
- * - 移除 REAL_EXPIRES_IN 硬编码 7 天，改用服务端返回的 expiresIn
- * - 兜底 DEFAULT_EXPIRES_IN = 30 天
- * - initializeAuthState() 不再在检查前清除 token，改为信任本地 token
- *   真正失效由服务端 401 → refresh → 最终失败时再清除
- */
+// 微信登录流程、token 存取、登录态判断（不碰用户资料，那归 user store 管）
 import { post } from '@/services/request'
 import {
   clearAuthSession,

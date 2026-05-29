@@ -32,16 +32,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 通用底部弹窗组件 (Bottom Sheet)
- *
- * [G-02] 附近 AED 面板使用本组件，交互为点击展开/收起，
- *        不实现拖拽。顶部横条仅为视觉提示。
- *
- * 规格：最大高度 70vh，顶部圆角 24rpx，动画 300ms ease-out
- *
- * 详细设计见 CLAUDE.md §5.6 + GEMINI.md §3.3
- */
+// 通用底部弹窗 —— 点击展开/收起，不拖拽，max-height 70vh
 import { computed, ref, watch, nextTick } from 'vue'
 
 interface Props {

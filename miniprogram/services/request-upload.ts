@@ -1,3 +1,4 @@
+// 图片上传 —— 封装 uni.uploadFile，按场景区分上传路径
 import { getToken } from '@/services/auth-session'
 import { refreshAuthSession } from '@/services/auth-refresh'
 import {

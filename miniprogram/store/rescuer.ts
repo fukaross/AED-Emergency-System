@@ -1,9 +1,4 @@
-/**
- * 急救员中心状态 Store
- *
- * 职责：管理急救员列表、详情弹窗、加载状态
- * 不管理登录态（由 auth store 管理），不管理位置（由页面传入）
- */
+// 急救员中心 —— 列表、详情弹窗、加载状态（不管登录态和位置）
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { fetchNearbyRescuers, fetchRescuerDetail } from '@/api/rescuer'

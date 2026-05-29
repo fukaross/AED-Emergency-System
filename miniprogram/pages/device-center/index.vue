@@ -5,12 +5,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * ⚠️ 历史文件，已废弃
- *
- * 第二个 Tab 的正式运行时入口已迁移至 pages/rescuer-center/index。
- * 本文件仅保留作为历史参考，不再参与运行时路由。
- */
+// 历史文件，已废弃 —— 第二个 Tab 已迁移至 pages/rescuer-center/index
 </script>
 
 <style lang="scss" scoped>

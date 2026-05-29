@@ -1,8 +1,4 @@
-/**
- * 急救课堂 Store
- *
- * 管理课堂顶部统计横幅数据。
- */
+// 急救课堂顶部统计横幅
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { fetchKnowledgeSummary } from '@/api/knowledge'

@@ -1,3 +1,4 @@
+// 响应解析和错误创建 —— 统一处理 ApiResponse 包裹格式
 import type { ApiResponse } from '@/types/common'
 
 export interface ApiError extends Error {

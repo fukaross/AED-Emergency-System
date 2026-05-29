@@ -6,14 +6,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 急救员级别标签组件
- *
- * 白底 + 彩色边框 + 彩色人形图标 + 深色文字
- * 四级：荣誉(金) / 预备(灰) / 正式(绿) / 骨干(蓝)
- *
- * 详细设计见 CLAUDE.md §4.4.2 + GEMINI.md §3.5
- */
+// 急救员级别标签 —— 四级：金(荣誉) / 灰(预备) / 绿(正式) / 蓝(骨干)
 import { computed } from 'vue'
 
 interface Props {

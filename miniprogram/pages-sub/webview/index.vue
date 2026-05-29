@@ -17,15 +17,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 外链技术容器页
- *
- * [G-03] 本页面为正式技术容器路由，必须保留在 pages.json 分包中。
- *        用于 Banner linkType="url" 等外链跳转场景。
- *        禁止删除或重命名此路由。
- *
- * 详细设计见 CLAUDE.md §6.2 + AGENTS.md 收敛结论
- */
+// 外链容器 —— Banner 跳转、外部链接都走这个路由，别删
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useTheme } from '@/composables/useTheme'
