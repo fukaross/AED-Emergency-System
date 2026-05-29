@@ -5,6 +5,7 @@ vi.mock('@/utils/runtime-env', () => ({
   IS_PLACEHOLDER_API_BASE_URL: false,
   RESTORE_AUTH_SESSION: false,
   USE_MOCK: true,
+  CLASSROOM_BACKEND_READY: false,
   shouldWarnPlaceholderApiBaseUrl: () => false,
 }))
 

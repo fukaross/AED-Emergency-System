@@ -20,10 +20,10 @@
     <!-- 快速操作入口 -->
     <view class="kn-quick">
       <view
-        v-for="item in QUICK_ACTIONS"
-        :key="item.type"
+        v-for="item in quickActions"
+        :key="item.id"
         class="kn-quick-card"
-        @click="handleQuickAction(item.type)"
+        @click="handleQuickAction(item)"
       >
         <image class="kn-quick-icon" :src="item.icon" mode="aspectFit" />
         <text class="kn-quick-title">{{ item.title }}</text>
@@ -51,42 +51,25 @@
 </template>
 
 <script setup lang="ts">
-// 急救课堂 —— 统计横幅 + CPR/海姆立克入口 + 课程网格
+// 急救课堂 —— 统计横幅 + 关键步骤快速操作入口 + 课程网格
 import { onShow } from '@dcloudio/uni-app'
+import { ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCourseStore } from '@/store/course'
 import { useKnowledgeStore } from '@/store/knowledge'
-import { fetchCourseByType } from '@/api/course'
-import type { CourseTypeKey } from '@/types/user'
+import { fetchQuickActions } from '@/api/course'
+import type { QuickAction } from '@/types/knowledge'
 import AppTabBar from '@/components/app-tab-bar/index.vue'
 import CourseCard from '@/components/course-card/index.vue'
-
-const QUICK_ACTIONS: readonly {
-  type: CourseTypeKey
-  title: string
-  icon: string
-}[] = [
-  { type: 'cpr', title: '心肺复苏', icon: '/static/images/icon-cpr.png' },
-  { type: 'heimlich', title: '海姆立克急救法', icon: '/static/images/icon-heimlich.jpg' },
-]
 
 const courseStore = useCourseStore()
 const knowledgeStore = useKnowledgeStore()
 const { themeClass } = useTheme()
+const quickActions = ref<QuickAction[]>([])
 
 // ===== 快速操作 =====
-async function handleQuickAction(type: CourseTypeKey) {
-  try {
-    const res = await fetchCourseByType(type)
-    if (res.entryMode === 'detail') {
-      uni.navigateTo({ url: `/pages-sub/knowledge/detail?id=${res.id}` })
-    } else {
-      uni.navigateTo({ url: `/pages-sub/knowledge/steps?type=${type}` })
-    }
-  } catch {
-    // API 未就绪时回退到步骤页
-    uni.navigateTo({ url: `/pages-sub/knowledge/steps?type=${type}` })
-  }
+function handleQuickAction(action: QuickAction) {
+  uni.navigateTo({ url: `/pages-sub/knowledge/steps?actionId=${action.id}` })
 }
 
 // ===== 课程详情 =====
@@ -94,10 +77,19 @@ function goDetail(id: string) {
   uni.navigateTo({ url: `/pages-sub/knowledge/detail?id=${id}` })
 }
 
+async function loadQuickActions() {
+  try {
+    quickActions.value = await fetchQuickActions()
+  } catch {
+    quickActions.value = []
+  }
+}
+
 // ===== 生命周期 =====
 onShow(() => {
   knowledgeStore.loadSummary()
   courseStore.loadCourseList()
+  loadQuickActions()
 })
 </script>
 

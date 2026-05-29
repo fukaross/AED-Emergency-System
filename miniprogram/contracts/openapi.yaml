@@ -483,33 +483,6 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/courses/by-type:
-    get:
-      summary: 按类型获取预置课程
-      operationId: getCourseByType
-      security: []
-      parameters:
-        - name: type
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: [cpr, aed, heimlich]
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/CourseByTypeResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
   /api/courses/{id}:
     get:
       summary: 获取课程详情
@@ -535,6 +508,54 @@ paths:
                         $ref: '#/components/schemas/CourseDetail'
         '400':
           $ref: '#/components/responses/BadRequest'
+
+  /api/quick-actions:
+    get:
+      summary: 获取关键步骤卡片列表
+      operationId: listQuickActions
+      security: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/QuickAction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/quick-actions/{id}:
+    get:
+      summary: 获取关键步骤详情
+      operationId: getQuickActionDetail
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/QuickAction'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/user/profile:
     get:
@@ -2986,8 +3007,6 @@ components:
           type: integer
         pinned:
           type: boolean
-        isEmergency:
-          type: boolean
         cacheVersion:
           type: string
         estimatedTime:
@@ -3206,8 +3225,6 @@ components:
           type: boolean
         sortOrder:
           type: integer
-        isEmergency:
-          type: boolean
         cacheVersion:
           type: string
         estimatedTime:
@@ -3267,22 +3284,41 @@ components:
         totalPages:
           type: integer
 
-    CourseByTypeResponse:
+    QuickActionStep:
       type: object
-      required: [id, title, contentType, entryMode, summary]
+      required: [order, title, description, image, keyPoints]
+      properties:
+        order:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        image:
+          type: string
+        keyPoints:
+          type: array
+          items:
+            type: string
+
+    QuickAction:
+      type: object
+      required: [id, title, icon, summary, sortOrder, steps]
       properties:
         id:
           type: string
         title:
           type: string
-        contentType:
+        icon:
           type: string
-          enum: [article, video, steps]
-        entryMode:
-          type: string
-          enum: [detail, steps]
         summary:
           type: string
+        sortOrder:
+          type: integer
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuickActionStep'
 
     KnowledgeStatKey:
       type: string

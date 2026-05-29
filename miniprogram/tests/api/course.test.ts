@@ -5,10 +5,16 @@ vi.mock('@/utils/runtime-env', () => ({
   IS_PLACEHOLDER_API_BASE_URL: false,
   RESTORE_AUTH_SESSION: false,
   USE_MOCK: true,
+  CLASSROOM_BACKEND_READY: false,
   shouldWarnPlaceholderApiBaseUrl: () => false,
 }))
 
-import { fetchCourseDetail, fetchCourseList } from '@/api/course'
+import {
+  fetchCourseDetail,
+  fetchCourseList,
+  fetchQuickActionDetail,
+  fetchQuickActions,
+} from '@/api/course'
 
 describe('course api mock', () => {
   it('paginates course list mock data like the backend contract', async () => {
@@ -32,5 +38,18 @@ describe('course api mock', () => {
 
   it('rejects unknown course ids in mock mode', async () => {
     await expect(fetchCourseDetail('missing-course')).rejects.toThrow('课程不存在')
+  })
+
+  it('returns quick action mock data for the classroom home page', async () => {
+    const result = await fetchQuickActions()
+
+    expect(result.map((item) => item.id)).toEqual(['qa-01', 'qa-02'])
+    expect(result[0].steps.map((step) => step.title)).toContain('判断意识')
+  })
+
+  it('rejects unknown quick action ids in mock mode', async () => {
+    await expect(fetchQuickActionDetail('missing-action')).rejects.toThrow(
+      '关键步骤不存在',
+    )
   })
 })

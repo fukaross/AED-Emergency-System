@@ -171,7 +171,6 @@ export interface CourseSummary {
   readonly createdAt: string
   readonly pinned?: boolean
   readonly sortOrder?: number
-  readonly isEmergency?: boolean
   readonly cacheVersion?: string
   readonly estimatedTime?: string
 }
@@ -198,14 +197,4 @@ export interface CourseFilter {
   readonly page?: number
   readonly pageSize?: number
   readonly category?: string
-}
-
-export type CourseTypeKey = 'cpr' | 'aed' | 'heimlich'
-
-export interface CourseByTypeResponse {
-  readonly id: string
-  readonly title: string
-  readonly contentType: 'article' | 'video' | 'steps'
-  readonly entryMode: 'detail' | 'steps'
-  readonly summary: string
 }

@@ -11,6 +11,8 @@ const rawHelpBackendReady = import.meta.env.VITE_HELP_BACKEND_READY === 'true'
 const rawAedBackendReady = import.meta.env.VITE_AED_BACKEND_READY === 'true'
 const rawRescuerBackendReady =
   import.meta.env.VITE_RESCUER_BACKEND_READY === 'true'
+const rawClassroomBackendReady =
+  import.meta.env.VITE_CLASSROOM_BACKEND_READY === 'true'
 
 export const API_BASE_URL = rawApiBaseUrl
 export const IS_PLACEHOLDER_API_BASE_URL =
@@ -26,6 +28,8 @@ export const HELP_BACKEND_READY = rawHelpBackendReady
 export const AED_BACKEND_READY = rawAedBackendReady
 
 export const RESCUER_BACKEND_READY = rawRescuerBackendReady
+
+export const CLASSROOM_BACKEND_READY = rawClassroomBackendReady
 
 export const USE_REAL_WECHAT_FLOW =
   !USE_MOCK || rawUseRealWeChatFlow

@@ -1,42 +1,18 @@
-// 课程相关的接口 —— 列表、详情、按类型获取预置课程
+// 课程相关的接口 —— 列表、详情、关键步骤
 import { get } from '@/services/request'
 import type {
   CourseSummary,
   CourseDetail,
   CourseFilter,
-  CourseTypeKey,
-  CourseByTypeResponse,
 } from '@/types/user'
 import type { PaginatedData } from '@/types/common'
+import type { QuickAction } from '@/types/knowledge'
 import { COURSE_DETAIL_MOCK_DATA, COURSE_MOCK_DATA } from '@/mock/course'
-import { USE_MOCK } from '@/utils/runtime-env'
+import { QUICK_ACTION_MOCK_DATA } from '@/mock/knowledge'
+import { USE_MOCK, CLASSROOM_BACKEND_READY } from '@/utils/runtime-env'
 
 const DEFAULT_COURSE_PAGE = 1
 const MIN_COURSE_PAGE_SIZE = 1
-
-const COURSE_BY_TYPE_MOCK_MAP: Readonly<Record<CourseTypeKey, CourseByTypeResponse>> = {
-  aed: {
-    id: 'course-aed',
-    title: 'AED 使用教程',
-    contentType: 'article',
-    entryMode: 'detail',
-    summary: 'AED 使用的核心步骤与注意事项',
-  },
-  cpr: {
-    id: 'course-cpr',
-    title: '心肺复苏教程',
-    contentType: 'steps',
-    entryMode: 'steps',
-    summary: '心肺复苏关键步骤与节奏提示',
-  },
-  heimlich: {
-    id: 'course-heimlich',
-    title: '海姆立克急救法',
-    contentType: 'steps',
-    entryMode: 'steps',
-    summary: '气道异物梗阻的现场急救步骤',
-  },
-}
 
 function buildMockCourseList(
   filter?: CourseFilter,
@@ -64,7 +40,7 @@ function buildMockCourseList(
 export function fetchCourseList(
   filter?: CourseFilter,
 ): Promise<PaginatedData<CourseSummary>> {
-  if (USE_MOCK) {
+  if (!CLASSROOM_BACKEND_READY && USE_MOCK) {
     return Promise.resolve(buildMockCourseList(filter))
   }
   return get<PaginatedData<CourseSummary>>(
@@ -73,21 +49,9 @@ export function fetchCourseList(
   )
 }
 
-/**
- * 按课程类型获取预置课程（类型→课程的映射由后端决定，前端别自己硬编码）
- */
-export function fetchCourseByType(
-  type: CourseTypeKey,
-): Promise<CourseByTypeResponse> {
-  if (USE_MOCK) {
-    return Promise.resolve(COURSE_BY_TYPE_MOCK_MAP[type])
-  }
-  return get<CourseByTypeResponse>('/api/courses/by-type', { type })
-}
-
 /** 获取课程详情 */
 export function fetchCourseDetail(id: string): Promise<CourseDetail> {
-  if (USE_MOCK) {
+  if (!CLASSROOM_BACKEND_READY && USE_MOCK) {
     const found = COURSE_DETAIL_MOCK_DATA.find((item) => item.id === id)
     if (!found) {
       return Promise.reject(new Error('课程不存在'))
@@ -96,4 +60,24 @@ export function fetchCourseDetail(id: string): Promise<CourseDetail> {
   }
 
   return get<CourseDetail>(`/api/courses/${id}`)
+}
+
+/** 获取关键步骤快速操作卡片列表 */
+export function fetchQuickActions(): Promise<QuickAction[]> {
+  if (!CLASSROOM_BACKEND_READY && USE_MOCK) {
+    return Promise.resolve([...QUICK_ACTION_MOCK_DATA])
+  }
+  return get<QuickAction[]>('/api/quick-actions')
+}
+
+/** 获取关键步骤详情 */
+export function fetchQuickActionDetail(id: string): Promise<QuickAction> {
+  if (!CLASSROOM_BACKEND_READY && USE_MOCK) {
+    const found = QUICK_ACTION_MOCK_DATA.find((item) => item.id === id)
+    if (!found) {
+      return Promise.reject(new Error('关键步骤不存在'))
+    }
+    return Promise.resolve(found)
+  }
+  return get<QuickAction>(`/api/quick-actions/${id}`)
 }
