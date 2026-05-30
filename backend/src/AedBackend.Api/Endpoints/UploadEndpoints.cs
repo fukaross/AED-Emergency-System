@@ -32,7 +32,9 @@ public static class UploadEndpoints
     private static readonly IReadOnlySet<string> AdminScenes = new HashSet<string>
     {
         "device",
-        "rescuer"
+        "rescuer",
+        "course",
+        "quick-action"
     };
 
     private static readonly IReadOnlyDictionary<string, string> AllowedContentTypes =

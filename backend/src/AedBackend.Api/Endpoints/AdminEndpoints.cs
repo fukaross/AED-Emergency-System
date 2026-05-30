@@ -14,6 +14,9 @@ public static class AdminEndpoints
         group.MapAdminRescuerEndpoints();
         group.MapAdminManagementEndpoints();
         group.MapAdminAuditEndpoints();
+        group.MapAdminKnowledgeEndpoints();
+        group.MapAdminCourseEndpoints();
+        group.MapAdminQuickActionEndpoints();
 
         return app;
     }

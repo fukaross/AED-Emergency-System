@@ -30,6 +30,14 @@ public sealed class JsonQuickActionStore : IQuickActionStore
             .ToArray();
     }
 
+    public async Task<IReadOnlyList<QuickActionRecord>> GetAllAdminAsync(CancellationToken ct)
+    {
+        var actions = await LoadActionsAsync(ct);
+        return actions
+            .OrderBy(a => a.SortOrder)
+            .ToArray();
+    }
+
     public async Task<QuickActionRecord?> FindByIdAsync(string id, CancellationToken ct)
     {
         var actions = await LoadActionsAsync(ct);
