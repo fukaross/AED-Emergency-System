@@ -11,12 +11,13 @@
 
       <el-menu
         :default-active="activeMenu"
-        :router="true"
+        :default-openeds="defaultOpeneds"
         :collapse="isCollapsed"
         background-color="#1d2b3a"
         text-color="#bfcbd9"
         active-text-color="#ffffff"
         class="sidebar-menu"
+        @select="handleMenuSelect"
       >
         <el-menu-item index="/dashboard">
           <el-icon><Odometer /></el-icon>
@@ -46,7 +47,7 @@
           <el-icon><Document /></el-icon>
           <template #title>操作日志</template>
         </el-menu-item>
-        <el-sub-menu index="/classroom">
+        <el-sub-menu index="classroom">
           <template #title>
             <el-icon><Reading /></el-icon>
             <span>急救课堂</span>
@@ -82,12 +83,12 @@
 
       <el-menu
         :default-active="activeMenu"
-        :router="true"
+        :default-openeds="defaultOpeneds"
         background-color="#ffffff"
         text-color="#303133"
         active-text-color="#409eff"
         class="drawer-menu"
-        @select="closeDrawer"
+        @select="handleDrawerMenuSelect"
       >
         <el-menu-item index="/dashboard">
           <el-icon><Odometer /></el-icon>
@@ -121,7 +122,7 @@
           <el-icon><Document /></el-icon>
           <template #title>操作日志</template>
         </el-menu-item>
-        <el-sub-menu index="/classroom">
+        <el-sub-menu index="classroom">
           <template #title>
             <el-icon><Reading /></el-icon>
             <span>急救课堂</span>
@@ -201,9 +202,12 @@ const activeMenu = computed(() => {
   if (path.startsWith('/devices')) return '/devices'
   if (path.startsWith('/rescuers')) return '/rescuers'
   if (path.startsWith('/admins')) return '/admins'
-  if (path.startsWith('/classroom')) return path
+  if (path.startsWith('/classroom/quick-actions')) return '/classroom/quick-actions'
+  if (path.startsWith('/classroom/courses')) return '/classroom/courses'
+  if (path.startsWith('/classroom')) return '/classroom/summary'
   return path
 })
+const defaultOpeneds = computed(() => (route.path.startsWith('/classroom') ? ['classroom'] : []))
 const username = computed(() => store.username)
 const isSuperAdmin = computed(() => store.isSuperAdmin)
 const pageTitle = computed(() => (route.meta.title as string) || '')
@@ -219,7 +223,13 @@ function toggleCollapse() {
   localStorage.setItem('sidebar_collapsed', String(isCollapsed.value))
 }
 
-function closeDrawer() {
+async function handleMenuSelect(index: string) {
+  if (!index.startsWith('/') || index === route.path) return
+  await router.push(index)
+}
+
+async function handleDrawerMenuSelect(index: string) {
+  await handleMenuSelect(index)
   drawerVisible.value = false
 }
 

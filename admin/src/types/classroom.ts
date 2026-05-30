@@ -80,6 +80,7 @@ export interface UpdateCoursePayload {
 export interface AdminQuickActionItem {
   id: string
   title: string
+  icon: string
   sortOrder: number
   isEnabled: boolean
 }

@@ -21,8 +21,12 @@
               </el-form-item>
             </el-col>
           </el-row>
-          <el-form-item label="封面图URL">
-            <el-input v-model="form.thumbnail" placeholder="/static/images/xxx.jpg" />
+          <el-form-item label="封面图">
+            <classroom-image-field
+              v-model="form.thumbnail"
+              scene="course"
+              placeholder="图片 URL 或上传封面图"
+            />
           </el-form-item>
           <el-form-item label="分类">
             <el-input v-model="form.category" placeholder="emergency" required />
@@ -41,15 +45,25 @@
           <h4 class="section-title">正文内容</h4>
           <tiptap-editor v-model="form.content" />
 
-          <h4 class="section-title" style="margin-top:24px">步骤列表</h4>
+          <h4 class="section-title" style="margin-top:24px">课程步骤内容</h4>
           <div v-for="(step, idx) in form.steps" :key="idx" class="step-edit-card">
             <div class="step-header-row">
               <span class="step-label">步骤 {{ idx + 1 }}</span>
-              <el-button text type="danger" size="small" @click="removeStep(idx)">删除此步</el-button>
+              <div class="step-actions">
+                <el-button text type="primary" size="small" :disabled="idx === 0" @click="moveStep(idx, -1)">上移</el-button>
+                <el-button text type="primary" size="small" :disabled="idx === form.steps.length - 1" @click="moveStep(idx, 1)">下移</el-button>
+                <el-button text type="danger" size="small" @click="removeStep(idx)">删除此步</el-button>
+              </div>
             </div>
             <el-form-item label="标题"><el-input v-model="step.title" /></el-form-item>
             <el-form-item label="描述"><el-input v-model="step.description" type="textarea" :rows="2" /></el-form-item>
-            <el-form-item label="图片URL"><el-input v-model="step.image" /></el-form-item>
+            <el-form-item label="图片">
+              <classroom-image-field
+                v-model="step.image"
+                scene="course"
+                placeholder="图片 URL 或上传步骤图"
+              />
+            </el-form-item>
             <el-form-item label="要点(每行一个)"><el-input v-model="step.keyPointsStr" type="textarea" :rows="2" /></el-form-item>
           </div>
           <el-button text type="primary" @click="addStep">+ 添加步骤</el-button>
@@ -72,9 +86,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import adminLayout from '@/components/admin-layout.vue'
+import ClassroomImageField from '@/components/classroom-image-field.vue'
 import TiptapEditor from '@/components/tiptap-editor/index.vue'
 import { getCourseDetail, createCourse, updateCourse, deleteCourse } from '@/api/classroom'
-import type { CourseStep } from '@/types/classroom'
+import { getApiErrorMessage } from '@/api/client'
+import type { CourseStep, CreateCoursePayload, UpdateCoursePayload } from '@/types/classroom'
 
 const route = useRoute()
 const router = useRouter()
@@ -131,6 +147,13 @@ function removeStep(idx: number) {
   form.value.steps.splice(idx, 1)
 }
 
+function moveStep(idx: number, direction: -1 | 1) {
+  const nextIndex = idx + direction
+  if (nextIndex < 0 || nextIndex >= form.value.steps.length) return
+  const [step] = form.value.steps.splice(idx, 1)
+  form.value.steps.splice(nextIndex, 0, step)
+}
+
 function mapSteps(): CourseStep[] {
   return form.value.steps.map((s, idx) => ({
     order: idx + 1,
@@ -142,31 +165,40 @@ function mapSteps(): CourseStep[] {
 }
 
 async function handleSave() {
+  if (!form.value.title.trim()) {
+    ElMessage.error('课程标题不能为空')
+    return
+  }
+  if (!form.value.category.trim()) {
+    ElMessage.error('课程分类不能为空')
+    return
+  }
+
   saving.value = true
-  const payload: Record<string, unknown> = {
-    title: form.value.title,
+  const payload: CreateCoursePayload | UpdateCoursePayload = {
+    title: form.value.title.trim(),
     type: form.value.type,
-    category: form.value.category,
+    category: form.value.category.trim(),
     content: form.value.content,
-    thumbnail: form.value.thumbnail,
+    thumbnail: form.value.thumbnail.trim(),
     disclaimer: form.value.disclaimer,
     pinned: form.value.pinned,
     sortOrder: form.value.sortOrder,
     isEnabled: form.value.isEnabled,
-    estimatedTime: form.value.estimatedTime,
+    estimatedTime: form.value.estimatedTime.trim(),
     steps: mapSteps(),
-    videoUrl: form.value.type === 'video' ? form.value.videoUrl : null,
+    videoUrl: form.value.type === 'video' ? form.value.videoUrl.trim() : null,
   }
   try {
     if (isCreate.value) {
-      await createCourse(payload as never)
+      await createCourse(payload as CreateCoursePayload)
     } else {
-      await updateCourse(id.value, payload as never)
+      await updateCourse(id.value, payload as UpdateCoursePayload)
     }
     ElMessage.success('保存成功')
     router.push('/classroom/courses')
-  } catch {
-    ElMessage.error('保存失败')
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '保存失败'))
   } finally {
     saving.value = false
   }
@@ -177,8 +209,8 @@ async function handleDelete() {
     await deleteCourse(id.value)
     ElMessage.success('已删除')
     router.push('/classroom/courses')
-  } catch {
-    ElMessage.error('删除失败')
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '删除失败'))
   }
 }
 </script>
@@ -187,5 +219,6 @@ async function handleDelete() {
 .section-title { margin: 20px 0 12px; font-size: 16px; }
 .step-edit-card { border: 1px solid #ebeef5; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
 .step-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.step-actions { display: flex; gap: 4px; align-items: center; }
 .step-label { font-weight: 500; }
 </style>

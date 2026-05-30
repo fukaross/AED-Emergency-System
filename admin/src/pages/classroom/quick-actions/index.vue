@@ -8,8 +8,21 @@
         </div>
 
         <div class="table-responsive">
+          <el-alert v-if="loadError" :title="loadError" type="error" show-icon :closable="false" class="table-alert" />
           <el-table v-loading="loading" :data="tableData" class="data-table" stripe>
             <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column label="图标" width="92">
+              <template #default="{ row }">
+                <el-image
+                  v-if="row.icon"
+                  :src="row.icon"
+                  :preview-src-list="[row.icon]"
+                  fit="cover"
+                  class="icon-preview"
+                />
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="title" label="标题" min-width="160" />
             <el-table-column prop="sortOrder" label="排序" width="80" />
             <el-table-column label="状态" width="80">
@@ -38,6 +51,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { getApiErrorMessage } from '@/api/client'
 import adminLayout from '@/components/admin-layout.vue'
 import statusTag from '@/components/status-tag.vue'
 import { getQuickActions, deleteQuickAction } from '@/api/classroom'
@@ -46,17 +60,24 @@ import type { AdminQuickActionItem } from '@/types/classroom'
 const router = useRouter()
 const loading = ref(false)
 const tableData = ref<AdminQuickActionItem[]>([])
+const loadError = ref('')
 
 let timer: ReturnType<typeof setInterval> | null = null
+let firstLoadFinished = false
 
-async function load() {
+async function load(showError = false) {
   loading.value = true
   try {
     const res = await getQuickActions()
     tableData.value = res.data.data ?? []
-  } catch {
-    /* ignore */
+    loadError.value = ''
+  } catch (error) {
+    if (!firstLoadFinished || showError) {
+      loadError.value = getApiErrorMessage(error, '关键步骤加载失败')
+      ElMessage.error(loadError.value)
+    }
   } finally {
+    firstLoadFinished = true
     loading.value = false
   }
 }
@@ -68,9 +89,9 @@ async function handleDelete(row: AdminQuickActionItem) {
   try {
     await deleteQuickAction(row.id)
     ElMessage.success('已删除')
-    await load()
-  } catch {
-    ElMessage.error('删除失败')
+    await load(true)
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '删除失败'))
   }
 }
 
@@ -82,4 +103,6 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .card-header-bar { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #ebeef5; }
 .card-header-title { font-size: 16px; font-weight: 500; margin: 0; }
 .table-responsive { padding: 0 20px 20px; }
+.table-alert { margin: 12px 0; }
+.icon-preview { width: 44px; height: 44px; border-radius: 4px; border: 1px solid #ebeef5; }
 </style>

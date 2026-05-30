@@ -18,6 +18,7 @@
         </div>
 
         <div class="table-responsive">
+          <el-alert v-if="loadError" :title="loadError" type="error" show-icon :closable="false" class="table-alert" />
           <el-table v-loading="loading" :data="tableData" class="data-table" stripe>
             <el-table-column prop="id" label="ID" width="100" />
             <el-table-column prop="title" label="标题" min-width="160" />
@@ -59,6 +60,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { getApiErrorMessage } from '@/api/client'
 import adminLayout from '@/components/admin-layout.vue'
 import statusTag from '@/components/status-tag.vue'
 import { getCourses, deleteCourse } from '@/api/classroom'
@@ -70,13 +72,15 @@ const tableData = ref<AdminCourseItem[]>([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = 20
+const loadError = ref('')
 
 const filterCategory = ref<string>('')
 const searchKeyword = ref<string>('')
 
 let timer: ReturnType<typeof setInterval> | null = null
+let firstLoadFinished = false
 
-async function load(page?: number) {
+async function load(page?: number, showError = false) {
   loading.value = true
   try {
     const res = await getCourses({
@@ -89,12 +93,21 @@ async function load(page?: number) {
     tableData.value = d.items
     total.value = d.total
     currentPage.value = d.page
-  } catch { /* ignore */ }
-  finally { loading.value = false }
+    loadError.value = ''
+  } catch (error) {
+    if (!firstLoadFinished || showError) {
+      loadError.value = getApiErrorMessage(error, '课程列表加载失败')
+      ElMessage.error(loadError.value)
+    }
+  }
+  finally {
+    firstLoadFinished = true
+    loading.value = false
+  }
 }
 
-function handleFilterChange() { currentPage.value = 1; load(1) }
-function handlePageChange(p: number) { load(p) }
+function handleFilterChange() { currentPage.value = 1; load(1, true) }
+function handlePageChange(p: number) { load(p, true) }
 
 function goCreate() { router.push('/classroom/courses/new') }
 function goDetail(id: string) { router.push(`/classroom/courses/${id}`) }
@@ -103,9 +116,9 @@ async function handleDelete(row: AdminCourseItem) {
   try {
     await deleteCourse(row.id)
     ElMessage.success('已删除')
-    await load(currentPage.value)
-  } catch {
-    ElMessage.error('删除失败')
+    await load(currentPage.value, true)
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '删除失败'))
   }
 }
 
@@ -118,5 +131,6 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .card-header-title { font-size: 16px; font-weight: 500; margin: 0; }
 .filter-bar { display: flex; gap: 12px; padding: 12px 20px; align-items: center; flex-wrap: wrap; }
 .table-responsive { padding: 0 20px 20px; }
+.table-alert { margin: 12px 0; }
 .pagination-container { display: flex; justify-content: flex-end; padding: 0 20px 16px; }
 </style>

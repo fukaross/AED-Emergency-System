@@ -10,7 +10,11 @@
             <el-input v-model="form.title" placeholder="心肺复苏" />
           </el-form-item>
           <el-form-item label="图标" required>
-            <el-input v-model="form.icon" placeholder="/static/images/icon-cpr.png" />
+            <classroom-image-field
+              v-model="form.icon"
+              scene="quick-action"
+              placeholder="图片 URL 或上传图标"
+            />
           </el-form-item>
           <el-form-item label="简介">
             <el-input v-model="form.summary" type="textarea" :rows="2" placeholder="简短描述" />
@@ -23,11 +27,15 @@
           </el-form-item>
         </el-form>
 
-        <h4 class="section-title">步骤列表</h4>
+        <h4 class="section-title">滚动步骤内容</h4>
         <div v-for="(step, idx) in form.steps" :key="idx" class="step-edit-card">
           <div class="step-header-row">
-            <span class="step-label">步骤 {{ idx + 1 }}</span>
-            <el-button text type="danger" size="small" @click="removeStep(idx)">删除此步</el-button>
+            <span class="step-label">滚动段落 {{ idx + 1 }}</span>
+            <div class="step-actions">
+              <el-button text type="primary" size="small" :disabled="idx === 0" @click="moveStep(idx, -1)">上移</el-button>
+              <el-button text type="primary" size="small" :disabled="idx === form.steps.length - 1" @click="moveStep(idx, 1)">下移</el-button>
+              <el-button text type="danger" size="small" @click="removeStep(idx)">删除此段</el-button>
+            </div>
           </div>
           <el-form-item label="标题">
             <el-input v-model="step.title" placeholder="步骤标题" />
@@ -35,8 +43,12 @@
           <el-form-item label="描述">
             <el-input v-model="step.description" type="textarea" :rows="2" />
           </el-form-item>
-          <el-form-item label="图片URL">
-            <el-input v-model="step.image" placeholder="/static/images/xxx.jpg" />
+          <el-form-item label="图片">
+            <classroom-image-field
+              v-model="step.image"
+              scene="quick-action"
+              placeholder="图片 URL 或上传步骤图"
+            />
           </el-form-item>
           <el-form-item label="要点(每行一个)">
             <el-input v-model="step.keyPointsStr" type="textarea" :rows="3" placeholder="轻拍重唤&#10;观察胸部起伏" />
@@ -58,7 +70,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import adminLayout from '@/components/admin-layout.vue'
+import ClassroomImageField from '@/components/classroom-image-field.vue'
 import { getQuickActionDetail, createQuickAction, updateQuickAction, deleteQuickAction } from '@/api/classroom'
+import { getApiErrorMessage } from '@/api/client'
 import type { QuickActionStep } from '@/types/classroom'
 
 const route = useRoute()
@@ -104,6 +118,13 @@ function removeStep(idx: number) {
   form.value.steps.splice(idx, 1)
 }
 
+function moveStep(idx: number, direction: -1 | 1) {
+  const nextIndex = idx + direction
+  if (nextIndex < 0 || nextIndex >= form.value.steps.length) return
+  const [step] = form.value.steps.splice(idx, 1)
+  form.value.steps.splice(nextIndex, 0, step)
+}
+
 function mapSteps(): QuickActionStep[] {
   return form.value.steps.map((s, idx) => ({
     order: idx + 1,
@@ -115,10 +136,19 @@ function mapSteps(): QuickActionStep[] {
 }
 
 async function handleSave() {
+  if (!form.value.title.trim()) {
+    ElMessage.error('关键步骤标题不能为空')
+    return
+  }
+  if (!form.value.icon.trim()) {
+    ElMessage.error('关键步骤图标不能为空')
+    return
+  }
+
   saving.value = true
   const payload = {
-    title: form.value.title,
-    icon: form.value.icon,
+    title: form.value.title.trim(),
+    icon: form.value.icon.trim(),
     summary: form.value.summary,
     sortOrder: form.value.sortOrder,
     isEnabled: form.value.isEnabled,
@@ -132,8 +162,8 @@ async function handleSave() {
     }
     ElMessage.success('保存成功')
     router.push('/classroom/quick-actions')
-  } catch {
-    ElMessage.error('保存失败')
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '保存失败'))
   } finally {
     saving.value = false
   }
@@ -144,8 +174,8 @@ async function handleDelete() {
     await deleteQuickAction(id.value)
     ElMessage.success('已删除')
     router.push('/classroom/quick-actions')
-  } catch {
-    ElMessage.error('删除失败')
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '删除失败'))
   }
 }
 </script>
@@ -154,5 +184,6 @@ async function handleDelete() {
 .section-title { margin: 16px 0 12px; font-size: 16px; }
 .step-edit-card { border: 1px solid #ebeef5; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
 .step-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.step-actions { display: flex; gap: 4px; align-items: center; }
 .step-label { font-weight: 500; }
 </style>
