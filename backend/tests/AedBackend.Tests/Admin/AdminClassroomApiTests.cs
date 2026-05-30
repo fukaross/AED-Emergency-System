@@ -100,6 +100,7 @@ public sealed class AdminClassroomApiTests : AdminApiTestBase
 
         var body = await ReadAsync<ApiResponse<JsonElement>>(response);
         Assert.True(body.Data.GetArrayLength() >= 2);
+        Assert.True(body.Data[0].TryGetProperty("icon", out _));
     }
 
     [Fact]

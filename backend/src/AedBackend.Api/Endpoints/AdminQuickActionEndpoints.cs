@@ -179,7 +179,7 @@ internal static class AdminQuickActionEndpoints
 
     private static AdminQuickActionListItem ToListItem(QuickActionRecord a)
     {
-        return new AdminQuickActionListItem(a.Id, a.Title, a.SortOrder, a.IsEnabled);
+        return new AdminQuickActionListItem(a.Id, a.Title, a.Icon, a.SortOrder, a.IsEnabled);
     }
 
     private static AdminQuickActionDetail ToDetail(QuickActionRecord a)

@@ -65,6 +65,7 @@ public sealed record CourseStepDto(
 public sealed record AdminQuickActionListItem(
     string Id,
     string Title,
+    string Icon,
     int SortOrder,
     bool IsEnabled);
 
