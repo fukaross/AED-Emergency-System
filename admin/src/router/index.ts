@@ -94,6 +94,41 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '操作日志', requiresAuth: true, requiresSuperAdmin: true },
   },
   {
+    path: '/classroom',
+    redirect: '/classroom/summary',
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/classroom/summary',
+    name: 'classroomSummary',
+    component: () => import('@/pages/classroom/summary/index.vue'),
+    meta: { title: '统计横幅', requiresAuth: true },
+  },
+  {
+    path: '/classroom/quick-actions',
+    name: 'classroomQuickActions',
+    component: () => import('@/pages/classroom/quick-actions/index.vue'),
+    meta: { title: '关键步骤', requiresAuth: true },
+  },
+  {
+    path: '/classroom/quick-actions/:id',
+    name: 'classroomQuickActionDetail',
+    component: () => import('@/pages/classroom/quick-actions/detail.vue'),
+    meta: { title: '关键步骤详情', requiresAuth: true },
+  },
+  {
+    path: '/classroom/courses',
+    name: 'classroomCourses',
+    component: () => import('@/pages/classroom/courses/index.vue'),
+    meta: { title: '课程管理', requiresAuth: true },
+  },
+  {
+    path: '/classroom/courses/:id',
+    name: 'classroomCourseDetail',
+    component: () => import('@/pages/classroom/courses/detail.vue'),
+    meta: { title: '课程详情', requiresAuth: true },
+  },
+  {
     path: '/',
     redirect: '/dashboard',
   },

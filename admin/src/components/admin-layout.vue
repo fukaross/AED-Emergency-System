@@ -46,6 +46,15 @@
           <el-icon><Document /></el-icon>
           <template #title>操作日志</template>
         </el-menu-item>
+        <el-sub-menu index="/classroom">
+          <template #title>
+            <el-icon><Reading /></el-icon>
+            <span>急救课堂</span>
+          </template>
+          <el-menu-item index="/classroom/summary">统计横幅</el-menu-item>
+          <el-menu-item index="/classroom/quick-actions">关键步骤</el-menu-item>
+          <el-menu-item index="/classroom/courses">课程管理</el-menu-item>
+        </el-sub-menu>
       </el-menu>
 
       <div class="collapse-btn" @click="toggleCollapse">
@@ -112,6 +121,15 @@
           <el-icon><Document /></el-icon>
           <template #title>操作日志</template>
         </el-menu-item>
+        <el-sub-menu index="/classroom">
+          <template #title>
+            <el-icon><Reading /></el-icon>
+            <span>急救课堂</span>
+          </template>
+          <el-menu-item index="/classroom/summary">统计横幅</el-menu-item>
+          <el-menu-item index="/classroom/quick-actions">关键步骤</el-menu-item>
+          <el-menu-item index="/classroom/courses">课程管理</el-menu-item>
+        </el-sub-menu>
       </el-menu>
     </el-drawer>
 
@@ -159,7 +177,8 @@ import {
   Menu,
   Monitor,
   Place,
-  Avatar
+  Avatar,
+  Reading
 } from '@element-plus/icons-vue'
 
 const BREAKPOINT_TABLET = 1024
@@ -182,6 +201,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/devices')) return '/devices'
   if (path.startsWith('/rescuers')) return '/rescuers'
   if (path.startsWith('/admins')) return '/admins'
+  if (path.startsWith('/classroom')) return path
   return path
 })
 const username = computed(() => store.username)
