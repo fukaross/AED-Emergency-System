@@ -1,8 +1,6 @@
 .steps-page {
   min-height: 100vh;
   background: $background;
-  display: flex;
-  flex-direction: column;
 }
 
 .loading-placeholder,
@@ -11,12 +9,7 @@
   @include flex-column;
   align-items: center;
   justify-content: center;
-  flex: 1;
-}
-
-.empty-text {
-  font-size: $font-size-base;
-  color: $text-tertiary;
+  height: 60vh;
 }
 
 .loading-text {
@@ -30,6 +23,11 @@
   margin-bottom: $spacing-lg;
 }
 
+.empty-text {
+  font-size: $font-size-base;
+  color: $text-tertiary;
+}
+
 .retry-btn {
   padding: $spacing-sm $spacing-xl;
   border-radius: $radius-full;
@@ -41,162 +39,71 @@
   font-size: $font-size-base;
 }
 
-.steps-scroll {
-  flex: 1;
+.steps-content {
+  /* page-level scroll — 不做 scroll-view 占位 */
 }
 
-.step-main {
-  padding: $spacing-lg $spacing-md;
+.step-section {
+  padding: $spacing-lg $spacing-md 0;
 }
 
-.step-counter {
-  display: block;
-  text-align: center;
-  font-size: 28rpx;
-  color: $text-tertiary;
-  margin-bottom: $spacing-lg;
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
 }
 
-.step-card {
-  width: 100%;
-  height: 400rpx;
-  border-radius: $radius-lg;
-  overflow: hidden;
-  margin-bottom: $spacing-lg;
+.step-header-num {
+  width: $spacing-xl;
+  height: $spacing-xl;
+  border-radius: $radius-full;
+  background: $primary;
+  color: $text-white;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.slide-in-right {
-  animation: slideFromRight 300ms $ease-out;
-}
-
-.slide-in-left {
-  animation: slideFromLeft 300ms $ease-out;
-}
-
-@keyframes slideFromRight {
-  from {
-    opacity: 0;
-    transform: translateX(30%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slideFromLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-30%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+.step-header-title {
+  font-size: 32rpx;
+  font-weight: $font-weight-bold;
+  color: $text-primary;
 }
 
 .step-image {
   width: 100%;
-  height: 100%;
-}
-
-.step-title {
   display: block;
-  text-align: center;
-  font-size: 40rpx;
-  font-weight: $font-weight-bold;
-  color: $text-primary;
+  border-radius: $radius-md;
   margin-bottom: $spacing-md;
 }
 
 .step-desc {
   display: block;
-  text-align: center;
-  font-size: 30rpx;
+  font-size: $font-size-lg;
   color: $text-secondary;
-  line-height: 1.8;
+  line-height: $line-height-relaxed;
+  margin-bottom: $spacing-md;
 }
 
-.step-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: $spacing-md;
-  padding: $spacing-md $spacing-md calc(#{$spacing-md} + env(safe-area-inset-bottom));
+.step-points {
+  background: #FFF5F5;
+  border-left: 4rpx solid $primary;
+  border-radius: 0 $radius-sm $radius-sm 0;
+  padding: $spacing-sm $spacing-md;
+  margin-bottom: $spacing-lg;
 }
 
-.nav-btn {
-  min-width: 180rpx;
-  height: 88rpx;
-  border-radius: $radius-full;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &.hidden {
-    visibility: hidden;
-  }
-
-  &.prev:not(.hidden) {
-    border: 2rpx solid $primary;
-    background: $text-white;
-  }
-
-  &.prev:not(.hidden) .nav-btn-text {
-    color: $primary;
-  }
-
-  &.next:not(.done) {
-    background: $primary;
-  }
-
-  &.next:not(.done) .nav-btn-text {
-    color: $text-white;
-  }
-
-  &.next.done {
-    background: $status-online;
-  }
-
-  &.next.done .nav-btn-text {
-    color: $text-white;
-  }
-}
-
-.nav-btn-text {
-  font-size: 30rpx;
-  font-weight: $font-weight-medium;
-}
-
-.dot-indicators {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-
-.dot {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: $radius-full;
-  background: $divider;
-  transition: background 200ms ease;
-
-  &.active {
-    background: $primary;
-    width: 24rpx;
-    border-radius: 6rpx;
-  }
-}
-
-.key-points-bar {
-  padding: $spacing-md;
-  background: #FFF8E1;
-  border-top: 1rpx solid #FFE082;
-}
-
-.key-point {
+.step-point {
   display: block;
   font-size: 26rpx;
-  color: #C62828;
+  color: $primary-dark;
   line-height: 1.6;
+}
+
+.bottom-spacer {
+  height: calc(env(safe-area-inset-bottom) + 48rpx);
 }
