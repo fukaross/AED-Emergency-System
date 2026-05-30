@@ -17,7 +17,7 @@ import {
 import { buildWeChatDisplayName } from '@/utils/wechat-display'
 
 const MOCK_TOKEN = 'mock-token'
-const MOCK_EXPIRES_IN = 7 * 24 * 60 * 60
+const MOCK_EXPIRES_IN = 30 * 24 * 60 * 60
 const DEFAULT_EXPIRES_IN = 30 * 24 * 60 * 60
 
 interface WeChatLoginResponse {

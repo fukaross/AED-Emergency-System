@@ -17,7 +17,7 @@ vi.mock('@/services/auth-service', () => ({
   wxLogin: vi.fn(() =>
     Promise.resolve({
       token: 'real-token',
-      expiresIn: 604800,
+      expiresIn: 2592000,
       userInfo: {
         id: 'obTw23eNrLnMEI3Bbgk8abcd',
         name: '微信用户 obTw...abcd',
