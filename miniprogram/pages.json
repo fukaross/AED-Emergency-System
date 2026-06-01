@@ -10,13 +10,15 @@
     {
       "path": "pages/rescuer-center/index",
       "style": {
-        "navigationBarTitleText": "急救员中心"
+        "navigationBarTitleText": "急救员中心",
+        "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/knowledge/index",
       "style": {
-        "navigationBarTitleText": "急救课堂"
+        "navigationBarTitleText": "急救课堂",
+        "enablePullDownRefresh": true
       }
     },
     {

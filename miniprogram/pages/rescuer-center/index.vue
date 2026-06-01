@@ -101,7 +101,7 @@
  * 数据入口：app/api/rescuer.ts
  */
 import { computed, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 
 const ACTIVE_BANNER = '/static/icons/rescuer-active.svg'
 const INACTIVE_BANNER = '/static/icons/rescuer-inactive.svg'
@@ -249,89 +249,14 @@ function goGuide() {
 onShow(() => {
   loadRescuers()
 })
+
+onPullDownRefresh(async () => {
+  try {
+    await loadRescuers()
+  } finally {
+    uni.stopPullDownRefresh()
+  }
+})
 </script>
 
-<style lang="scss" scoped>
-.rescuer-center {
-  min-height: 100vh;
-  background: $background;
-}
-
-.rc-loading {
-  @include flex-center;
-  min-height: 60vh;
-}
-
-.rc-loading-text {
-  font-size: $font-size-base;
-  color: $text-tertiary;
-}
-
-.rc-error {
-  @include flex-column;
-  align-items: center;
-  padding: 200rpx $spacing-xl 0;
-}
-
-.rc-error-title {
-  font-size: $font-size-xl;
-  font-weight: $font-weight-bold;
-  color: $text-primary;
-  margin-bottom: $spacing-sm;
-}
-
-.rc-error-text {
-  font-size: $font-size-base;
-  color: $text-secondary;
-  margin-bottom: $spacing-xl;
-}
-
-.rc-error-btn {
-  width: 280rpx;
-  height: 80rpx;
-  border-radius: 40rpx;
-  background: $primary;
-  color: $text-white;
-  font-size: $font-size-lg;
-  font-weight: $font-weight-bold;
-  @include flex-center;
-  box-shadow: $shadow-primary;
-}
-
-.rc-list {
-  padding-top: $spacing-sm;
-}
-
-.rc-section {
-  margin-bottom: $spacing-lg;
-}
-
-.rc-section-header {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  padding: $spacing-md $spacing-md $spacing-sm;
-}
-
-.rc-section-icon {
-  width: 72rpx;
-  height: 72rpx;
-}
-
-.rc-section-title {
-  font-size: $font-size-xl;
-  font-weight: $font-weight-bold;
-  color: $text-primary;
-}
-
-.rc-section-empty {
-  @include flex-center;
-  min-height: 40vh;
-  font-size: $font-size-base;
-  color: $text-tertiary;
-}
-
-.rc-spacer {
-  height: calc(#{$tab-bar-height} + env(safe-area-inset-bottom) + #{$spacing-xl});
-}
-</style>
+<style src="./index.scss" lang="scss" scoped></style>

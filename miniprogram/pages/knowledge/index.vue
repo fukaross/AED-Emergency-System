@@ -52,7 +52,7 @@
 
 <script setup lang="ts">
 // 急救课堂 —— 统计横幅 + 关键步骤快速操作入口 + 课程网格
-import { onShow } from '@dcloudio/uni-app'
+import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCourseStore } from '@/store/course'
@@ -85,11 +85,25 @@ async function loadQuickActions() {
   }
 }
 
+async function loadKnowledgePage() {
+  await Promise.all([
+    knowledgeStore.loadSummary(),
+    courseStore.loadCourseList(),
+    loadQuickActions(),
+  ])
+}
+
 // ===== 生命周期 =====
 onShow(() => {
-  knowledgeStore.loadSummary()
-  courseStore.loadCourseList()
-  loadQuickActions()
+  loadKnowledgePage()
+})
+
+onPullDownRefresh(async () => {
+  try {
+    await loadKnowledgePage()
+  } finally {
+    uni.stopPullDownRefresh()
+  }
 })
 </script>
 
