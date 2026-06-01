@@ -36,13 +36,6 @@
       @open="openCurrentHelp"
     />
 
-    <VitalSignsCard
-      :heart-rate="vitalsStore.currentHeartRate"
-      :latest-blood-pressure="vitalsStore.latestBloodPressure"
-      :heart-rate-status="vitalsStore.heartRateStatus"
-      :blood-pressure-stale="vitalsStore.bloodPressureStale"
-    />
-
     <MapStatusOverlay
       :status-message="statusMessage"
       :status-bar-dismissed="statusBarDismissed"
@@ -112,7 +105,6 @@ import {
 import { useAedStore } from '@/store/aed'
 import { useAuthStore } from '@/store/auth'
 import { useHelpStore } from '@/store/help'
-import { useVitalsStore } from '@/store/vitals'
 import type { AedItem } from '@/types/aed'
 import { WECHAT_ALERT_TEMPLATE_ID } from '@/utils/constants'
 import { USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
@@ -121,7 +113,6 @@ import CurrentHelpCard from './components/current-help-card.vue'
 import MapFloatingActions from './components/map-floating-actions.vue'
 import MapStatusOverlay from './components/map-status-overlay.vue'
 import NearbyAedPanel from './components/nearby-aed-panel.vue'
-import VitalSignsCard from './components/vital-signs-card.vue'
 
 interface MarkerTapEvent {
   readonly markerId?: number
@@ -142,7 +133,6 @@ let hasPromptedSubscribeThisSession = false
 const aedStore = useAedStore()
 const authStore = useAuthStore()
 const helpStore = useHelpStore()
-const vitalsStore = useVitalsStore()
 const { themeClass } = useTheme()
 const {
   mapCenter,
@@ -185,21 +175,18 @@ onShow(() => {
   helpStore.loadList().catch(() => {
     console.warn('[MapHome] 求助列表加载失败')
   })
-  vitalsStore.startMonitoring()
   scheduleSubscribePrompt()
   startAedPolling()
   startHelpPolling()
 })
 
 onHide(() => {
-  vitalsStore.stopMonitoring()
   clearSubscribePromptTimer()
   stopAedPolling()
   stopHelpPolling()
 })
 
 onUnmounted(() => {
-  vitalsStore.stopMonitoring()
   clearSubscribePromptTimer()
   stopAedPolling()
   stopHelpPolling()

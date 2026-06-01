@@ -727,91 +727,6 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/vitals/current:
-    get:
-      summary: 获取当前生命体征
-      operationId: getCurrentVitalSigns
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/VitalSignsCurrent'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
-  /api/vitals/heart-rate/trends:
-    get:
-      summary: 获取心率趋势
-      operationId: listHeartRateTrends
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: from
-          in: query
-          schema:
-            type: string
-            format: date-time
-        - name: to
-          in: query
-          schema:
-            type: string
-            format: date-time
-        - name: intervalMinutes
-          in: query
-          schema:
-            type: integer
-            default: 5
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/HeartRateTrendList'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
-  /api/vitals/alerts:
-    post:
-      summary: 上报生命体征告警候选事件
-      operationId: createVitalAlert
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateVitalAlertPayload'
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/VitalAlertResult'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
   /api/knowledge/summary:
     get:
       summary: 获取课堂统计横幅数据
@@ -1703,6 +1618,12 @@ components:
             $ref: '#/components/schemas/ApiResponse'
     Unauthorized:
       description: 未登录或 Token 已过期
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    NotFound:
+      description: 资源不存在
       content:
         application/json:
           schema:
@@ -3476,150 +3397,6 @@ components:
           type: string
         fileId:
           type: string
-
-    HeartRateStatus:
-      type: string
-      enum:
-        - normal
-        - fast
-        - slow
-        - abnormal_fast
-        - abnormal_slow
-        - high_risk_fast
-        - high_risk_slow
-        - detecting
-        - disconnected
-        - no_data
-        - weak_signal
-
-    VitalAlertState:
-      type: string
-      enum: [normal, suspected_abnormal, alert_sent, recovered]
-
-    HeartRateReading:
-      type: object
-      required: [id, bpm, measuredAt, source]
-      properties:
-        id:
-          type: string
-        bpm:
-          type: integer
-        measuredAt:
-          type: string
-          format: date-time
-        source:
-          type: string
-          enum: [mock, device, manual]
-        signalQuality:
-          type: string
-          enum: [good, weak]
-
-    BloodPressureReading:
-      type: object
-      required: [id, measuredAt, systolic, diastolic, source]
-      properties:
-        id:
-          type: string
-        measuredAt:
-          type: string
-          format: date-time
-        systolic:
-          type: integer
-        diastolic:
-          type: integer
-        source:
-          type: string
-          enum: [mock, device, manual]
-
-    VitalSignsCurrent:
-      type: object
-      required:
-        - heartRate
-        - heartRateStatus
-        - latestBloodPressure
-        - bloodPressureStale
-        - alertState
-      properties:
-        heartRate:
-          type: object
-          allOf:
-            - $ref: '#/components/schemas/HeartRateReading'
-          nullable: true
-        heartRateStatus:
-          $ref: '#/components/schemas/HeartRateStatus'
-        latestBloodPressure:
-          type: object
-          allOf:
-            - $ref: '#/components/schemas/BloodPressureReading'
-          nullable: true
-        bloodPressureStale:
-          type: boolean
-        alertState:
-          $ref: '#/components/schemas/VitalAlertState'
-
-    HeartRateTrendPoint:
-      type: object
-      required: [windowStart, windowEnd, averageBpm, sampleCount]
-      properties:
-        windowStart:
-          type: string
-          format: date-time
-        windowEnd:
-          type: string
-          format: date-time
-        averageBpm:
-          type: number
-        minBpm:
-          type: integer
-          nullable: true
-        maxBpm:
-          type: integer
-          nullable: true
-        sampleCount:
-          type: integer
-
-    HeartRateTrendList:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/HeartRateTrendPoint'
-
-    CreateVitalAlertPayload:
-      type: object
-      required: [heartRateBpm, measuredAt]
-      properties:
-        heartRateBpm:
-          type: integer
-        measuredAt:
-          type: string
-          format: date-time
-        latitude:
-          type: number
-        longitude:
-          type: number
-        address:
-          type: string
-
-    VitalAlertResult:
-      type: object
-      required: [alertState, notificationTriggered, recipientsCount]
-      properties:
-        alertId:
-          type: string
-          nullable: true
-        alertState:
-          $ref: '#/components/schemas/VitalAlertState'
-        notificationTriggered:
-          type: boolean
-        recipientsCount:
-          type: integer
-        cooldownUntil:
-          type: string
-          format: date-time
-          nullable: true
 
     UserProfile:
       type: object
