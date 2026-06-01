@@ -137,15 +137,21 @@ onShow(() => {
 }
 
 // ===== 快速操作入口 =====
+$quick-card-min-height: 128rpx;
+$quick-title-lines: 2;
+
 .kn-quick {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: $spacing-sm;
   padding: $spacing-sm $spacing-md 0;
 }
 
 .kn-quick-card {
-  flex: 1;
-  height: 120rpx;
+  min-width: 0;
+  min-height: $quick-card-min-height;
+  box-sizing: border-box;
+  overflow: hidden;
   background: var(--card-red-bg, #FFF5F5);
   border-radius: $radius-md;
   border-left: 4rpx solid $primary;
@@ -161,9 +167,17 @@ onShow(() => {
 }
 
 .kn-quick-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
   font-size: $font-size-base;
   font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
   color: $text-primary;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: $quick-title-lines;
+  -webkit-box-orient: vertical;
 }
 
 // ===== 课程区块 =====
