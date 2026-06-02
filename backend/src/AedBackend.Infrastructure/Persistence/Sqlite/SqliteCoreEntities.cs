@@ -53,6 +53,25 @@ internal sealed class ResponderProfileEntity
     public int SourceRowNo { get; set; }
     public string? SourceSeqNo { get; set; }
     public string? Remark { get; set; }
+    public string? BoundOpenId { get; set; }
+    public string Source { get; set; } = "seed";
+    public int? SourceApplicationId { get; set; }
+}
+
+internal sealed class VolunteerApplicationEntity
+{
+    public int Id { get; set; }
+    public string OpenId { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public int? DerivedFromId { get; set; }
+    public int AttemptNumber { get; set; }
+    public string PayloadJson { get; set; } = string.Empty;
+    public string? ReviewNote { get; set; }
+    public string? ReviewedBy { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public string? CreatedRescuerId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
 }
 
 internal sealed class KnowledgeSummaryEntity

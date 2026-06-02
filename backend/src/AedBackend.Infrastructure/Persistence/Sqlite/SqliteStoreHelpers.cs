@@ -50,6 +50,7 @@ internal static class SqliteStoreHelpers
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         await db.Database.EnsureCreatedAsync(ct);
+        await SqliteSchemaUpgrade.ApplyAsync(db, ct);
         await ApplyPragmasAsync(db, ct);
     }
 

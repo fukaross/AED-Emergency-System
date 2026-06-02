@@ -26,7 +26,7 @@ internal static class AdminRescuerMapper
             p.SkillStb);
     }
 
-    public static AdminRescuerDetail ToDetail(ResponderProfileRecord p)
+    public static AdminRescuerDetail ToDetail(ResponderProfileRecord p, string? boundUserName = null)
     {
         return new AdminRescuerDetail(
             p.Id,
@@ -66,7 +66,11 @@ internal static class AdminRescuerMapper
             p.SourceSheet,
             p.SourceRowNo,
             p.SourceSeqNo,
-            p.Remark);
+            p.Remark,
+            p.BoundOpenId,
+            boundUserName,
+            p.Source,
+            p.SourceApplicationId);
     }
 
     private static string MaskPhone(string phone)

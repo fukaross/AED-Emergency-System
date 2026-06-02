@@ -38,4 +38,7 @@ public sealed record ResponderProfileRecord
     public int SourceRowNo { get; init; }
     public string? SourceSeqNo { get; init; }
     public string? Remark { get; init; }
+    public string? BoundOpenId { get; set; }
+    public string Source { get; set; } = "seed";
+    public int? SourceApplicationId { get; set; }
 }

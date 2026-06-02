@@ -76,6 +76,25 @@ internal sealed class SqliteExperienceUserStore : IExperienceUserStore
         return updated;
     }
 
+    public async Task<ExperienceUserRecord> UpdateProfileAsync(
+        string openId,
+        UpdateExperienceUserProfilePatch patch,
+        CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var current = await WithSubscriptions(db.ExperienceUsers)
+            .FirstOrDefaultAsync(u => u.OpenId == openId, ct);
+        if (current is null) throw new KeyNotFoundException("用户不存在");
+
+        if (patch.Name.HasValue) current.Name = patch.Name.Value;
+        if (patch.AvatarUrl.HasValue) current.AvatarUrl = patch.AvatarUrl.Value;
+        if (patch.Gender.HasValue) current.Gender = patch.Gender.Value;
+        if (patch.Phone.HasValue) current.Phone = patch.Phone.Value;
+
+        await db.SaveChangesAsync(ct);
+        return SqliteMapper.ToRecord(current);
+    }
+
     public async Task<IReadOnlyList<ExperienceUserRecord>> ListUsersAsync(CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
@@ -94,7 +113,7 @@ internal sealed class SqliteExperienceUserStore : IExperienceUserStore
 
     private static ExperienceUserRecord CreateUser(WeChatLoginSession session, string tokenHash, DateTimeOffset now)
     {
-        return new ExperienceUserRecord(session.OpenId, session.UnionId, null, tokenHash, now, now, new Dictionary<string, SubscriptionRecord>());
+        return new ExperienceUserRecord(session.OpenId, session.UnionId, null, null, null, null, tokenHash, now, now, new Dictionary<string, SubscriptionRecord>());
     }
 
     private static ExperienceUserRecord UpdateLogin(ExperienceUserEntity current, WeChatLoginSession session, string tokenHash, DateTimeOffset now)

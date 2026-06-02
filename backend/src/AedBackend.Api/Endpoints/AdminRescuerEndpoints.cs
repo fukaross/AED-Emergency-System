@@ -4,6 +4,7 @@ using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.Models.Responder;
 using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
+using AedBackend.Core.Services.WeChat;
 using AedBackend.Core.Validators;
 
 namespace AedBackend.Api.Endpoints;
@@ -74,6 +75,7 @@ internal static class AdminRescuerEndpoints
         HttpContext context,
         string id,
         IResponderStore store,
+        IExperienceUserStore users,
         IAdminAuthorizationService authorization,
         CancellationToken ct)
     {
@@ -81,9 +83,11 @@ internal static class AdminRescuerEndpoints
         if (!auth.Succeeded) return AdminEndpointHelpers.AuthorizationFailure(auth);
 
         var profile = await store.FindByIdAsync(id, ct);
-        return profile is null
-            ? EndpointFailures.JsonFailure(ErrorCodes.RescuerNotFound, "急救员不存在", 404)
-            : Results.Ok(ApiResponse.Ok(AdminRescuerMapper.ToDetail(profile)));
+        if (profile is null)
+            return EndpointFailures.JsonFailure(ErrorCodes.RescuerNotFound, "急救员不存在", 404);
+
+        var boundUserName = await ResolveBoundUserNameAsync(profile.BoundOpenId, users, ct);
+        return Results.Ok(ApiResponse.Ok(AdminRescuerMapper.ToDetail(profile, boundUserName)));
     }
 
     private static async Task<IResult> UpdateRescuerAsync(
@@ -91,6 +95,7 @@ internal static class AdminRescuerEndpoints
         string id,
         UpdateRescuerRequest body,
         IResponderStore store,
+        IExperienceUserStore users,
         IAdminAuthorizationService authorization,
         IAdminAuditLogStore auditLogStore,
         CancellationToken ct)
@@ -126,7 +131,8 @@ internal static class AdminRescuerEndpoints
             $"更新急救员：{result.Name}",
             context), ct);
 
-        return Results.Ok(ApiResponse.Ok(AdminRescuerMapper.ToDetail(result)));
+        var boundUserName = await ResolveBoundUserNameAsync(result.BoundOpenId, users, ct);
+        return Results.Ok(ApiResponse.Ok(AdminRescuerMapper.ToDetail(result, boundUserName)));
     }
 
     private static IResult? ValidateUpdateFields(UpdateRescuerRequest body)
@@ -220,5 +226,15 @@ internal static class AdminRescuerEndpoints
         }
 
         return filtered.OrderBy(p => p.Id).ToArray();
+    }
+
+    private static async Task<string?> ResolveBoundUserNameAsync(
+        string? openId,
+        IExperienceUserStore? users,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(openId) || users is null) return null;
+        var user = (await users.ListUsersAsync(ct)).FirstOrDefault(item => item.OpenId == openId);
+        return string.IsNullOrWhiteSpace(user?.Name) ? null : user.Name;
     }
 }

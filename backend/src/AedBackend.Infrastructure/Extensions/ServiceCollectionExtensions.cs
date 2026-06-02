@@ -4,6 +4,7 @@ using AedBackend.Core.Services.WeChat;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.Knowledge;
 using AedBackend.Core.Services.Course;
+using AedBackend.Core.Services.Volunteer;
 using AedBackend.Infrastructure.Admin;
 using AedBackend.Infrastructure.Help;
 using AedBackend.Infrastructure.Knowledge;
@@ -11,6 +12,7 @@ using AedBackend.Infrastructure.Course;
 using AedBackend.Infrastructure.Persistence;
 using AedBackend.Infrastructure.Persistence.Sqlite;
 using AedBackend.Infrastructure.Upload;
+using AedBackend.Infrastructure.Volunteer;
 using AedBackend.Infrastructure.WeChat;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -67,6 +69,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<JsonAdminUserStore>();
         services.AddSingleton<JsonAdminUserProfileStore>();
         services.AddSingleton<JsonAdminAuditLogStore>();
+        services.AddSingleton<JsonVolunteerApplicationStore>();
     }
 
     private static void AddSqliteStoreImplementations(IServiceCollection services)
@@ -81,6 +84,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<SqliteAdminUserStore>();
         services.AddSingleton<SqliteAdminUserProfileStore>();
         services.AddSingleton<SqliteAdminAuditLogStore>();
+        services.AddSingleton<SqliteVolunteerApplicationStore>();
+        services.AddSingleton(provider => new SqliteVolunteerApplicationReviewOptions
+        {
+            ForcedResponderId = provider.GetRequiredService<IConfiguration>()["Test:ForcedResponderId"]
+        });
+        services.AddSingleton<SqliteVolunteerApplicationReviewService>();
     }
 
     private static void AddStoreSelectors(IServiceCollection services)
@@ -95,6 +104,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAdminUserStore>(Pick<IAdminUserStore, JsonAdminUserStore, SqliteAdminUserStore>);
         services.AddSingleton<IAdminUserProfileStore>(Pick<IAdminUserProfileStore, JsonAdminUserProfileStore, SqliteAdminUserProfileStore>);
         services.AddSingleton<IAdminAuditLogStore>(Pick<IAdminAuditLogStore, JsonAdminAuditLogStore, SqliteAdminAuditLogStore>);
+        services.AddSingleton<IVolunteerApplicationStore>(Pick<IVolunteerApplicationStore, JsonVolunteerApplicationStore, SqliteVolunteerApplicationStore>);
+        services.AddSingleton<IVolunteerApplicationReviewService>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<DataOptions>>().Value;
+            return options.UseSqlite()
+                ? provider.GetRequiredService<SqliteVolunteerApplicationReviewService>()
+                : new JsonVolunteerApplicationReviewService();
+        });
     }
 
     private static void AddSqliteFactory(IServiceCollection services)

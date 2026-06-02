@@ -55,7 +55,11 @@ public sealed record AdminRescuerDetail(
     string? SourceSheet,
     int SourceRowNo,
     string? SourceSeqNo,
-    string? Remark);
+    string? Remark,
+    string? BoundOpenId,
+    string? BoundUserName,
+    string Source,
+    int? SourceApplicationId);
 
 public sealed record AdminRescuerListResponse(
     IReadOnlyList<AdminRescuerListItem> Items,

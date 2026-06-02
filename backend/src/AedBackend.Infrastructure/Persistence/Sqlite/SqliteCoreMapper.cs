@@ -1,6 +1,7 @@
 using AedBackend.Core.Models.Aed;
 using AedBackend.Core.Models.Knowledge;
 using AedBackend.Core.Models.Responder;
+using AedBackend.Core.Models.Volunteer;
 
 namespace AedBackend.Infrastructure.Persistence.Sqlite;
 
@@ -59,7 +60,9 @@ internal static partial class SqliteMapper
             CprAssessmentResult = item.CprAssessmentResult, AedAssessmentResult = item.AedAssessmentResult,
             CprAedCombinedResult = item.CprAedCombinedResult, SourceFile = item.SourceFile,
             SourceSheet = item.SourceSheet, SourceRowNo = item.SourceRowNo,
-            SourceSeqNo = item.SourceSeqNo, Remark = item.Remark
+            SourceSeqNo = item.SourceSeqNo, Remark = item.Remark,
+            BoundOpenId = item.BoundOpenId, Source = item.Source,
+            SourceApplicationId = item.SourceApplicationId
         };
     }
 
@@ -80,7 +83,51 @@ internal static partial class SqliteMapper
             CprAssessmentResult = item.CprAssessmentResult, AedAssessmentResult = item.AedAssessmentResult,
             CprAedCombinedResult = item.CprAedCombinedResult, SourceFile = item.SourceFile,
             SourceSheet = item.SourceSheet, SourceRowNo = item.SourceRowNo,
-            SourceSeqNo = item.SourceSeqNo, Remark = item.Remark
+            SourceSeqNo = item.SourceSeqNo, Remark = item.Remark,
+            BoundOpenId = item.BoundOpenId, Source = item.Source,
+            SourceApplicationId = item.SourceApplicationId
+        };
+    }
+
+    public static VolunteerApplicationEntity ToEntity(
+        VolunteerApplicationRecord item,
+        string payloadJson)
+    {
+        return new VolunteerApplicationEntity
+        {
+            Id = item.Id,
+            OpenId = item.OpenId,
+            Status = item.Status,
+            DerivedFromId = item.DerivedFromId,
+            AttemptNumber = item.AttemptNumber,
+            PayloadJson = payloadJson,
+            ReviewNote = item.ReviewNote,
+            ReviewedBy = item.ReviewedBy,
+            ReviewedAt = item.ReviewedAt,
+            CreatedRescuerId = item.CreatedRescuerId,
+            CreatedAt = item.CreatedAt,
+            UpdatedAt = item.UpdatedAt
+        };
+    }
+
+    public static VolunteerApplicationRecord ToRecord(
+        VolunteerApplicationEntity item,
+        VolunteerApplicationPayloadRecord payload)
+    {
+        return new VolunteerApplicationRecord
+        {
+            Id = item.Id,
+            OpenId = item.OpenId,
+            Status = item.Status,
+            DerivedFromId = item.DerivedFromId,
+            AttemptNumber = item.AttemptNumber,
+            Payload = payload,
+            ReviewNote = item.ReviewNote,
+            ReviewedBy = item.ReviewedBy,
+            ReviewedAt = item.ReviewedAt,
+            CreatedRescuerId = item.CreatedRescuerId,
+            CreatedAt = item.CreatedAt,
+            UpdatedAt = item.UpdatedAt
         };
     }
 

@@ -18,10 +18,26 @@ public sealed record ExperienceUserRecord(
     string OpenId,
     string? UnionId,
     string? Phone,
+    string? Name,
+    string? AvatarUrl,
+    string? Gender,
     string SessionTokenHash,
     DateTimeOffset CreatedAt,
     DateTimeOffset LastLoginAt,
     IReadOnlyDictionary<string, SubscriptionRecord> Subscriptions);
+
+public sealed record UpdateExperienceUserProfilePatch(
+    PatchValue<string?> Name,
+    PatchValue<string?> AvatarUrl,
+    PatchValue<string?> Gender,
+    PatchValue<string?> Phone);
+
+public readonly record struct PatchValue<T>(bool HasValue, T? Value)
+{
+    public static PatchValue<T> Missing => new(false, default);
+
+    public static PatchValue<T> Present(T? value) => new(true, value);
+}
 
 public sealed record SubscriptionRecord(
     string TemplateId,

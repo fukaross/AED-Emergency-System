@@ -16,6 +16,7 @@ internal sealed class AedDbContext : DbContext
     public DbSet<AdminAuditLogEntity> AdminAuditLogs => Set<AdminAuditLogEntity>();
     public DbSet<AedDeviceEntity> AedDevices => Set<AedDeviceEntity>();
     public DbSet<ResponderProfileEntity> ResponderProfiles => Set<ResponderProfileEntity>();
+    public DbSet<VolunteerApplicationEntity> VolunteerApplications => Set<VolunteerApplicationEntity>();
     public DbSet<KnowledgeSummaryEntity> KnowledgeSummary => Set<KnowledgeSummaryEntity>();
     public DbSet<CourseEntity> Courses => Set<CourseEntity>();
     public DbSet<CourseVideoEntity> CourseVideos => Set<CourseVideoEntity>();
@@ -91,6 +92,16 @@ internal sealed class AedDbContext : DbContext
             e.ToTable("responder_profiles");
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.RecordId).IsUnique();
+            e.HasIndex(x => x.BoundOpenId);
+        });
+        modelBuilder.Entity<VolunteerApplicationEntity>(e =>
+        {
+            e.ToTable("volunteer_applications");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.OpenId, x.CreatedAt });
+            e.HasOne<VolunteerApplicationEntity>().WithMany()
+                .HasForeignKey(x => x.DerivedFromId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<KnowledgeSummaryEntity>(e =>
         {

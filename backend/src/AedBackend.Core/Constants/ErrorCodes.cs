@@ -26,6 +26,12 @@ public static class ErrorCodes
     public const int AedOfflineRequiresNote = 2004;
     public const int AedNameDuplicate = 2005;
     public const int RescuerNotFound = 2006;
+    public const int VolunteerApplicationNotFound = 2007;
+    public const int DuplicateSchoolBinding = 2008;
+    public const int ResponderClaimFailed = 2009;
+    public const int VolunteerApplicationAlreadyProcessed = 2010;
+    public const int ResponderAlreadyBound = 2011;
+    public const int FeatureRequiresSqlite = 2012;
 
     public const int FileTooLarge = 3001;
     public const int FileTypeNotAllowed = 3002;

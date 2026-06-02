@@ -141,6 +141,14 @@ public sealed class JsonExperienceUserStore : IExperienceUserStore
         }
     }
 
+    public Task<ExperienceUserRecord> UpdateProfileAsync(
+        string openId,
+        UpdateExperienceUserProfilePatch patch,
+        CancellationToken cancellationToken)
+    {
+        throw new NotSupportedException("Phase 7 用户资料接口仅支持 SQLite 数据源");
+    }
+
     public async Task<IReadOnlyList<ExperienceUserRecord>> ListUsersAsync(
         CancellationToken cancellationToken)
     {
@@ -190,6 +198,9 @@ public sealed class JsonExperienceUserStore : IExperienceUserStore
         return new ExperienceUserRecord(
             session.OpenId,
             session.UnionId,
+            null,
+            null,
+            null,
             null,
             tokenHash,
             now,

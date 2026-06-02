@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using AedBackend.Infrastructure.Admin;
 using AedBackend.Core.Models.Admin;
 using AedBackend.Core.Models.Aed;
@@ -57,6 +59,25 @@ internal sealed class ProviderTempData : IDisposable
         await JsonSerializer.SerializeAsync(stream, value, JsonOptions);
     }
 
+    public async Task WriteUserJsonAsync(
+        string openId,
+        string phone,
+        string token)
+    {
+        var user = new ExperienceUserRecord(
+            openId,
+            null,
+            phone,
+            null,
+            null,
+            null,
+            HashToken(token),
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            new Dictionary<string, SubscriptionRecord>());
+        await WriteAsync("wechat-experience-users.json", new ExperienceUsersDb { Users = [user] });
+    }
+
     public void Dispose() => Directory.Delete(Root, true);
 
     private static AdminUserRecord SampleAdmin()
@@ -67,6 +88,7 @@ internal sealed class ProviderTempData : IDisposable
             Username = "root",
             NormalizedUsername = "ROOT",
             PasswordHash = "hash",
+            Role = AdminRoles.SuperAdmin,
             CreatedAt = DateTimeOffset.UtcNow,
             Sessions = [SampleSession()]
         };
@@ -144,6 +166,12 @@ internal sealed class ProviderTempData : IDisposable
     private static QuickActionRecord SampleQuickAction()
     {
         return new QuickActionRecord { Id = "qa-01", Title = "CPR", Icon = "/i.png", Summary = "summary", SortOrder = 1 };
+    }
+
+    private static string HashToken(string token)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToBase64String(hash);
     }
 
     private static HelpRequestRecord SampleHelpRequest()

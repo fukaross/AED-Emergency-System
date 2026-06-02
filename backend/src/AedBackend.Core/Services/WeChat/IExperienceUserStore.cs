@@ -29,5 +29,10 @@ public interface IExperienceUserStore
         string phone,
         CancellationToken cancellationToken);
 
+    Task<ExperienceUserRecord> UpdateProfileAsync(
+        string openId,
+        UpdateExperienceUserProfilePatch patch,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<ExperienceUserRecord>> ListUsersAsync(CancellationToken cancellationToken);
 }

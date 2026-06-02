@@ -5,6 +5,9 @@ internal sealed class ExperienceUserEntity
     public string OpenId { get; set; } = string.Empty;
     public string? UnionId { get; set; }
     public string? Phone { get; set; }
+    public string? Name { get; set; }
+    public string? AvatarUrl { get; set; }
+    public string? Gender { get; set; }
     public string SessionTokenHash { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset LastLoginAt { get; set; }
