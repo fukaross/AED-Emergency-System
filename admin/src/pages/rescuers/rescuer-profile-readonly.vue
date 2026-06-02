@@ -75,6 +75,23 @@
       <el-form :model="profile" label-width="100px" class="detail-form readonly-form">
         <el-row :gutter="16">
           <el-col :span="12">
+            <el-form-item label="来源类型">
+              <el-input :model-value="sourceLabel" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="绑定用户">
+              <el-input :model-value="profile.boundUserName || profile.boundOpenId || '-'" disabled />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item v-if="profile.source === 'volunteer_application' && profile.sourceApplicationId" label="来源申请">
+          <el-button text type="primary" @click="goVolunteerApplication">
+            #{{ profile.sourceApplicationId }}
+          </el-button>
+        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
             <el-form-item label="来源文件">
               <el-input :model-value="profile.sourceFile" disabled />
             </el-form-item>
@@ -103,11 +120,26 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import type { AdminRescuerDetail } from '@/types/rescuer'
 
-defineProps<{
+const props = defineProps<{
   profile: AdminRescuerDetail
 }>()
+
+const router = useRouter()
+const SOURCE_LABELS: Record<string, string> = {
+  seed: '学校导入',
+  volunteer_application: '志愿者申请',
+  admin_manual: '手工维护',
+}
+const sourceLabel = computed(() => SOURCE_LABELS[props.profile.source] || props.profile.source)
+
+function goVolunteerApplication() {
+  if (!props.profile.sourceApplicationId) return
+  router.push(`/volunteer-applications/${props.profile.sourceApplicationId}`)
+}
 </script>
 
 <style scoped>

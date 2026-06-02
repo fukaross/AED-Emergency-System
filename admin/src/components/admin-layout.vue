@@ -39,6 +39,10 @@
           <el-icon><Avatar /></el-icon>
           <template #title>急救员管理</template>
         </el-menu-item>
+        <el-menu-item index="/volunteer-applications">
+          <el-icon><Checked /></el-icon>
+          <template #title>志愿者审核</template>
+        </el-menu-item>
         <el-menu-item v-if="isSuperAdmin" index="/admins">
           <el-icon><Setting /></el-icon>
           <template #title>管理员</template>
@@ -110,6 +114,10 @@
           <el-icon><Avatar /></el-icon>
           <template #title>急救员管理</template>
         </el-menu-item>
+        <el-menu-item index="/volunteer-applications">
+          <el-icon><Checked /></el-icon>
+          <template #title>志愿者审核</template>
+        </el-menu-item>
         <el-menu-item index="/sessions">
           <el-icon><Monitor /></el-icon>
           <template #title>会话管理</template>
@@ -179,7 +187,8 @@ import {
   Monitor,
   Place,
   Avatar,
-  Reading
+  Reading,
+  Checked,
 } from '@element-plus/icons-vue'
 
 const BREAKPOINT_TABLET = 1024
@@ -201,6 +210,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/users')) return '/users'
   if (path.startsWith('/devices')) return '/devices'
   if (path.startsWith('/rescuers')) return '/rescuers'
+  if (path.startsWith('/volunteer-applications')) return '/volunteer-applications'
   if (path.startsWith('/admins')) return '/admins'
   if (path.startsWith('/classroom/quick-actions')) return '/classroom/quick-actions'
   if (path.startsWith('/classroom/courses')) return '/classroom/courses'

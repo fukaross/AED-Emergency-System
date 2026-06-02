@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-type StatusCategory = 'help' | 'channel' | 'account' | 'responder' | 'admin' | 'device'
+type StatusCategory = 'help' | 'channel' | 'account' | 'responder' | 'admin' | 'device' | 'volunteerApplication'
 
 interface StatusConfig {
   label: string
@@ -51,6 +51,11 @@ const statusMaps: Record<StatusCategory, Record<string, StatusConfig>> = {
   device: {
     online: { label: '在线', background: '#f0f9eb', color: '#67c23a' },
     offline: { label: '离线', background: '#fef0f0', color: '#f56c6c' },
+  },
+  volunteerApplication: {
+    submitted: { label: '待审核', background: '#fdf6ec', color: '#e6a23c' },
+    approved: { label: '已通过', background: '#f0f9eb', color: '#67c23a' },
+    rejected: { label: '已驳回', background: '#fef0f0', color: '#f56c6c' },
   },
 }
 

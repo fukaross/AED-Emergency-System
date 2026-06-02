@@ -70,6 +70,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '急救员详情', requiresAuth: true },
   },
   {
+    path: '/volunteer-applications',
+    name: 'volunteerApplications',
+    component: () => import('@/pages/volunteer-applications/index.vue'),
+    meta: { title: '志愿者审核', requiresAuth: true },
+  },
+  {
+    path: '/volunteer-applications/:id',
+    name: 'volunteerApplicationDetail',
+    component: () => import('@/pages/volunteer-applications/detail.vue'),
+    meta: { title: '申请详情', requiresAuth: true },
+  },
+  {
     path: '/admins',
     name: 'admins',
     component: () => import('@/pages/admins/index.vue'),

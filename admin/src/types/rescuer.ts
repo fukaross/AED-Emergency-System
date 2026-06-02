@@ -40,6 +40,10 @@ export interface AdminRescuerDetail extends AdminRescuerItem {
   sourceRowNo: number
   sourceSeqNo: string | null
   remark: string | null
+  boundOpenId: string | null
+  boundUserName: string | null
+  source: 'seed' | 'volunteer_application' | 'admin_manual' | string
+  sourceApplicationId: number | null
 }
 
 export interface AdminRescuerListResponse {
