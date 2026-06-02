@@ -54,7 +54,7 @@
                 {{ session.userAgentSummary || '未知设备 / 浏览器' }}
               </div>
               <div class="session-meta">
-                <span>IP: {{ session.maskedIpAddress }}</span>
+                <span>IP: {{ session.ipAddress || session.maskedIpAddress || '—' }}</span>
                 <span>登录于: {{ formatTime(session.createdAt) }}</span>
                 <span>过期于: {{ formatTime(session.expiresAt) }}</span>
                 <span>最近活跃: {{ formatTime(session.lastSeenAt) }}</span>

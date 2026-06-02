@@ -33,10 +33,17 @@ export interface AdminCourseListResponse {
 export interface AdminCourseDetail extends AdminCourseItem {
   content: string
   videoUrl: string | null
+  videos: CourseVideo[]
   disclaimer: string
   estimatedTime?: string | null
   viewCount?: number
   steps: CourseStep[]
+}
+
+export interface CourseVideo {
+  order: number
+  title: string
+  url: string
 }
 
 export interface CourseStep {
@@ -54,6 +61,7 @@ export interface CreateCoursePayload {
   type?: 'article' | 'video'
   content?: string
   videoUrl?: string
+  videos?: CourseVideo[]
   disclaimer?: string
   pinned?: boolean
   sortOrder?: number
@@ -69,6 +77,7 @@ export interface UpdateCoursePayload {
   category?: string
   content?: string
   videoUrl?: string | null
+  videos?: CourseVideo[]
   disclaimer?: string
   pinned?: boolean
   sortOrder?: number

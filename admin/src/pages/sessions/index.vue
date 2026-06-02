@@ -16,7 +16,7 @@
                 {{ session.userAgentSummary || '未知设备 / 浏览器' }}
               </div>
               <div class="session-meta">
-                <span>IP: {{ session.maskedIpAddress }}</span>
+                <span>IP: {{ session.maskedIpAddress || '—' }}</span>
                 <span class="meta-divider">|</span>
                 <span>登录于: {{ formatTime(session.createdAt) }}</span>
                 <span class="meta-divider">|</span>

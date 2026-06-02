@@ -1,6 +1,7 @@
 export interface AdminLoginRequest {
   username: string
   password: string
+  deviceId?: string
 }
 
 export interface AdminLoginResponse {
@@ -30,6 +31,7 @@ export interface AdminSessionListItem {
   id: string
   current: boolean
   maskedIpAddress: string
+  ipAddress: string | null
   userAgentSummary: string
   createdAt: string
   expiresAt: string

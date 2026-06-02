@@ -31,9 +31,10 @@
           <el-form-item label="分类">
             <el-input v-model="form.category" placeholder="emergency" required />
           </el-form-item>
-          <el-form-item v-if="form.type === 'video'" label="视频URL">
-            <el-input v-model="form.videoUrl" placeholder="https://..." />
-          </el-form-item>
+          <template v-if="form.type === 'video'">
+            <h4 class="section-title">课程视频</h4>
+            <course-video-list-field v-model="form.videos" />
+          </template>
 
           <el-row :gutter="16">
             <el-col :span="6"><el-form-item label="置顶"><el-switch v-model="form.pinned" /></el-form-item></el-col>
@@ -87,10 +88,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import adminLayout from '@/components/admin-layout.vue'
 import ClassroomImageField from '@/components/classroom-image-field.vue'
+import CourseVideoListField from '@/components/course-video-list-field.vue'
 import TiptapEditor from '@/components/tiptap-editor/index.vue'
 import { getCourseDetail, createCourse, updateCourse, deleteCourse } from '@/api/classroom'
 import { getApiErrorMessage } from '@/api/client'
-import type { CourseStep, CreateCoursePayload, UpdateCoursePayload } from '@/types/classroom'
+import type { CourseStep, CourseVideo, CreateCoursePayload, UpdateCoursePayload } from '@/types/classroom'
 
 const route = useRoute()
 const router = useRouter()
@@ -99,13 +101,14 @@ const id = computed(() => route.params.id as string)
 const isCreate = computed(() => id.value === 'new')
 
 interface StepEdit extends CourseStep { keyPointsStr: string }
+type VideoEdit = CourseVideo
 const form = ref({
   title: '',
   thumbnail: '',
   type: 'article' as 'article' | 'video',
   category: '',
   content: '<p></p>',
-  videoUrl: '',
+  videos: [] as VideoEdit[],
   disclaimer: '',
   pinned: false,
   sortOrder: 0,
@@ -125,7 +128,7 @@ onMounted(async () => {
         type: d.type,
         category: d.category,
         content: d.content,
-        videoUrl: d.videoUrl ?? '',
+        videos: normalizeVideos(d.videos, d.videoUrl),
         disclaimer: d.disclaimer ?? '',
         pinned: d.pinned,
         sortOrder: d.sortOrder,
@@ -164,6 +167,27 @@ function mapSteps(): CourseStep[] {
   }))
 }
 
+function mapVideos(): CourseVideo[] {
+  return form.value.videos
+    .map((video, idx) => ({
+      order: idx + 1,
+      title: video.title.trim() || `视频 ${idx + 1}`,
+      url: video.url.trim(),
+    }))
+    .filter(video => video.url)
+}
+
+function normalizeVideos(videos: CourseVideo[] | undefined, videoUrl: string | null): CourseVideo[] {
+  if (videos?.length) {
+    return videos.map((video, idx) => ({
+      order: idx + 1,
+      title: video.title || `视频 ${idx + 1}`,
+      url: video.url,
+    }))
+  }
+  return videoUrl ? [{ order: 1, title: '视频 1', url: videoUrl }] : []
+}
+
 async function handleSave() {
   if (!form.value.title.trim()) {
     ElMessage.error('课程标题不能为空')
@@ -171,6 +195,11 @@ async function handleSave() {
   }
   if (!form.value.category.trim()) {
     ElMessage.error('课程分类不能为空')
+    return
+  }
+  const videos = form.value.type === 'video' ? mapVideos() : []
+  if (form.value.type === 'video' && videos.length === 0) {
+    ElMessage.error('视频课程至少需要一个视频')
     return
   }
 
@@ -187,7 +216,8 @@ async function handleSave() {
     isEnabled: form.value.isEnabled,
     estimatedTime: form.value.estimatedTime.trim(),
     steps: mapSteps(),
-    videoUrl: form.value.type === 'video' ? form.value.videoUrl.trim() : null,
+    videoUrl: form.value.type === 'video' ? videos[0].url : null,
+    videos,
   }
   try {
     if (isCreate.value) {

@@ -124,6 +124,7 @@ const form = reactive({
   username: '',
   password: '',
   adminKey: '',
+  deviceId: '',
 })
 
 onMounted(async () => {

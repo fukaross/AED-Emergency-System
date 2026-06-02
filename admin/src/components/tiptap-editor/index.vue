@@ -1,11 +1,16 @@
 <template>
-  <div v-if="editor" class="tiptap-wrapper">
+  <div
+    v-if="editor"
+    class="tiptap-wrapper"
+    @dragover.prevent
+    @drop.prevent="handleEditorDrop"
+  >
     <div class="tiptap-toolbar">
       <button type="button" class="tbar-btn" :class="{ active: editor.isActive('bold') }" @click="editor.chain().focus().toggleBold().run()">B</button>
       <button type="button" class="tbar-btn" :class="{ active: editor.isActive('italic') }" @click="editor.chain().focus().toggleItalic().run()">I</button>
       <button type="button" class="tbar-btn" :class="{ active: editor.isActive('underline') }" @click="editor.chain().focus().toggleUnderline().run()">U</button>
       <button type="button" class="tbar-btn" :class="{ active: editor.isActive('heading', { level: 2 }) }" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()">H2</button>
-      <button type="button" class="tbar-btn" @click="fileInput?.click()">🖼</button>
+      <button type="button" class="tbar-btn" :disabled="uploading" @click="fileInput?.click()">🖼</button>
     </div>
     <editor-content :editor="editor" class="tiptap-content" />
     <input ref="fileInput" type="file" accept="image/*" style="display: none" @change="handleImageUpload">
@@ -20,12 +25,13 @@ import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
-import axios from 'axios'
+import { uploadAdminImage, validateAdminImageFile } from '@/utils/admin-image-upload'
 
 const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
+const uploading = ref(false)
 
 const editor = useEditor({
   content: props.modelValue,
@@ -40,26 +46,35 @@ watch(() => props.modelValue, (val) => {
 })
 
 async function handleImageUpload(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file || !editor.value) return
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('scene', 'course')
-  const adminKey = localStorage.getItem('adminKey')
-  try {
-    const res = await axios.post('/api/upload/image', formData, {
-      headers: { 'X-Aed-Admin-Key': adminKey || '' },
-    })
-    const url = (res.data as { data?: { url: string } })?.data?.url
-    if (url) {
-      editor.value.chain().focus().setImage({ src: url }).run()
-    } else {
-      ElMessage.error('图片上传失败')
-    }
-  } catch {
-    ElMessage.error('图片上传失败')
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) await uploadAndInsertImage(file)
+  input.value = ''
+}
+
+async function handleEditorDrop(event: DragEvent) {
+  const file = event.dataTransfer?.files?.[0]
+  if (!file) return
+  await uploadAndInsertImage(file)
+}
+
+async function uploadAndInsertImage(file: File) {
+  if (!editor.value) return
+  const validationError = validateAdminImageFile(file)
+  if (validationError) {
+    ElMessage.error(validationError)
+    return
   }
-  if (fileInput.value) fileInput.value.value = ''
+  uploading.value = true
+  try {
+    const result = await uploadAdminImage(file, 'course')
+    editor.value.chain().focus().setImage({ src: result.url }).run()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '图片上传失败'
+    ElMessage.error(message)
+  } finally {
+    uploading.value = false
+  }
 }
 
 onBeforeUnmount(() => { editor.value?.destroy() })

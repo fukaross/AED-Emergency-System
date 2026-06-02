@@ -7,15 +7,21 @@
         clearable
         @update:model-value="emitValue"
       />
-      <el-upload
-        :show-file-list="false"
-        :http-request="handleUpload"
-        :before-upload="beforeUpload"
-        accept="image/*"
-      >
-        <el-button type="primary" plain size="small" :loading="uploading">本地上传</el-button>
-      </el-upload>
     </div>
+    <el-upload
+      class="image-upload"
+      drag
+      :show-file-list="false"
+      :http-request="handleUpload"
+      :before-upload="beforeUpload"
+      :disabled="uploading"
+      accept="image/*"
+    >
+      <div class="upload-dragger-content">
+        <el-icon class="upload-icon"><UploadFilled /></el-icon>
+        <div class="upload-text">{{ uploading ? '上传中...' : '将图片拖到此处或点击上传' }}</div>
+      </div>
+    </el-upload>
     <div v-if="modelValue" class="image-preview">
       <el-image
         :src="modelValue"
@@ -30,10 +36,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { UploadFilled } from '@element-plus/icons-vue'
 import type { UploadRawFile, UploadRequestOptions } from 'element-plus'
-
-const MAX_IMAGE_SIZE_MB = 5
-const BYTES_PER_MB = 1024 * 1024
+import { uploadAdminImage, validateAdminImageFile } from '@/utils/admin-image-upload'
 
 const props = defineProps<{
   modelValue: string
@@ -49,12 +54,9 @@ function emitValue(value: string | number) {
 }
 
 function beforeUpload(file: UploadRawFile) {
-  if (!file.type.startsWith('image/')) {
-    ElMessage.error('只能上传图片文件')
-    return false
-  }
-  if (file.size > MAX_IMAGE_SIZE_MB * BYTES_PER_MB) {
-    ElMessage.error(`图片大小不能超过 ${MAX_IMAGE_SIZE_MB}MB`)
+  const error = validateAdminImageFile(file)
+  if (error) {
+    ElMessage.error(error)
     return false
   }
   return true
@@ -64,20 +66,8 @@ async function handleUpload(options: UploadRequestOptions) {
   const file = options.file as UploadRawFile
   uploading.value = true
   try {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('scene', props.scene)
-
-    const response = await fetch('/api/upload/image', {
-      method: 'POST',
-      headers: { 'X-Aed-Admin-Key': localStorage.getItem('adminKey') || '' },
-      body: formData,
-    })
-    const result = await response.json()
-    if (!response.ok || result.code !== 0 || !result.data?.url) {
-      throw new Error(result.message || '图片上传失败')
-    }
-    emit('update:modelValue', result.data.url)
+    const result = await uploadAdminImage(file, props.scene)
+    emit('update:modelValue', result.url)
     ElMessage.success('图片上传成功')
   } catch (error) {
     const message = error instanceof Error ? error.message : '图片上传失败'
@@ -94,9 +84,30 @@ async function handleUpload(options: UploadRequestOptions) {
 }
 
 .image-input-row {
+  width: 100%;
+}
+
+.image-upload {
+  margin-top: 8px;
+}
+
+.upload-dragger-content {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.upload-icon {
+  margin-bottom: 6px;
+  font-size: 24px;
+  color: #c0c4cc;
+}
+
+.upload-text {
+  font-size: 13px;
+  color: #909399;
 }
 
 .image-preview {
