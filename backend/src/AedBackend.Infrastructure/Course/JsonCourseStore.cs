@@ -153,6 +153,7 @@ public sealed class JsonCourseStore : ICourseStore
         target.Category = source.Category;
         target.Content = source.Content;
         target.VideoUrl = source.VideoUrl;
+        target.Videos = source.Videos;
         target.Disclaimer = source.Disclaimer;
         target.Pinned = source.Pinned;
         target.SortOrder = source.SortOrder;

@@ -34,6 +34,7 @@ public sealed record CreateCourseRequest(
     string? Type,
     string? Content,
     string? VideoUrl,
+    List<CourseVideoDto>? Videos,
     string? Disclaimer,
     bool Pinned,
     int SortOrder,
@@ -48,12 +49,18 @@ public sealed record UpdateCourseRequest(
     string? Category,
     string? Content,
     string? VideoUrl,
+    List<CourseVideoDto>? Videos,
     string? Disclaimer,
     bool? Pinned,
     int? SortOrder,
     bool? IsEnabled,
     string? EstimatedTime,
     List<CourseStepDto>? Steps);
+
+public sealed record CourseVideoDto(
+    int Order,
+    string? Title,
+    string Url);
 
 public sealed record CourseStepDto(
     int Order,

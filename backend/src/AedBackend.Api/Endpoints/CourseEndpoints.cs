@@ -9,6 +9,7 @@ public static class CourseEndpoints
 {
     private const int DefaultPage = 1;
     private const int DefaultPageSize = 20;
+    private const string DefaultVideoTitle = "视频";
 
     public static IEndpointRouteBuilder MapCourseEndpoints(this IEndpointRouteBuilder app)
     {
@@ -116,10 +117,36 @@ public static class CourseEndpoints
         return new CourseDetailResponse(
             c.Id, c.Title, c.Thumbnail, c.Type, c.Category,
             c.CreatedAt, c.Pinned, c.SortOrder, c.CacheVersion, c.EstimatedTime,
-            c.Content, c.VideoUrl, c.Disclaimer, c.ViewCount,
+            c.Content, ResolveVideoUrl(c), ResolveVideos(c), c.Disclaimer, c.ViewCount,
             c.Steps.Select(s => new CourseStepResponse(
                 s.Order, s.Title, s.Description, s.Image,
                 s.KeyPoints)).ToArray());
+    }
+
+    private static string? ResolveVideoUrl(Core.Models.Course.CourseRecord c)
+    {
+        return ResolveVideos(c).FirstOrDefault()?.Url ?? c.VideoUrl;
+    }
+
+    private static IReadOnlyList<CourseVideoResponse> ResolveVideos(Core.Models.Course.CourseRecord c)
+    {
+        var videos = c.Videos
+            .Where(v => !string.IsNullOrWhiteSpace(v.Url))
+            .OrderBy(v => v.Order)
+            .Select((v, index) => new CourseVideoResponse(
+                index + 1,
+                ResolveVideoTitle(v.Title, index + 1),
+                v.Url.Trim()))
+            .ToArray();
+
+        return videos.Length > 0 || string.IsNullOrWhiteSpace(c.VideoUrl)
+            ? videos
+            : [new CourseVideoResponse(1, ResolveVideoTitle(null, 1), c.VideoUrl.Trim())];
+    }
+
+    private static string ResolveVideoTitle(string? title, int order)
+    {
+        return string.IsNullOrWhiteSpace(title) ? $"{DefaultVideoTitle} {order}" : title.Trim();
     }
 
     private static QuickActionResponse ToQuickActionResponse(Core.Models.Course.QuickActionRecord a)

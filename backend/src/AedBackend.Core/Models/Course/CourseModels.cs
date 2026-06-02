@@ -9,6 +9,7 @@ public sealed record CourseRecord
     public string Category { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public string? VideoUrl { get; set; }
+    public List<CourseVideoRecord> Videos { get; set; } = new();
     public string Disclaimer { get; set; } = string.Empty;
     public bool Pinned { get; set; }
     public int SortOrder { get; set; }
@@ -18,6 +19,13 @@ public sealed record CourseRecord
     public int ViewCount { get; set; }
     public string CreatedAt { get; set; } = string.Empty;
     public List<CourseStepRecord> Steps { get; set; } = new();
+}
+
+public sealed record CourseVideoRecord
+{
+    public int Order { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
 }
 
 public sealed record CourseStepRecord

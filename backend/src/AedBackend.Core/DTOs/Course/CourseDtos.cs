@@ -7,6 +7,11 @@ public sealed record CourseStepResponse(
     string Image,
     IReadOnlyList<string> KeyPoints);
 
+public sealed record CourseVideoResponse(
+    int Order,
+    string Title,
+    string Url);
+
 public sealed record CourseSummaryResponse(
     string Id,
     string Title,
@@ -32,6 +37,7 @@ public sealed record CourseDetailResponse(
     string? EstimatedTime,
     string Content,
     string? VideoUrl,
+    IReadOnlyList<CourseVideoResponse> Videos,
     string Disclaimer,
     int ViewCount,
     IReadOnlyList<CourseStepResponse> Steps);

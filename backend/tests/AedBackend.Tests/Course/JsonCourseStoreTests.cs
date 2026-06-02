@@ -115,6 +115,10 @@ public sealed class JsonCourseStoreTests
                 Title = "修改后的标题",
                 Type = "video",
                 Category = "first-aid",
+                Videos = new List<CourseVideoRecord>
+                {
+                    new() { Order = 1, Title = "第一段", Url = "https://example.com/a.mp4" }
+                },
                 Pinned = true,
                 SortOrder = 99,
             };
@@ -124,6 +128,8 @@ public sealed class JsonCourseStoreTests
             Assert.NotNull(result);
             Assert.Equal("修改后的标题", result!.Title);
             Assert.Equal("video", result.Type);
+            Assert.Single(result.Videos);
+            Assert.Equal("第一段", result.Videos[0].Title);
             Assert.True(result.Pinned);
             Assert.Equal(99, result.SortOrder);
         }

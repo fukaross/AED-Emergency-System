@@ -63,7 +63,7 @@ internal static class AdminCourseEndpoints
         var course = await store.FindByIdAsync(id, ct);
         return course is null
             ? EndpointFailures.JsonFailure(ErrorCodes.CourseNotFound, "课程不存在", 404)
-            : Results.Ok(ApiResponse.Ok(course));
+            : Results.Ok(ApiResponse.Ok(ToDetail(course)));
     }
 
     private static async Task<IResult> CreateCourseAsync(
@@ -88,6 +88,7 @@ internal static class AdminCourseEndpoints
             Type = string.IsNullOrWhiteSpace(body.Type) ? "article" : body.Type,
             Content = body.Content ?? string.Empty,
             VideoUrl = body.VideoUrl?.Trim(),
+            Videos = AdminCourseVideoMapper.MapVideos(body.Videos, body.VideoUrl),
             Disclaimer = body.Disclaimer ?? string.Empty,
             Pinned = body.Pinned,
             SortOrder = body.SortOrder,
@@ -95,6 +96,9 @@ internal static class AdminCourseEndpoints
             EstimatedTime = body.EstimatedTime?.Trim(),
             Steps = MapSteps(body.Steps)
         };
+        AdminCourseVideoMapper.NormalizeCourseVideos(course);
+        var courseValidation = AdminCourseVideoMapper.ValidateCourseVideos(course);
+        if (courseValidation is not null) return courseValidation;
 
         var created = await store.AddAsync(course, ct);
 
@@ -125,6 +129,9 @@ internal static class AdminCourseEndpoints
         if (validation is not null) return validation;
 
         ApplyUpdate(existing, body);
+        AdminCourseVideoMapper.NormalizeCourseVideos(existing);
+        var courseValidation = AdminCourseVideoMapper.ValidateCourseVideos(existing);
+        if (courseValidation is not null) return courseValidation;
 
         var updated = await store.UpdateAsync(id, existing, ct);
         if (updated is null)
@@ -198,6 +205,7 @@ internal static class AdminCourseEndpoints
         if (source.Category is not null) target.Category = source.Category.Trim();
         if (source.Content is not null) target.Content = source.Content;
         if (source.VideoUrl is not null) target.VideoUrl = source.VideoUrl.Trim();
+        if (source.Videos is not null) target.Videos = AdminCourseVideoMapper.MapVideos(source.Videos, null);
         if (source.Disclaimer is not null) target.Disclaimer = source.Disclaimer;
         if (source.Pinned.HasValue) target.Pinned = source.Pinned.Value;
         if (source.SortOrder.HasValue) target.SortOrder = source.SortOrder.Value;
@@ -224,6 +232,15 @@ internal static class AdminCourseEndpoints
         return new AdminCourseListItem(
             c.Id, c.Title, c.Thumbnail, c.Type, c.Category,
             c.Pinned, c.SortOrder, c.IsEnabled, c.CreatedAt);
+    }
+
+    private static CourseRecord ToDetail(CourseRecord c)
+    {
+        return c with
+        {
+            Videos = AdminCourseVideoMapper.NormalizeVideos(c.Videos, c.VideoUrl),
+            VideoUrl = AdminCourseVideoMapper.NormalizeVideos(c.Videos, c.VideoUrl).FirstOrDefault()?.Url
+        };
     }
 
     private static List<CourseStepRecord> MapSteps(List<CourseStepDto>? dtos)

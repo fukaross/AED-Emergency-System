@@ -1,22 +1,27 @@
 using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
-using AedBackend.Core.DTOs.Upload;
 using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.WeChat;
-using AedBackend.Infrastructure.WeChat;
-using Microsoft.Extensions.Options;
+using AedBackend.Infrastructure.Upload;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AedBackend.Api.Endpoints;
 
 public static class UploadEndpoints
 {
     private const long MaxFileSizeBytes = 5 * 1024 * 1024;
+    private const long MaxVideoSizeBytes = 100 * 1024 * 1024;
+    private const long MaxVideoRequestBodyBytes = 110 * 1024 * 1024;
     private const int SignatureReadLength = 12;
+    private const int Mp4SignatureReadLength = 12;
     private const string OctetStreamContentType = "application/octet-stream";
+    private const string CourseScene = "course";
+    private const string Mp4ContentType = "video/mp4";
     private static readonly byte[] JpegSignature = [0xFF, 0xD8, 0xFF];
     private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47];
     private static readonly byte[] RiffSignature = [0x52, 0x49, 0x46, 0x46];
     private static readonly byte[] WebpSignature = [0x57, 0x45, 0x42, 0x50];
+    private static readonly byte[] FtypSignature = [0x66, 0x74, 0x79, 0x70];
     private static readonly IReadOnlySet<string> PublicScenes = new HashSet<string>
     {
         "help",
@@ -53,15 +58,21 @@ public static class UploadEndpoints
             .WithTags("Upload")
             .WithName("UploadImage");
 
+        app.MapPost("/api/upload/video", UploadVideoAsync)
+            .DisableAntiforgery()
+            .WithMetadata(new RequestSizeLimitAttribute(MaxVideoRequestBodyBytes))
+            .WithTags("Upload")
+            .WithName("UploadVideo");
+
         return app;
     }
 
     private static async Task<IResult> UploadImageAsync(
         HttpRequest request,
-        IOptions<WeChatOptions> options,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
         IAdminAuthorizationService adminAuthorization,
+        IUploadImageStorage storage,
         CancellationToken cancellationToken)
     {
         if (!request.HasFormContentType)
@@ -84,12 +95,36 @@ public static class UploadEndpoints
         var fileValidation = await ValidateFileAsync(file, cancellationToken);
         if (fileValidation.Error is not null) return fileValidation.Error;
 
-        var response = await SaveFileAsync(
+        var response = await storage.SaveAsync(
             file!,
             scene,
             fileValidation.Extension!,
-            options.Value,
             cancellationToken);
+        return Results.Ok(ApiResponse.Ok(response));
+    }
+
+    private static async Task<IResult> UploadVideoAsync(
+        HttpRequest request,
+        IAdminAuthorizationService adminAuthorization,
+        IUploadVideoStorage storage,
+        CancellationToken cancellationToken)
+    {
+        if (!request.HasFormContentType)
+            return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "必须使用 multipart/form-data", 400);
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var scene = form["scene"].ToString();
+        var sceneError = ValidateVideoScene(scene);
+        if (sceneError is not null) return sceneError;
+
+        var authError = await ValidateAdminAsync(request, adminAuthorization, cancellationToken);
+        if (authError is not null) return authError;
+
+        var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
+        var fileError = await ValidateVideoFileAsync(file, cancellationToken);
+        if (fileError is not null) return fileError;
+
+        var response = await storage.SaveAsync(file!, cancellationToken);
         return Results.Ok(ApiResponse.Ok(response));
     }
 
@@ -118,6 +153,14 @@ public static class UploadEndpoints
             return user is null ? EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "登录 token 无效", 401) : null;
         }
 
+        return await ValidateAdminAsync(request, adminAuthorization, cancellationToken);
+    }
+
+    private static async Task<IResult?> ValidateAdminAsync(
+        HttpRequest request,
+        IAdminAuthorizationService adminAuthorization,
+        CancellationToken cancellationToken)
+    {
         var adminKey = request.Headers.TryGetValue(EndpointSecurity.AdminKeyHeader, out var values)
             ? values.ToString()
             : null;
@@ -128,6 +171,12 @@ public static class UploadEndpoints
             adminKey, clientIp, userAgent, cancellationToken);
         return adminAuth.Succeeded ? null
             : EndpointFailures.JsonFailure(adminAuth.ErrorCode, adminAuth.ErrorMessage, adminAuth.StatusCode);
+    }
+
+    private static IResult? ValidateVideoScene(string scene)
+    {
+        return scene == CourseScene ? null
+            : EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "scene 不支持", 400);
     }
 
     private static async Task<FileValidationResult> ValidateFileAsync(
@@ -159,26 +208,6 @@ public static class UploadEndpoints
                 EndpointFailures.JsonFailure(ErrorCodes.FileTypeNotAllowed, "文件 MIME 类型不匹配", 400));
     }
 
-    private static async Task<UploadImageResponse> SaveFileAsync(
-        IFormFile file,
-        string scene,
-        string extension,
-        WeChatOptions options,
-        CancellationToken cancellationToken)
-    {
-        var fileId = Guid.NewGuid().ToString("N");
-        var directory = Path.GetFullPath(Path.Combine(options.UploadsDirectory, scene));
-        Directory.CreateDirectory(directory);
-
-        var fileName = $"{fileId}{extension}";
-        var filePath = Path.Combine(directory, fileName);
-        await using var stream = File.Create(filePath);
-        await file.CopyToAsync(stream, cancellationToken);
-
-        var url = $"{options.PublicBaseUrl.TrimEnd('/')}/uploads/{scene}/{fileName}";
-        return new UploadImageResponse(url, url, fileId);
-    }
-
     private static async Task<string?> DetectImageExtensionAsync(
         IFormFile file,
         CancellationToken cancellationToken)
@@ -190,6 +219,31 @@ public static class UploadEndpoints
         if (StartsWith(header, length, JpegSignature)) return ".jpg";
         if (StartsWith(header, length, PngSignature)) return ".png";
         return IsWebp(header, length) ? ".webp" : null;
+    }
+
+    private static async Task<IResult?> ValidateVideoFileAsync(
+        IFormFile? file,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+            return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "file 不能为空", 400);
+        if (file.Length > MaxVideoSizeBytes)
+            return EndpointFailures.JsonFailure(ErrorCodes.FileTooLarge, "文件超过大小限制", 400);
+        if (!IsVideoContentTypeCompatible(file.ContentType))
+            return EndpointFailures.JsonFailure(ErrorCodes.FileTypeNotAllowed, "文件 MIME 类型不匹配", 400);
+
+        return await IsMp4Async(file, cancellationToken) ? null
+            : EndpointFailures.JsonFailure(ErrorCodes.FileTypeNotAllowed, "不支持的文件格式", 400);
+    }
+
+    private static async Task<bool> IsMp4Async(
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        var header = new byte[Mp4SignatureReadLength];
+        await using var stream = file.OpenReadStream();
+        var length = await stream.ReadAsync(header, cancellationToken);
+        return length >= 8 && header.AsSpan(4, FtypSignature.Length).SequenceEqual(FtypSignature);
     }
 
     private static bool StartsWith(byte[] header, int length, byte[] signature)
@@ -216,6 +270,13 @@ public static class UploadEndpoints
             && IsSameImageContentType(contentType, allowed);
     }
 
+    private static bool IsVideoContentTypeCompatible(string contentType)
+    {
+        return string.IsNullOrWhiteSpace(contentType)
+            || contentType.Equals(OctetStreamContentType, StringComparison.OrdinalIgnoreCase)
+            || contentType.Equals(Mp4ContentType, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsSameImageContentType(string actual, string allowed)
     {
         return actual.Equals(allowed, StringComparison.OrdinalIgnoreCase)
@@ -223,16 +284,4 @@ public static class UploadEndpoints
                 && actual.Equals("image/jpg", StringComparison.OrdinalIgnoreCase));
     }
 
-    private sealed record FileValidationResult(string? Extension, IResult? Error)
-    {
-        public static FileValidationResult Ok(string extension)
-        {
-            return new FileValidationResult(extension, null);
-        }
-
-        public static FileValidationResult Fail(IResult error)
-        {
-            return new FileValidationResult(null, error);
-        }
-    }
 }

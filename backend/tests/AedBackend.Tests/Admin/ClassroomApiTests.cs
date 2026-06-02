@@ -68,6 +68,7 @@ public sealed class ClassroomApiTests : AdminApiTestBase
         Assert.NotEmpty(body.Data.Content);
         Assert.NotNull(body.Data.CacheVersion);
         Assert.NotEmpty(body.Data.Disclaimer);
+        Assert.Empty(body.Data.Videos);
         Assert.Single(body.Data.Steps);
     }
 
