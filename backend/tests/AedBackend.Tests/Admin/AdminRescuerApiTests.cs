@@ -78,7 +78,7 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
         Assert.Contains("****", phoneMasked);
         var phone = data.GetProperty("phone").GetString();
         Assert.DoesNotContain("*", phone);
-        Assert.StartsWith("139", phone);
+        Assert.Equal("REDACTED", phone);
         var idMasked = data.GetProperty("idNumberMasked").GetString();
         Assert.Contains("******", idMasked);
         var idNumber = data.GetProperty("idNumber").GetString();

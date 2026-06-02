@@ -45,8 +45,11 @@ public sealed class JsonResponderStoreTests
             Assert.NotNull(profile);
             Assert.Equal("REDACTED", profile.Name);
             Assert.Equal("女", profile.Gender);
+            Assert.Equal("2004-12-22", profile.BirthDate);
             Assert.Equal("REDACTED", profile.Phone);
             Assert.Equal("REDACTED", profile.IdNumber);
+            Assert.Equal("460000232004231001532", profile.CertificateNo);
+            Assert.Equal("4600****1532", profile.CertificateNoMasked);
             Assert.Equal("REDACTED", profile.RecordId);
             Assert.Equal("guilinyang", profile.Campus);
             Assert.Equal("trainee", profile.Level);
@@ -64,7 +67,7 @@ public sealed class JsonResponderStoreTests
     }
 
     [Fact]
-    public async Task GetAllAsync_SeedsValidIdNumbers()
+    public async Task GetAllAsync_SeedsRealArchiveSensitiveFields()
     {
         var path = CreateTempFilePath();
         var store = CreateStore(path);
@@ -73,8 +76,31 @@ public sealed class JsonResponderStoreTests
         {
             var profiles = await store.GetAllAsync(CancellationToken.None);
 
-            Assert.All(profiles, profile =>
-                Assert.Null(IdNumberValidator.Validate(profile.IdNumber)));
+            Assert.DoesNotContain(profiles, p => p.Phone.StartsWith("1390000"));
+            Assert.DoesNotContain(profiles, p => p.CertificateNo?.StartsWith("TEST") == true);
+            Assert.DoesNotContain(profiles, p => p.IdNumber.StartsWith("46010020000101"));
+        }
+        finally
+        {
+            DeleteTempDirectory(path);
+        }
+    }
+
+    [Fact]
+    public async Task GetAllAsync_SeedsArchiveIdNumbers()
+    {
+        var path = CreateTempFilePath();
+        var store = CreateStore(path);
+
+        try
+        {
+            var profiles = await store.GetAllAsync(CancellationToken.None);
+
+            Assert.All(profiles, profile => Assert.Equal(18, profile.IdNumber.Length));
+            Assert.Equal("REDACTED",
+                profiles.First(p => p.Id == "rescuer-001").IdNumber);
+            Assert.Equal("REDACTED",
+                profiles.First(p => p.Id == "rescuer-031").IdNumber);
         }
         finally
         {

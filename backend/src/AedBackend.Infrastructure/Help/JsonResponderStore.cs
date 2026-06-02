@@ -183,7 +183,7 @@ public sealed class JsonResponderStore : IResponderStore
             var cprAedPassed = row.CprAedCombinedResult == "合格";
             var level = row.RecordId == FeaturedRecordId ? FeaturedLevel : DefaultLevel;
             var status = cprAedPassed ? "active" : "inactive";
-            var certificateNo = BuildSeedCertificateNo(i, row.TrainingYear);
+            var sensitiveFields = ResponderSeedData.GetSensitiveFields(row.RecordId);
 
             profiles.Add(new ResponderProfileRecord
             {
@@ -191,9 +191,9 @@ public sealed class JsonResponderStore : IResponderStore
                 RecordId = row.RecordId,
                 Name = row.Name,
                 Gender = row.Gender,
-                BirthDate = BuildSeedBirthDate(i),
-                Phone = BuildSeedPhone(i),
-                IdNumber = SeedIdNumberBuilder.Build(i),
+                BirthDate = sensitiveFields.BirthDate,
+                Phone = sensitiveFields.Phone,
+                IdNumber = sensitiveFields.IdNumber,
                 PhoneMasked = false,
                 IdMasked = false,
                 AvatarUrl = AvatarUrls[i % AvatarUrls.Length],
@@ -202,8 +202,8 @@ public sealed class JsonResponderStore : IResponderStore
                 QualificationStatus = status,
                 Lat = coordinates.Lat,
                 Lng = coordinates.Lng,
-                CertificateNo = certificateNo,
-                CertificateNoMasked = MaskCertificateNo(certificateNo),
+                CertificateNo = sensitiveFields.CertificateNo,
+                CertificateNoMasked = MaskCertificateNo(sensitiveFields.CertificateNo),
                 IssuingAuthority = row.IssuingAuthority,
                 IssueDate = row.IssueDate,
                 WorkUnit = string.IsNullOrWhiteSpace(row.WorkUnit) ? null : row.WorkUnit.Trim(),
@@ -275,19 +275,6 @@ public sealed class JsonResponderStore : IResponderStore
     {
         return $"{certificateNo[..4]}****{certificateNo[^4..]}";
     }
-
-    private static string BuildSeedBirthDate(int index)
-    {
-        var year = 2000 + index % 7;
-        var month = index % 12 + 1;
-        var day = index % 28 + 1;
-        return $"{year:D4}-{month:D2}-{day:D2}";
-    }
-
-    private static string BuildSeedPhone(int index) => $"1390000{index + 1:D4}";
-
-    private static string BuildSeedCertificateNo(int index, int trainingYear) =>
-        $"TEST{trainingYear}{index + 1:D8}";
 
     private static string? NullIfEmpty(string value)
     {

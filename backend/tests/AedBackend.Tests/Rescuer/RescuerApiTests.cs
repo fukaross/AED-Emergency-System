@@ -76,7 +76,7 @@ public sealed class RescuerApiTests : AdminApiTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("rescuer-001", data.GetProperty("id").GetString());
         Assert.Equal("REDACTED", data.GetProperty("phone").GetString());
-        Assert.Equal("139****0001", data.GetProperty("phoneMasked").GetString());
+        Assert.Equal("182****7261", data.GetProperty("phoneMasked").GetString());
         Assert.Equal("REDACTED校区", data.GetProperty("campusName").GetString());
         Assert.Equal("online", data.GetProperty("availabilityStatus").GetString());
         Assert.True(data.GetProperty("skills").GetProperty("aed").GetBoolean());
