@@ -178,7 +178,7 @@ internal static class AdminManagementEndpoints
         string currentSessionId)
     {
         var activeSessions = AdminAuthSupport.ActiveSessions(user, DateTimeOffset.UtcNow)
-            .Select(session => AdminAuthSupport.ToSessionItem(session, currentSessionId))
+            .Select(session => AdminAuthSupport.ToSessionItem(session, currentSessionId, includeFullIp: true))
             .ToArray();
         return new AdminAccountDetail(
             user.Id,

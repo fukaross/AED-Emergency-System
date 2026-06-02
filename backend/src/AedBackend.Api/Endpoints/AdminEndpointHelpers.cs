@@ -21,7 +21,7 @@ internal static class AdminEndpointHelpers
 
     public static string? GetClientIp(HttpContext context)
     {
-        return context.Connection.RemoteIpAddress?.ToString();
+        return AdminClientIp.Resolve(context);
     }
 
     public static string? GetUserAgent(HttpRequest request)
@@ -169,7 +169,7 @@ internal static class AdminEndpointHelpers
             log.ActorRole,
             log.Summary,
             log.Metadata,
-            MaskIp(log.IpAddress),
+            log.IpAddress,
             log.UserAgent,
             log.CreatedAt);
     }
@@ -261,13 +261,5 @@ internal static class AdminEndpointHelpers
         return etaSeconds is null or <= 0
             ? null
             : $"{Math.Max(1, (int)Math.Ceiling(etaSeconds.Value / 60d))}分钟";
-    }
-
-    private static string? MaskIp(string? ipAddress)
-    {
-        if (string.IsNullOrWhiteSpace(ipAddress)) return ipAddress;
-
-        var parts = ipAddress.Split('.');
-        return parts.Length == 4 ? $"{parts[0]}.{parts[1]}.*.*" : ipAddress;
     }
 }

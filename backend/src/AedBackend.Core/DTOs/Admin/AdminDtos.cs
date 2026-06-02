@@ -4,7 +4,7 @@ namespace AedBackend.Core.DTOs.Admin;
 
 public sealed record AdminBootstrapRequest(string Username, string Password);
 
-public sealed record AdminLoginRequest(string Username, string Password);
+public sealed record AdminLoginRequest(string Username, string Password, string DeviceId);
 
 public sealed record AdminLoginResponse(string AdminKey, string Username, string Role);
 
@@ -16,6 +16,7 @@ public sealed record AdminSessionListItem(
     string Id,
     bool Current,
     string MaskedIpAddress,
+    string? IpAddress,
     string UserAgentSummary,
     DateTimeOffset CreatedAt,
     DateTimeOffset ExpiresAt,

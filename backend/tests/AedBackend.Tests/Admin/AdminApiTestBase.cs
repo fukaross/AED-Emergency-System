@@ -22,6 +22,7 @@ public abstract class AdminApiTestBase : IAsyncLifetime
     protected HttpClient Client => client ?? throw new InvalidOperationException("Client not initialized.");
     protected string AdminAuditLogsPath => Path.Combine(dataRoot, "admin-audit-logs.json");
     protected string AdminUsersPath => Path.Combine(dataRoot, "admin-users.json");
+    protected string UploadsRoot => Path.Combine(dataRoot, "uploads");
 
     public Task InitializeAsync()
     {
@@ -65,7 +66,15 @@ public abstract class AdminApiTestBase : IAsyncLifetime
 
     protected Task<HttpResponseMessage> LoginAsync(string username, string password)
     {
-        return Client.PostAsJsonAsync("/api/admin/auth/login", new { username, password });
+        return LoginAsync(username, password, "test-device-default");
+    }
+
+    protected Task<HttpResponseMessage> LoginAsync(
+        string username,
+        string password,
+        string deviceId)
+    {
+        return Client.PostAsJsonAsync("/api/admin/auth/login", new { username, password, deviceId });
     }
 
     protected void UseAdminKey(string adminKey)

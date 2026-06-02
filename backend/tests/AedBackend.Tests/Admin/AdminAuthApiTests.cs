@@ -64,10 +64,12 @@ public sealed class AdminAuthApiTests : AdminApiTestBase
     public async Task RevokeSession_InvalidatesTargetSessionOnly()
     {
         await BootstrapAsync("root", DefaultPassword);
-        var firstKey = await LoginAndGetKeyAsync("root");
+        var firstKey = (await LoginAsync("root", DefaultPassword, "test-device-first")).Content;
+        var firstBody = await firstKey.ReadFromJsonAsync<ApiResponse<JsonElement>>();
+        var firstAdminKey = firstBody!.Data.GetProperty("adminKey").GetString()!;
         var secondKey = await LoginAndGetKeyAsync("root");
 
-        UseAdminKey(firstKey);
+        UseAdminKey(firstAdminKey);
         var sessions = await Client.GetAsync("/api/admin/auth/sessions");
         var items = (await ReadAsync<ApiResponse<JsonElement>>(sessions)).Data;
         var targetId = items.EnumerateArray()
@@ -129,12 +131,61 @@ public sealed class AdminAuthApiTests : AdminApiTestBase
 
         for (var index = 0; index < 3; index++)
         {
-            Assert.Equal(HttpStatusCode.OK, (await LoginAsync("root", DefaultPassword)).StatusCode);
+            var deviceId = $"test-device-{index}-unique";
+            Assert.Equal(HttpStatusCode.OK, (await LoginAsync("root", DefaultPassword, deviceId)).StatusCode);
         }
 
         var limited = await LoginAsync("root", DefaultPassword);
         var body = await ReadRawAsync(limited);
         Assert.Equal(HttpStatusCode.Conflict, limited.StatusCode);
         Assert.Equal("SESSION_LIMIT_REACHED", body.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task LoginSameDevice_ReplacesOldSessionWithoutConsumingLimit()
+    {
+        await BootstrapAsync("root", DefaultPassword);
+
+        for (var index = 0; index < 4; index++)
+        {
+            Assert.Equal(
+                HttpStatusCode.OK,
+                (await LoginAsync("root", DefaultPassword, "test-device-same-browser")).StatusCode);
+        }
+
+        var thirdDevice = await LoginAsync("root", DefaultPassword, "test-device-third");
+        Assert.Equal(HttpStatusCode.OK, thirdDevice.StatusCode);
+    }
+
+    [Fact]
+    public async Task LoginSession_UsesForwardedIpAndSuperAdminCanViewFullIp()
+    {
+        await BootstrapAsync("root", DefaultPassword);
+        using var login = new HttpRequestMessage(HttpMethod.Post, "/api/admin/auth/login")
+        {
+            Content = JsonContent.Create(new
+            {
+                username = "root",
+                password = DefaultPassword,
+                deviceId = "test-device-forwarded"
+            })
+        };
+        login.Headers.Add("X-Forwarded-For", "203.0.113.9, 128.0.0.1");
+        var loginResponse = await Client.SendAsync(login);
+        var loginBody = await ReadAsync<ApiResponse<JsonElement>>(loginResponse);
+        UseAdminKey(loginBody.Data.GetProperty("adminKey").GetString()!);
+
+        var detail = await Client.GetAsync("/api/admin/auth/sessions");
+        var sessions = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
+        var session = sessions.EnumerateArray().Single();
+        Assert.Equal("203.0.*.*", session.GetProperty("maskedIpAddress").GetString());
+        Assert.Equal(JsonValueKind.Null, session.GetProperty("ipAddress").ValueKind);
+
+        var adminId = (await ReadAsync<ApiResponse<JsonElement>>(
+            await Client.GetAsync("/api/admin/auth/me"))).Data.GetProperty("id").GetString();
+        var adminDetail = (await ReadAsync<ApiResponse<JsonElement>>(
+            await Client.GetAsync($"/api/admin/admins/{adminId}"))).Data;
+        var activeSession = adminDetail.GetProperty("activeSessions").EnumerateArray().Single();
+        Assert.Equal("203.0.113.9", activeSession.GetProperty("ipAddress").GetString());
     }
 }

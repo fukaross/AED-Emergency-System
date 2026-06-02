@@ -13,6 +13,8 @@ internal static class AdminAuthEndpoints
 {
     private const int MaxFailedLogins = 5;
     private const int MaxActiveSessions = 3;
+    private const string SessionLimitCode = "SESSION_LIMIT_REACHED";
+    private const string SessionLimitMessage = "已达到最大登录设备数，请先登出其他设备";
     private static readonly TimeSpan LockDuration = TimeSpan.FromMinutes(15);
 
     public static RouteGroupBuilder MapAdminAuthEndpoints(this RouteGroupBuilder group)
@@ -51,7 +53,12 @@ internal static class AdminAuthEndpoints
         var user = AdminAuthSupport.NewAdmin(request.Username, AdminRoles.SuperAdmin, now);
         user = user with { PasswordHash = hasher.HashPassword(user, request.Password) };
         var created = await users.AddAsync(user, cancellationToken);
-        await AppendAuditAsync(auditLogs, context, "admin", "admin.bootstrap_created", created.Id, cancellationToken);
+        await AdminAuthSupport.AppendAuditAsync(
+            auditLogs,
+            context,
+            "admin.bootstrap_created",
+            created.Id,
+            cancellationToken);
         return Results.Ok(ApiResponse.Ok());
     }
 
@@ -65,6 +72,9 @@ internal static class AdminAuthEndpoints
     {
         if (string.IsNullOrWhiteSpace(options.Value.SessionHashSecret))
             return EndpointFailures.JsonFailure(ErrorCodes.InternalServerError, "缺少 Admin:SessionHashSecret 配置", 500);
+        var deviceError = AdminAuthSupport.ValidateDeviceId(request.DeviceId);
+        if (deviceError is not null)
+            return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, deviceError, 400);
 
         if (!await users.HasSuperAdminAsync(cancellationToken))
             return Results.Json(
@@ -87,17 +97,27 @@ internal static class AdminAuthEndpoints
         }
 
         var activeSessions = AdminAuthSupport.ActiveSessions(user, now).ToArray();
-        if (activeSessions.Length >= MaxActiveSessions) return SessionLimitFailure();
+        var deviceHash = AdminAuthSupport.HashDeviceId(request.DeviceId, options.Value.SessionHashSecret);
+        if (AdminAuthSupport.IsNewDeviceOverLimit(activeSessions, deviceHash, MaxActiveSessions))
+            return SessionLimitFailure();
 
         var sessionKey = AdminSessionCrypto.GenerateSessionKey();
-        var session = AdminAuthSupport.NewSession(sessionKey, options.Value.SessionHashSecret, context, now);
+        var session = AdminAuthSupport.NewSession(
+            sessionKey,
+            options.Value.SessionHashSecret,
+            deviceHash,
+            context,
+            now);
         await users.UpdateAsync(
             user.Id,
             current => current with
             {
                 FailedLoginCount = 0,
                 LockedUntil = null,
-                Sessions = [.. AdminAuthSupport.ActiveSessions(current, now), session],
+                Sessions = AdminAuthSupport.ReplaceDeviceSession(
+                    AdminAuthSupport.ActiveSessions(current, now),
+                    deviceHash,
+                    session),
                 UpdatedAt = now
             },
             cancellationToken);
@@ -140,7 +160,12 @@ internal static class AdminAuthEndpoints
                 UpdatedAt = now
             },
             cancellationToken);
-        await AppendAuditAsync(auditLogs, context, "admin", "admin.super_admin_reset", user.Id, cancellationToken);
+        await AdminAuthSupport.AppendAuditAsync(
+            auditLogs,
+            context,
+            "admin.super_admin_reset",
+            user.Id,
+            cancellationToken);
         return Results.Ok(ApiResponse.Ok());
     }
 
@@ -168,7 +193,7 @@ internal static class AdminAuthEndpoints
 
         var user = await users.FindByIdAsync(auth.Principal!.Id, cancellationToken);
         var items = AdminAuthSupport.ActiveSessions(user!, DateTimeOffset.UtcNow)
-            .Select(item => AdminAuthSupport.ToSessionItem(item, auth.Principal.SessionId))
+            .Select(item => AdminAuthSupport.ToSessionItem(item, auth.Principal.SessionId, includeFullIp: false))
             .ToArray();
         return Results.Ok(ApiResponse.Ok(items));
     }
@@ -270,21 +295,6 @@ internal static class AdminAuthEndpoints
 
     private static IResult SessionLimitFailure()
     {
-        return Results.Json(
-            new { code = "SESSION_LIMIT_REACHED", message = "已达到最大登录设备数，请先登出其他设备" },
-            statusCode: 409);
-    }
-
-    private static Task AppendAuditAsync(
-        IAdminAuditLogStore auditLogs,
-        HttpContext context,
-        string eventType,
-        string eventName,
-        string targetId,
-        CancellationToken cancellationToken)
-    {
-        return auditLogs.AppendAsync(
-            AdminEndpointHelpers.CreateAudit(eventType, eventName, null, targetId, eventName, context),
-            cancellationToken);
+        return Results.Json(new { code = SessionLimitCode, message = SessionLimitMessage }, statusCode: 409);
     }
 }

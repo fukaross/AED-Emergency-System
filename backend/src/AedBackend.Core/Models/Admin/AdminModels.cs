@@ -47,6 +47,8 @@ public sealed record AdminSessionEntry
 {
     public string Id { get; init; } = string.Empty;
     public string SessionHash { get; init; } = string.Empty;
+    public string DeviceHash { get; init; } = string.Empty;
+    public string IpAddress { get; init; } = string.Empty;
     public string MaskedIpAddress { get; init; } = string.Empty;
     public string UserAgentSummary { get; init; } = string.Empty;
     public DateTimeOffset CreatedAt { get; init; }

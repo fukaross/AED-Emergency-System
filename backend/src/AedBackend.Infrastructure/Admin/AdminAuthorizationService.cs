@@ -133,6 +133,7 @@ public sealed class AdminAuthorizationService : IAdminAuthorizationService
                     ? item with
                     {
                         LastSeenAt = now,
+                        IpAddress = ipAddress ?? string.Empty,
                         MaskedIpAddress = AdminWebContext.MaskIpAddress(ipAddress),
                         UserAgentSummary = AdminWebContext.SummarizeUserAgent(userAgent)
                     }
