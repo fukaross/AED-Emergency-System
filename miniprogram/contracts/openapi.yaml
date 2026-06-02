@@ -859,6 +859,41 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /api/upload/video:
+    post:
+      summary: 上传课程视频
+      operationId: uploadVideo
+      security:
+        - adminSessionKey: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, scene]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                scene:
+                  type: string
+                  enum: [course]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UploadImageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /api/ops/help-requests:
     get:
       summary: 运营端获取求助记录列表
@@ -3168,17 +3203,32 @@ components:
           items:
             type: string
 
+    CourseVideo:
+      type: object
+      required: [order, title, url]
+      properties:
+        order:
+          type: integer
+        title:
+          type: string
+        url:
+          type: string
+
     CourseDetail:
       allOf:
         - $ref: '#/components/schemas/CourseSummary'
         - type: object
-          required: [content, videoUrl, steps]
+          required: [content, videoUrl, videos, steps]
           properties:
             content:
               type: string
             videoUrl:
               type: string
               nullable: true
+            videos:
+              type: array
+              items:
+                $ref: '#/components/schemas/CourseVideo'
             disclaimer:
               type: string
             steps:

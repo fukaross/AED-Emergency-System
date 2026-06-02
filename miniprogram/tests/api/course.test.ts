@@ -30,10 +30,11 @@ describe('course api mock', () => {
     ])
   })
 
-  it('does not point course detail mock data at missing video assets', async () => {
+  it('returns video list for video course mock data', async () => {
     const result = await fetchCourseDetail('course-wound')
 
-    expect(result.videoUrl).toBeNull()
+    expect(result.videoUrl).toBeTruthy()
+    expect(result.videos).toHaveLength(1)
   })
 
   it('rejects unknown course ids in mock mode', async () => {

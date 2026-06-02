@@ -20,6 +20,7 @@ describe('course detail api mock', () => {
     expect(result.type).toBe('article')
     expect(result.content).toBeTruthy()
     expect(result.disclaimer).toBeTruthy()
+    expect(result.videos).toHaveLength(0)
     expect(result.steps.length).toBeGreaterThan(0)
     expect(result.steps[0].image).toBeTruthy()
   })
@@ -35,6 +36,8 @@ describe('course detail api mock', () => {
 
     expect(result.type).toBe('video')
     expect(result.category).toBe('first-aid')
+    expect(result.videoUrl).toBeTruthy()
+    expect(result.videos).toHaveLength(1)
     expect(result.steps).toHaveLength(0)
   })
 

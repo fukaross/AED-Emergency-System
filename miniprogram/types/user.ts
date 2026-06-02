@@ -178,11 +178,18 @@ export interface CourseSummary {
 export interface CourseDetail extends CourseSummary {
   readonly content: string
   readonly videoUrl: string | null
+  readonly videos: readonly CourseVideo[]
   readonly disclaimer?: string
   readonly cacheVersion?: string
   readonly estimatedTime?: string
   readonly viewCount?: number
   readonly steps: readonly CourseStep[]
+}
+
+export interface CourseVideo {
+  readonly order: number
+  readonly title: string
+  readonly url: string
 }
 
 export interface CourseStep {

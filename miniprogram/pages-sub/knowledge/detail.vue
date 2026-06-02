@@ -15,7 +15,33 @@
   </view>
 
   <view v-else-if="course" class="detail-page" :class="themeClass">
-    <view v-if="course.type === 'video' && course.videoUrl" class="video-wrap">
+    <view v-if="course.type === 'video' && currentVideo" class="video-section">
+      <view class="video-wrap">
+        <video
+          class="video-player"
+          :src="currentVideo.url"
+          :controls="true"
+          :show-fullscreen-btn="true"
+          :playsinline="true"
+          :show-center-play-btn="true"
+          object-fit="contain"
+        />
+      </view>
+      <view v-if="normalizedVideos.length > 1" class="video-list">
+        <view
+          v-for="video in normalizedVideos"
+          :key="video.order"
+          class="video-item"
+          :class="{ active: video.order === currentVideo.order }"
+          @click="selectVideo(video.order)"
+        >
+          <text class="video-index">{{ video.order }}</text>
+          <text class="video-title">{{ video.title }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view v-else-if="course.type === 'video' && course.videoUrl" class="video-wrap">
       <video
         class="video-player"
         :src="course.videoUrl"
@@ -88,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useTheme } from '@/composables/useTheme'
 import { fetchCourseDetail } from '@/api/course'
@@ -98,8 +124,22 @@ import type { CourseDetail } from '@/types/user'
 const { themeClass } = useTheme()
 
 const course = ref<CourseDetail | null>(null)
+const currentVideoOrder = ref(1)
 const loading = ref(true)
 const errorText = ref<string | null>(null)
+
+const normalizedVideos = computed(() => {
+  if (!course.value) return []
+  if (course.value.videos.length > 0) return course.value.videos
+  if (!course.value.videoUrl) return []
+  return [{ order: 1, title: '视频 1', url: course.value.videoUrl }]
+})
+
+const currentVideo = computed(() => {
+  return normalizedVideos.value.find(v => v.order === currentVideoOrder.value)
+    ?? normalizedVideos.value[0]
+    ?? null
+})
 
 async function loadCourse() {
   const pages = getCurrentPages()
@@ -117,6 +157,7 @@ async function loadCourse() {
   try {
     const detail = await fetchCourseDetail(id)
     course.value = detail
+    currentVideoOrder.value = normalizedVideos.value[0]?.order ?? 1
     uni.setNavigationBarTitle({ title: detail.title })
   } catch (err) {
     errorText.value = (err as Error).message || '加载失败'
@@ -127,6 +168,10 @@ async function loadCourse() {
 
 function previewImage(url: string) {
   uni.previewImage({ urls: [url], current: url })
+}
+
+function selectVideo(order: number) {
+  currentVideoOrder.value = order
 }
 
 onLoad(() => {
