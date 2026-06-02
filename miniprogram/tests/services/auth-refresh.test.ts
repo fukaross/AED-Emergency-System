@@ -4,6 +4,7 @@ vi.mock('@/utils/runtime-env', () => ({
   API_BASE_URL: 'REDACTED',
   IS_PLACEHOLDER_API_BASE_URL: false,
   RESTORE_AUTH_SESSION: true,
+  USER_BACKEND_READY: false,
   USE_MOCK: false,
   USE_REAL_WECHAT_FLOW: true,
   shouldWarnPlaceholderApiBaseUrl: vi.fn(() => false),

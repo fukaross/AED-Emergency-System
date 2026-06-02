@@ -51,6 +51,8 @@ paths:
                           $ref: '#/components/schemas/AedItem'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
 
   /api/aed/{id}:
     get:
@@ -77,6 +79,8 @@ paths:
                         $ref: '#/components/schemas/AedDetail'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
 
   /api/aed/{id}/report:
     post:
@@ -701,6 +705,41 @@ paths:
           $ref: '#/components/responses/BadRequest'
 
   /api/user/volunteer-applications:
+    get:
+      summary: 获取当前用户志愿者申请列表
+      operationId: listMyVolunteerApplications
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/VolunteerApplicationListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
     post:
       summary: 提交校园 AED 急救志愿者入队申请
       operationId: createVolunteerApplication
@@ -726,6 +765,8 @@ paths:
                         $ref: '#/components/schemas/VolunteerApplicationResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
 
   /api/knowledge/summary:
     get:
@@ -1430,6 +1471,155 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /api/admin/volunteer-applications:
+    get:
+      summary: 管理端获取志愿者申请列表
+      operationId: listAdminVolunteerApplications
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, submitted, approved, rejected]
+        - name: keyword
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminVolunteerApplicationListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
+
+  /api/admin/volunteer-applications/{id}:
+    get:
+      summary: 管理端获取志愿者申请详情
+      operationId: getAdminVolunteerApplication
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminVolunteerApplicationDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
+
+  /api/admin/volunteer-applications/{id}/approve:
+    put:
+      summary: 管理端通过志愿者申请
+      operationId: approveAdminVolunteerApplication
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveVolunteerApplicationPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminVolunteerApplicationReviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
+
+  /api/admin/volunteer-applications/{id}/reject:
+    put:
+      summary: 管理端驳回志愿者申请
+      operationId: rejectAdminVolunteerApplication
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectVolunteerApplicationPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminVolunteerApplicationReviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
+
   /api/admin/users/{openId}:
     get:
       summary: 管理端获取用户详情
@@ -1663,6 +1853,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiResponse'
+    Conflict:
+      description: 资源状态冲突
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
     AdminSessionLimitReached:
       description: 管理员登录设备数已达到上限
       content:
@@ -1671,6 +1867,12 @@ components:
             $ref: '#/components/schemas/AdminSessionLimitReachedResponse'
     RateLimited:
       description: 操作频率限制
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    FeatureRequiresSqlite:
+      description: 当前功能要求 SQLite 数据源
       content:
         application/json:
           schema:
@@ -3038,6 +3240,7 @@ components:
       properties:
         name:
           type: string
+          maxLength: 40
         avatarUrl:
           type: string
         gender:
@@ -3048,7 +3251,7 @@ components:
 
     VolunteerApplicationStatus:
       type: string
-      enum: [submitted, reviewing, approved, rejected]
+      enum: [submitted, approved, rejected]
 
     VolunteerImageAttachment:
       type: object
@@ -3062,7 +3265,7 @@ components:
           type: string
         localPath:
           type: string
-          description: 前端 Mock 演示期保留的本地临时路径，正式提交可不传
+          description: 前端本地临时路径，仅客户端表单态使用，正式提交不接受该字段作为图片 URL
 
     VolunteerApplicationPayload:
       type: object
@@ -3128,6 +3331,7 @@ components:
             $ref: '#/components/schemas/VolunteerImageAttachment'
         idNumber:
           type: string
+          pattern: '^\d{17}[\dXx]$'
         idCardFront:
           $ref: '#/components/schemas/VolunteerImageAttachment'
         idCardBack:
@@ -3152,6 +3356,169 @@ components:
         submittedAt:
           type: string
           format: date-time
+
+    VolunteerApplicationListResponse:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VolunteerApplicationDetail'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    VolunteerApplicationDetail:
+      type: object
+      required:
+        - applicationId
+        - status
+        - attemptNumber
+        - submittedAt
+        - updatedAt
+        - payload
+      properties:
+        applicationId:
+          type: string
+        status:
+          $ref: '#/components/schemas/VolunteerApplicationStatus'
+        attemptNumber:
+          type: integer
+        derivedFromId:
+          type: integer
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        payload:
+          $ref: '#/components/schemas/VolunteerApplicationPayload'
+
+    AdminVolunteerApplicationListItem:
+      type: object
+      required:
+        - applicationId
+        - openId
+        - applicantName
+        - phoneMasked
+        - status
+        - attemptNumber
+        - submittedAt
+        - updatedAt
+      properties:
+        applicationId:
+          type: string
+        openId:
+          type: string
+        applicantName:
+          type: string
+        phoneMasked:
+          type: string
+        status:
+          $ref: '#/components/schemas/VolunteerApplicationStatus'
+        attemptNumber:
+          type: integer
+        derivedFromId:
+          type: integer
+          nullable: true
+        createdRescuerId:
+          type: string
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    AdminVolunteerApplicationListResponse:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminVolunteerApplicationListItem'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    AdminVolunteerApplicationDetail:
+      allOf:
+        - $ref: '#/components/schemas/VolunteerApplicationDetail'
+        - type: object
+          required: [openId]
+          properties:
+            openId:
+              type: string
+            reviewNote:
+              type: string
+              nullable: true
+            reviewedBy:
+              type: string
+              nullable: true
+            reviewedAt:
+              type: string
+              format: date-time
+              nullable: true
+            createdRescuerId:
+              type: string
+              nullable: true
+
+    ApproveVolunteerApplicationPayload:
+      type: object
+      required: [campus, lat, lng]
+      properties:
+        campus:
+          $ref: '#/components/schemas/CampusCode'
+        lat:
+          type: number
+          minimum: -90
+          maximum: 90
+        lng:
+          type: number
+          minimum: -180
+          maximum: 180
+        reviewNote:
+          type: string
+          maxLength: 200
+          nullable: true
+
+    RejectVolunteerApplicationPayload:
+      type: object
+      required: [reviewNote]
+      properties:
+        reviewNote:
+          type: string
+          minLength: 1
+          maxLength: 200
+
+    AdminVolunteerApplicationReviewResponse:
+      type: object
+      required: [application]
+      properties:
+        application:
+          $ref: '#/components/schemas/AdminVolunteerApplicationDetail'
+        createdRescuerId:
+          type: string
+          nullable: true
 
     CourseSummary:
       type: object

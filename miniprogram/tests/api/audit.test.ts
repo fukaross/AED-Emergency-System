@@ -9,6 +9,7 @@ vi.mock('@/services/auth-service', () => ({
 }))
 
 vi.mock('@/utils/runtime-env', () => ({
+  USER_BACKEND_READY: false,
   USE_MOCK: false,
 }))
 

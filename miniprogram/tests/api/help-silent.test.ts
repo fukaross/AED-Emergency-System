@@ -8,6 +8,7 @@ const requestMocks = vi.hoisted(() => ({
 
 vi.mock('@/utils/runtime-env', () => ({
   USE_LOCAL_HELP_READ_MODEL: false,
+  USER_BACKEND_READY: false,
   USE_MOCK: false,
   USE_REAL_WECHAT_FLOW: true,
 }))

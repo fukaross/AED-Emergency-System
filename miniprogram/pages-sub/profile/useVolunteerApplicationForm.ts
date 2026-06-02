@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { uploadImage } from '@/api/common'
 import { submitVolunteerApplication } from '@/api/user'
 import type { Gender } from '@/types/user'
 import type {
@@ -17,7 +18,9 @@ import {
 } from './volunteer-fields'
 
 const PHONE_PATTERN = /^1[3-9]\d{9}$/
-const ID_NUMBER_PATTERN = /(^\d{15}$)|(^\d{17}[\dXx]$)/
+const ID_NUMBER_PATTERN = /^\d{17}[\dXx]$/
+const ID_NUMBER_WEIGHTS = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
+const ID_NUMBER_CHECK_MAP = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2']
 const MAX_IMAGE_COUNT = 3
 const NAVIGATE_BACK_DELAY_MS = 600
 
@@ -63,6 +66,22 @@ function getInputValue(event: Event): string {
 
 function toAttachment(path: string): VolunteerImageAttachment {
   return { url: path, localPath: path }
+}
+
+function isPersistedImageUrl(url: string): boolean {
+  return url.startsWith('/uploads/')
+    || url.startsWith('http://')
+    || url.startsWith('https://')
+}
+
+function isValidIdNumber(value: string): boolean {
+  const trimmed = value.trim()
+  if (!ID_NUMBER_PATTERN.test(trimmed)) return false
+  const sum = ID_NUMBER_WEIGHTS.reduce(
+    (total, weight, index) => total + Number(trimmed[index]) * weight,
+    0,
+  )
+  return trimmed[17].toUpperCase() === ID_NUMBER_CHECK_MAP[sum % 11]
 }
 
 export function useVolunteerApplicationForm() {
@@ -156,7 +175,7 @@ export function useVolunteerApplicationForm() {
       uni.showToast({ title: '紧急电话有误', icon: 'none' })
       return false
     }
-    if (!ID_NUMBER_PATTERN.test(form.text.idNumber)) {
+    if (!isValidIdNumber(form.text.idNumber)) {
       uni.showToast({ title: '身份证号有误', icon: 'none' })
       return false
     }
@@ -171,7 +190,29 @@ export function useVolunteerApplicationForm() {
     return false
   }
 
-  function buildPayload(): VolunteerApplicationPayload {
+  async function normalizeAttachment(
+    item: VolunteerImageAttachment,
+  ): Promise<VolunteerImageAttachment> {
+    if (isPersistedImageUrl(item.url)) return item
+    const uploaded = await uploadImage(item.localPath || item.url, 'volunteer')
+    return {
+      url: uploaded.url,
+      fileId: uploaded.fileId,
+      name: item.name,
+    }
+  }
+
+  async function normalizeAttachments(
+    items: VolunteerImageAttachment[],
+  ): Promise<VolunteerImageAttachment[]> {
+    const uploaded: VolunteerImageAttachment[] = []
+    for (const item of items) {
+      uploaded.push(await normalizeAttachment(item))
+    }
+    return uploaded
+  }
+
+  async function buildPayload(): Promise<VolunteerApplicationPayload> {
     return {
       ...form.text,
       gender: form.selects.gender as Gender,
@@ -180,11 +221,11 @@ export function useVolunteerApplicationForm() {
       education: form.selects.education,
       occupation: form.selects.occupation,
       professionalTitle: form.selects.professionalTitle,
-      idPhoto: form.singleImages.idPhoto!,
-      idCardFront: form.singleImages.idCardFront!,
-      idCardBack: form.singleImages.idCardBack!,
-      qualificationImages: form.multiImages.qualificationImages,
-      volunteerCertificateImages: form.multiImages.volunteerCertificateImages,
+      idPhoto: await normalizeAttachment(form.singleImages.idPhoto!),
+      idCardFront: await normalizeAttachment(form.singleImages.idCardFront!),
+      idCardBack: await normalizeAttachment(form.singleImages.idCardBack!),
+      qualificationImages: await normalizeAttachments(form.multiImages.qualificationImages),
+      volunteerCertificateImages: await normalizeAttachments(form.multiImages.volunteerCertificateImages),
       commitmentAccepted: form.commitmentAccepted,
     }
   }
@@ -193,7 +234,7 @@ export function useVolunteerApplicationForm() {
     if (submitting.value || !validateForm()) return
     submitting.value = true
     try {
-      await submitVolunteerApplication(buildPayload())
+      await submitVolunteerApplication(await buildPayload())
       uni.showToast({ title: '提交成功', icon: 'success' })
       setTimeout(() => uni.navigateBack(), NAVIGATE_BACK_DELAY_MS)
     } catch (error) {

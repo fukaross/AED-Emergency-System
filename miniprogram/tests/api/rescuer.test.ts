@@ -14,6 +14,7 @@ const rescuerMock = vi.hoisted(() => ({
 
 vi.mock('@/utils/runtime-env', () => ({
   RESCUER_BACKEND_READY: true,
+  USER_BACKEND_READY: false,
   USE_MOCK: true,
   USE_PUBLIC_DEMO_DATA: true,
 }))

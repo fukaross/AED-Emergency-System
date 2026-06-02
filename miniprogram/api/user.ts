@@ -20,11 +20,24 @@ import {
   saveMockVolunteerApplication,
   saveMockUserProfile,
 } from '@/mock/user'
-import { USE_MOCK } from '@/utils/runtime-env'
+import { USER_BACKEND_READY, USE_MOCK } from '@/utils/runtime-env'
+
+const USE_USER_MOCK = !USER_BACKEND_READY && USE_MOCK
+
+function toProfileUpdateBody(
+  payload: UpdateUserProfilePayload,
+): Record<string, string | undefined> {
+  return {
+    name: payload.name,
+    avatarUrl: payload.avatarUrl,
+    gender: payload.gender,
+    phone: payload.phone,
+  }
+}
 
 /** 获取用户信息 */
 export function fetchUserProfile(): Promise<UserProfile> {
-  if (USE_MOCK) {
+  if (USE_USER_MOCK) {
     return Promise.resolve(loadMockUserProfile())
   }
   return get<UserProfile>('/api/user/profile')
@@ -34,11 +47,11 @@ export function fetchUserProfile(): Promise<UserProfile> {
 export function updateUserProfile(
   payload: UpdateUserProfilePayload,
 ): Promise<void> {
-  if (USE_MOCK) {
+  if (USE_USER_MOCK) {
     saveMockUserProfile(payload)
     return Promise.resolve()
   }
-  return put('/api/user/profile', payload as unknown as Record<string, unknown>)
+  return put('/api/user/profile', toProfileUpdateBody(payload))
 }
 
 /** 获取急救档案列表 */
@@ -104,7 +117,7 @@ export function fetchArchivePhone(
 export function submitVolunteerApplication(
   payload: VolunteerApplicationPayload,
 ): Promise<VolunteerApplicationResponse> {
-  if (USE_MOCK) {
+  if (USE_USER_MOCK) {
     return Promise.resolve(saveMockVolunteerApplication(payload))
   }
 

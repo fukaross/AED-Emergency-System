@@ -11,7 +11,7 @@ import { handleErrorCode } from '@/services/request-errors'
 import { createApiError, extractApiResponse } from '@/services/request-response'
 import type { UploadImageResponse } from '@/types/common'
 import { ERROR_CODES, REQUEST_TIMEOUT } from '@/utils/constants'
-import { HELP_BACKEND_READY, USE_MOCK } from '@/utils/runtime-env'
+import { HELP_BACKEND_READY, USER_BACKEND_READY, USE_MOCK } from '@/utils/runtime-env'
 
 interface UploadCallbacks {
   readonly resolve: (value: UploadImageResponse) => void
@@ -45,6 +45,12 @@ function retryUploadAfterRefresh(context: UploadContext): void {
       handleErrorCode(ERROR_CODES.UNAUTHORIZED, '登录已过期，请重新登录')
       callbacks.reject(err)
     })
+}
+
+function isUploadBackendReady(scene: string): boolean {
+  if (scene === 'avatar' || scene === 'volunteer') return USER_BACKEND_READY
+  if (scene === 'help' || scene === 'report') return HELP_BACKEND_READY
+  return true
 }
 
 function handleUploadSuccess(
@@ -90,7 +96,7 @@ function uploadFileInternal(
 ): Promise<UploadImageResponse> {
   const token = getToken()
 
-  if (USE_MOCK && !HELP_BACKEND_READY) {
+  if (USE_MOCK && !isUploadBackendReady(scene)) {
     const fileId = `mock-file-${Date.now()}`
     console.log(`[Mock Upload API] ${scene}`, filePath)
     return Promise.resolve({

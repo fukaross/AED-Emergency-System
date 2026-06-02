@@ -3,7 +3,6 @@ import type { Gender } from './user'
 
 export type VolunteerApplicationStatus =
   | 'submitted'
-  | 'reviewing'
   | 'approved'
   | 'rejected'
 

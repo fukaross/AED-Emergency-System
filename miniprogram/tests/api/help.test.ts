@@ -15,6 +15,7 @@ vi.mock('@/utils/runtime-env', () => ({
   RESTORE_AUTH_SESSION: false,
   USE_REAL_LOCATION: false,
   USE_LOCAL_HELP_READ_MODEL: true,
+  USER_BACKEND_READY: false,
   USE_MOCK: false,
   USE_REAL_WECHAT_FLOW: true,
   shouldWarnPlaceholderApiBaseUrl: () => false,
