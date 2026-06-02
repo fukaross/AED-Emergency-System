@@ -8,11 +8,15 @@ using AedBackend.Infrastructure.Admin;
 using AedBackend.Infrastructure.Help;
 using AedBackend.Infrastructure.Knowledge;
 using AedBackend.Infrastructure.Course;
+using AedBackend.Infrastructure.Persistence;
+using AedBackend.Infrastructure.Persistence.Sqlite;
 using AedBackend.Infrastructure.Upload;
 using AedBackend.Infrastructure.WeChat;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace AedBackend.Infrastructure.Extensions;
 
@@ -26,19 +30,12 @@ public static class ServiceCollectionExtensions
         services.PostConfigure<WeChatOptions>(options => options.ApplyEnvironmentAliases(configuration));
         services.Configure<AdminOptions>(configuration.GetSection(AdminOptions.SectionName));
         services.PostConfigure<AdminOptions>(options => options.ApplyEnvironmentAliases(configuration));
+        services.Configure<DataOptions>(configuration.GetSection(DataOptions.SectionName));
+        services.PostConfigure<DataOptions>(options => options.ApplyEnvironmentAliases(configuration));
         services.AddSingleton<ISessionTokenService, SessionTokenService>();
-        services.AddSingleton<IExperienceUserStore, JsonExperienceUserStore>();
-        services.AddSingleton<IHelpRequestStore, JsonHelpRequestStore>();
-        services.AddSingleton<IAedDeviceStore, JsonAedDeviceStore>();
-        services.AddSingleton<IResponderStore, JsonResponderStore>();
-        services.AddSingleton<IKnowledgeStore, JsonKnowledgeStore>();
-        services.AddSingleton<ICourseStore, JsonCourseStore>();
-        services.AddSingleton<IQuickActionStore, JsonQuickActionStore>();
+        AddRuntimeDataStores(services);
         services.AddSingleton<IUploadImageStorage, LocalUploadImageStorage>();
         services.AddSingleton<IUploadVideoStorage, LocalUploadVideoStorage>();
-        services.AddSingleton<IAdminUserStore, JsonAdminUserStore>();
-        services.AddSingleton<IAdminUserProfileStore, JsonAdminUserProfileStore>();
-        services.AddSingleton<IAdminAuditLogStore, JsonAdminAuditLogStore>();
         services.AddSingleton<IAdminAuthorizationService, AdminAuthorizationService>();
         services.AddSingleton<IAdminUserService, AdminUserService>();
         services.AddSingleton<IPasswordHasher<AdminUserRecord>, PasswordHasher<AdminUserRecord>>();
@@ -48,5 +45,76 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<IWeChatSubscribeMessageSender, WeChatSubscribeMessageSender>();
 
         return services;
+    }
+
+    private static void AddRuntimeDataStores(IServiceCollection services)
+    {
+        AddSqliteFactory(services);
+        AddJsonStoreImplementations(services);
+        AddSqliteStoreImplementations(services);
+        AddStoreSelectors(services);
+    }
+
+    private static void AddJsonStoreImplementations(IServiceCollection services)
+    {
+        services.AddSingleton<JsonExperienceUserStore>();
+        services.AddSingleton<JsonHelpRequestStore>();
+        services.AddSingleton<JsonAedDeviceStore>();
+        services.AddSingleton<JsonResponderStore>();
+        services.AddSingleton<JsonKnowledgeStore>();
+        services.AddSingleton<JsonCourseStore>();
+        services.AddSingleton<JsonQuickActionStore>();
+        services.AddSingleton<JsonAdminUserStore>();
+        services.AddSingleton<JsonAdminUserProfileStore>();
+        services.AddSingleton<JsonAdminAuditLogStore>();
+    }
+
+    private static void AddSqliteStoreImplementations(IServiceCollection services)
+    {
+        services.AddSingleton<SqliteExperienceUserStore>();
+        services.AddSingleton<SqliteHelpRequestStore>();
+        services.AddSingleton<SqliteAedDeviceStore>();
+        services.AddSingleton<SqliteResponderStore>();
+        services.AddSingleton<SqliteKnowledgeStore>();
+        services.AddSingleton<SqliteCourseStore>();
+        services.AddSingleton<SqliteQuickActionStore>();
+        services.AddSingleton<SqliteAdminUserStore>();
+        services.AddSingleton<SqliteAdminUserProfileStore>();
+        services.AddSingleton<SqliteAdminAuditLogStore>();
+    }
+
+    private static void AddStoreSelectors(IServiceCollection services)
+    {
+        services.AddSingleton<IExperienceUserStore>(Pick<IExperienceUserStore, JsonExperienceUserStore, SqliteExperienceUserStore>);
+        services.AddSingleton<IHelpRequestStore>(Pick<IHelpRequestStore, JsonHelpRequestStore, SqliteHelpRequestStore>);
+        services.AddSingleton<IAedDeviceStore>(Pick<IAedDeviceStore, JsonAedDeviceStore, SqliteAedDeviceStore>);
+        services.AddSingleton<IResponderStore>(Pick<IResponderStore, JsonResponderStore, SqliteResponderStore>);
+        services.AddSingleton<IKnowledgeStore>(Pick<IKnowledgeStore, JsonKnowledgeStore, SqliteKnowledgeStore>);
+        services.AddSingleton<ICourseStore>(Pick<ICourseStore, JsonCourseStore, SqliteCourseStore>);
+        services.AddSingleton<IQuickActionStore>(Pick<IQuickActionStore, JsonQuickActionStore, SqliteQuickActionStore>);
+        services.AddSingleton<IAdminUserStore>(Pick<IAdminUserStore, JsonAdminUserStore, SqliteAdminUserStore>);
+        services.AddSingleton<IAdminUserProfileStore>(Pick<IAdminUserProfileStore, JsonAdminUserProfileStore, SqliteAdminUserProfileStore>);
+        services.AddSingleton<IAdminAuditLogStore>(Pick<IAdminAuditLogStore, JsonAdminAuditLogStore, SqliteAdminAuditLogStore>);
+    }
+
+    private static void AddSqliteFactory(IServiceCollection services)
+    {
+        services.AddDbContextFactory<AedDbContext>((provider, options) =>
+        {
+            var dataOptions = provider.GetRequiredService<IOptions<DataOptions>>().Value;
+            var fullPath = Path.GetFullPath(dataOptions.SqlitePath);
+            options.UseSqlite(SqliteStoreHelpers.BuildConnectionString(fullPath));
+        });
+    }
+
+    private static TService Pick<TService, TJson, TSqlite>(IServiceProvider provider)
+        where TService : notnull
+        where TJson : TService
+        where TSqlite : TService
+    {
+        var options = provider.GetRequiredService<IOptions<DataOptions>>().Value;
+        return options.UseSqlite()
+            ? provider.GetRequiredService<TSqlite>()
+            : provider.GetRequiredService<TJson>();
     }
 }

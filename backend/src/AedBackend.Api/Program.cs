@@ -1,9 +1,14 @@
+using AedBackend.Api;
 using AedBackend.Api.Endpoints;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Infrastructure.Extensions;
+using AedBackend.Infrastructure.Persistence;
 using AedBackend.Infrastructure.WeChat;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
+
+var cliExitCode = await JsonToSqliteCli.TryRunAsync(args, CancellationToken.None);
+if (cliExitCode >= 0) return cliExitCode;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +17,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddWeChatInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+await RuntimeDataInitializer.EnsureReadyAsync(app.Services, CancellationToken.None);
 
 if (app.Environment.IsDevelopment())
 {
@@ -58,5 +64,7 @@ app.MapOpsEndpoints();
 app.MapAdminEndpoints();
 
 app.Run();
+
+return 0;
 
 public partial class Program;
