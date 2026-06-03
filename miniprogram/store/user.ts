@@ -7,7 +7,7 @@ import {
   AUTH_USER_INFO_STORAGE_KEY,
   CURRENT_USER_ID_STORAGE_KEY,
 } from '@/utils/constants'
-import { USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
+import { USER_BACKEND_READY, USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
 import {
   buildWeChatDisplayName,
   shouldUseWeChatDisplayName,
@@ -25,6 +25,11 @@ export const useUserStore = defineStore('user', () => {
 
   // ===== Actions =====
   async function loadProfile(): Promise<void> {
+    if (USER_BACKEND_READY) {
+      userInfo.value = await fetchUserProfile()
+      return
+    }
+
     const authProfile = loadAuthUserProfile()
     if (USE_REAL_WECHAT_FLOW) {
       userInfo.value = authProfile ?? buildStoredLoginFallbackProfile()
