@@ -43,6 +43,18 @@
           <el-icon><Checked /></el-icon>
           <template #title>志愿者审核</template>
         </el-menu-item>
+        <el-menu-item index="/school-profiles">
+          <el-icon><Postcard /></el-icon>
+          <template #title>学校档案</template>
+        </el-menu-item>
+        <el-menu-item index="/school-bindings">
+          <el-icon><Finished /></el-icon>
+          <template #title>学校绑定审核</template>
+        </el-menu-item>
+        <el-menu-item index="/responder-claims">
+          <el-icon><Link /></el-icon>
+          <template #title>急救员认领审核</template>
+        </el-menu-item>
         <el-menu-item v-if="isSuperAdmin" index="/admins">
           <el-icon><Setting /></el-icon>
           <template #title>管理员</template>
@@ -118,6 +130,18 @@
           <el-icon><Checked /></el-icon>
           <template #title>志愿者审核</template>
         </el-menu-item>
+        <el-menu-item index="/school-profiles">
+          <el-icon><Postcard /></el-icon>
+          <template #title>学校档案</template>
+        </el-menu-item>
+        <el-menu-item index="/school-bindings">
+          <el-icon><Finished /></el-icon>
+          <template #title>学校绑定审核</template>
+        </el-menu-item>
+        <el-menu-item index="/responder-claims">
+          <el-icon><Link /></el-icon>
+          <template #title>急救员认领审核</template>
+        </el-menu-item>
         <el-menu-item index="/sessions">
           <el-icon><Monitor /></el-icon>
           <template #title>会话管理</template>
@@ -189,6 +213,9 @@ import {
   Avatar,
   Reading,
   Checked,
+  Finished,
+  Link,
+  Postcard,
 } from '@element-plus/icons-vue'
 
 const BREAKPOINT_TABLET = 1024
@@ -211,6 +238,9 @@ const activeMenu = computed(() => {
   if (path.startsWith('/devices')) return '/devices'
   if (path.startsWith('/rescuers')) return '/rescuers'
   if (path.startsWith('/volunteer-applications')) return '/volunteer-applications'
+  if (path.startsWith('/school-profiles')) return '/school-profiles'
+  if (path.startsWith('/school-bindings')) return '/school-bindings'
+  if (path.startsWith('/responder-claims')) return '/responder-claims'
   if (path.startsWith('/admins')) return '/admins'
   if (path.startsWith('/classroom/quick-actions')) return '/classroom/quick-actions'
   if (path.startsWith('/classroom/courses')) return '/classroom/courses'

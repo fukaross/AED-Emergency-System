@@ -82,6 +82,42 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '申请详情', requiresAuth: true },
   },
   {
+    path: '/school-profiles',
+    name: 'schoolProfiles',
+    component: () => import('@/pages/school-profiles/index.vue'),
+    meta: { title: '学校档案', requiresAuth: true },
+  },
+  {
+    path: '/school-profiles/:id',
+    name: 'schoolProfileDetail',
+    component: () => import('@/pages/school-profiles/detail.vue'),
+    meta: { title: '学校档案详情', requiresAuth: true },
+  },
+  {
+    path: '/school-bindings',
+    name: 'schoolBindings',
+    component: () => import('@/pages/school-bindings/index.vue'),
+    meta: { title: '学校绑定审核', requiresAuth: true },
+  },
+  {
+    path: '/school-bindings/:id',
+    name: 'schoolBindingDetail',
+    component: () => import('@/pages/school-bindings/detail.vue'),
+    meta: { title: '绑定审核详情', requiresAuth: true },
+  },
+  {
+    path: '/responder-claims',
+    name: 'responderClaims',
+    component: () => import('@/pages/responder-claims/index.vue'),
+    meta: { title: '急救员认领审核', requiresAuth: true },
+  },
+  {
+    path: '/responder-claims/:id',
+    name: 'responderClaimDetail',
+    component: () => import('@/pages/responder-claims/detail.vue'),
+    meta: { title: '认领审核详情', requiresAuth: true },
+  },
+  {
     path: '/admins',
     name: 'admins',
     component: () => import('@/pages/admins/index.vue'),

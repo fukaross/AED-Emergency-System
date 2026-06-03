@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-type StatusCategory = 'help' | 'channel' | 'account' | 'responder' | 'admin' | 'device' | 'volunteerApplication'
+type StatusCategory = 'help' | 'channel' | 'account' | 'responder' | 'admin' | 'device' | 'volunteerApplication' | 'identityApplication' | 'schoolProfile'
 
 interface StatusConfig {
   label: string
@@ -56,6 +56,15 @@ const statusMaps: Record<StatusCategory, Record<string, StatusConfig>> = {
     submitted: { label: '待审核', background: '#fdf6ec', color: '#e6a23c' },
     approved: { label: '已通过', background: '#f0f9eb', color: '#67c23a' },
     rejected: { label: '已驳回', background: '#fef0f0', color: '#f56c6c' },
+  },
+  identityApplication: {
+    submitted: { label: '待审核', background: '#fdf6ec', color: '#e6a23c' },
+    approved: { label: '已通过', background: '#f0f9eb', color: '#67c23a' },
+    rejected: { label: '已驳回', background: '#fef0f0', color: '#f56c6c' },
+  },
+  schoolProfile: {
+    active: { label: '有效', background: '#f0f9eb', color: '#67c23a' },
+    inactive: { label: '停用', background: '#f4f4f5', color: '#909399' },
   },
 }
 
