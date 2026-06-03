@@ -9,6 +9,7 @@ internal static class SqliteSchemaUpgrade
         await AddExperienceUserColumnsAsync(db, ct);
         await AddResponderColumnsAsync(db, ct);
         await CreateVolunteerApplicationsAsync(db, ct);
+        await CreateSchoolIdentityTablesAsync(db, ct);
     }
 
     private static async Task AddExperienceUserColumnsAsync(AedDbContext db, CancellationToken ct)
@@ -86,9 +87,83 @@ internal static class SqliteSchemaUpgrade
             ct);
     }
 
+    private static async Task CreateSchoolIdentityTablesAsync(AedDbContext db, CancellationToken ct)
+    {
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS school_person_profiles (
+                Id INTEGER NOT NULL CONSTRAINT pk_school_person_profiles PRIMARY KEY AUTOINCREMENT,
+                PersonType TEXT NOT NULL,
+                Name TEXT NOT NULL,
+                College TEXT NOT NULL,
+                ClassName TEXT NULL,
+                StudentId TEXT NULL,
+                StaffId TEXT NULL,
+                Phone TEXT NULL,
+                Status TEXT NOT NULL,
+                CreatedAt TEXT NOT NULL,
+                UpdatedAt TEXT NOT NULL
+            );
+            """, ct);
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS school_binding_applications (
+                Id INTEGER NOT NULL CONSTRAINT pk_school_binding_applications PRIMARY KEY AUTOINCREMENT,
+                OpenId TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                SchoolProfileId INTEGER NULL,
+                PayloadJson TEXT NOT NULL,
+                ReviewNote TEXT NULL,
+                ReviewedBy TEXT NULL,
+                ReviewedAt TEXT NULL,
+                CreatedAt TEXT NOT NULL,
+                UpdatedAt TEXT NOT NULL,
+                CONSTRAINT fk_school_binding_profile
+                    FOREIGN KEY (SchoolProfileId) REFERENCES school_person_profiles(Id)
+                    ON DELETE RESTRICT
+            );
+            """, ct);
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS responder_claim_applications (
+                Id INTEGER NOT NULL CONSTRAINT pk_responder_claim_applications PRIMARY KEY AUTOINCREMENT,
+                OpenId TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                ResponderProfileId TEXT NULL,
+                PayloadJson TEXT NOT NULL,
+                ReviewNote TEXT NULL,
+                ReviewedBy TEXT NULL,
+                ReviewedAt TEXT NULL,
+                CreatedAt TEXT NOT NULL,
+                UpdatedAt TEXT NOT NULL,
+                CONSTRAINT fk_responder_claim_profile
+                    FOREIGN KEY (ResponderProfileId) REFERENCES responder_profiles(Id)
+                    ON DELETE RESTRICT
+            );
+            """, ct);
+        await CreateIdentityIndexesAsync(db, ct);
+    }
+
+    private static async Task CreateIdentityIndexesAsync(AedDbContext db, CancellationToken ct)
+    {
+        var statements = new[]
+        {
+            "CREATE INDEX IF NOT EXISTS ix_school_profiles_person_name ON school_person_profiles(PersonType, Name);",
+            "CREATE INDEX IF NOT EXISTS ix_school_profiles_student_id ON school_person_profiles(StudentId);",
+            "CREATE INDEX IF NOT EXISTS ix_school_profiles_staff_id ON school_person_profiles(StaffId);",
+            "CREATE INDEX IF NOT EXISTS ix_school_binding_open_id_created_at ON school_binding_applications(OpenId, CreatedAt);",
+            "CREATE INDEX IF NOT EXISTS ix_school_binding_status ON school_binding_applications(Status);",
+            "CREATE INDEX IF NOT EXISTS ix_responder_claim_open_id_created_at ON responder_claim_applications(OpenId, CreatedAt);",
+            "CREATE INDEX IF NOT EXISTS ix_responder_claim_status ON responder_claim_applications(Status);"
+        };
+        foreach (var statement in statements)
+        {
+            await db.Database.ExecuteSqlRawAsync(statement, ct);
+        }
+    }
+
     private static string ValidateTableName(string table)
     {
         return table is "experience_users" or "responder_profiles"
+            or "school_person_profiles" or "school_binding_applications"
+            or "responder_claim_applications"
             ? table
             : throw new ArgumentOutOfRangeException(nameof(table), table, "不支持的 SQLite 表名");
     }

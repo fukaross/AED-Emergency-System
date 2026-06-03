@@ -32,6 +32,12 @@ public static class ErrorCodes
     public const int VolunteerApplicationAlreadyProcessed = 2010;
     public const int ResponderAlreadyBound = 2011;
     public const int FeatureRequiresSqlite = 2012;
+    public const int SchoolBindingNotFound = 2013;
+    public const int SchoolBindingAlreadyProcessed = 2014;
+    public const int SchoolProfileNotFound = 2015;
+    public const int ResponderClaimNotFound = 2016;
+    public const int ResponderClaimAlreadyProcessed = 2017;
+    public const int PendingApplicationExists = 2018;
 
     public const int FileTooLarge = 3001;
     public const int FileTypeNotAllowed = 3002;

@@ -51,6 +51,11 @@ public sealed class DataProviderStartupTests
         await AssertColumnExistsAsync(temp.DbPath, "responder_profiles", "Source");
         await AssertColumnExistsAsync(temp.DbPath, "responder_profiles", "SourceApplicationId");
         await AssertTableExistsAsync(temp.DbPath, "volunteer_applications");
+        await AssertTableExistsAsync(temp.DbPath, "school_person_profiles");
+        await AssertTableExistsAsync(temp.DbPath, "school_binding_applications");
+        await AssertTableExistsAsync(temp.DbPath, "responder_claim_applications");
+        await AssertColumnExistsAsync(temp.DbPath, "school_binding_applications", "SchoolProfileId");
+        await AssertColumnExistsAsync(temp.DbPath, "responder_claim_applications", "ResponderProfileId");
         Assert.Equal("REDACTED", await ReadPhoneAsync(temp.DbPath, "openid-old"));
     }
 
@@ -112,6 +117,9 @@ public sealed class DataProviderStartupTests
         await using var connection = CreateConnection(dbPath);
         await connection.OpenAsync();
         await ExecuteAsync(connection, "DROP TABLE volunteer_applications;");
+        await ExecuteAsync(connection, "DROP TABLE school_binding_applications;");
+        await ExecuteAsync(connection, "DROP TABLE responder_claim_applications;");
+        await ExecuteAsync(connection, "DROP TABLE school_person_profiles;");
         await ExecuteAsync(connection, "DROP INDEX IF EXISTS IX_responder_profiles_BoundOpenId;");
         await ExecuteAsync(connection, "DROP INDEX IF EXISTS ix_responder_profiles_bound_open_id;");
         await ExecuteAsync(connection, "ALTER TABLE experience_users DROP COLUMN Name;");

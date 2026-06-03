@@ -17,6 +17,9 @@ internal sealed class AedDbContext : DbContext
     public DbSet<AedDeviceEntity> AedDevices => Set<AedDeviceEntity>();
     public DbSet<ResponderProfileEntity> ResponderProfiles => Set<ResponderProfileEntity>();
     public DbSet<VolunteerApplicationEntity> VolunteerApplications => Set<VolunteerApplicationEntity>();
+    public DbSet<SchoolPersonProfileEntity> SchoolPersonProfiles => Set<SchoolPersonProfileEntity>();
+    public DbSet<SchoolBindingApplicationEntity> SchoolBindingApplications => Set<SchoolBindingApplicationEntity>();
+    public DbSet<ResponderClaimApplicationEntity> ResponderClaimApplications => Set<ResponderClaimApplicationEntity>();
     public DbSet<KnowledgeSummaryEntity> KnowledgeSummary => Set<KnowledgeSummaryEntity>();
     public DbSet<CourseEntity> Courses => Set<CourseEntity>();
     public DbSet<CourseVideoEntity> CourseVideos => Set<CourseVideoEntity>();
@@ -101,6 +104,32 @@ internal sealed class AedDbContext : DbContext
             e.HasIndex(x => new { x.OpenId, x.CreatedAt });
             e.HasOne<VolunteerApplicationEntity>().WithMany()
                 .HasForeignKey(x => x.DerivedFromId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<SchoolPersonProfileEntity>(e =>
+        {
+            e.ToTable("school_person_profiles");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.PersonType, x.Name });
+            e.HasIndex(x => x.StudentId);
+            e.HasIndex(x => x.StaffId);
+        });
+        modelBuilder.Entity<SchoolBindingApplicationEntity>(e =>
+        {
+            e.ToTable("school_binding_applications");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.OpenId, x.CreatedAt });
+            e.HasOne<SchoolPersonProfileEntity>().WithMany()
+                .HasForeignKey(x => x.SchoolProfileId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ResponderClaimApplicationEntity>(e =>
+        {
+            e.ToTable("responder_claim_applications");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.OpenId, x.CreatedAt });
+            e.HasOne<ResponderProfileEntity>().WithMany()
+                .HasForeignKey(x => x.ResponderProfileId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<KnowledgeSummaryEntity>(e =>

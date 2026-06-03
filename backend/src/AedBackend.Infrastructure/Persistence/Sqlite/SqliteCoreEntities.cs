@@ -74,6 +74,49 @@ internal sealed class VolunteerApplicationEntity
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
+internal sealed class SchoolPersonProfileEntity
+{
+    public int Id { get; set; }
+    public string PersonType { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string College { get; set; } = string.Empty;
+    public string? ClassName { get; set; }
+    public string? StudentId { get; set; }
+    public string? StaffId { get; set; }
+    public string? Phone { get; set; }
+    public string Status { get; set; } = "active";
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+internal sealed class SchoolBindingApplicationEntity
+{
+    public int Id { get; set; }
+    public string OpenId { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public int? SchoolProfileId { get; set; }
+    public string PayloadJson { get; set; } = string.Empty;
+    public string? ReviewNote { get; set; }
+    public string? ReviewedBy { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+internal sealed class ResponderClaimApplicationEntity
+{
+    public int Id { get; set; }
+    public string OpenId { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string? ResponderProfileId { get; set; }
+    public string PayloadJson { get; set; } = string.Empty;
+    public string? ReviewNote { get; set; }
+    public string? ReviewedBy { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
 internal sealed class KnowledgeSummaryEntity
 {
     public int Id { get; set; }

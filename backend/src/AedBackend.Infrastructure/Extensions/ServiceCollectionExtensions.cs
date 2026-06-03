@@ -5,6 +5,7 @@ using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.Knowledge;
 using AedBackend.Core.Services.Course;
 using AedBackend.Core.Services.Volunteer;
+using AedBackend.Core.Services.User;
 using AedBackend.Infrastructure.Admin;
 using AedBackend.Infrastructure.Help;
 using AedBackend.Infrastructure.Knowledge;
@@ -70,6 +71,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<JsonAdminUserProfileStore>();
         services.AddSingleton<JsonAdminAuditLogStore>();
         services.AddSingleton<JsonVolunteerApplicationStore>();
+        services.AddSingleton<JsonSchoolPersonProfileStore>();
+        services.AddSingleton<JsonSchoolBindingApplicationStore>();
+        services.AddSingleton<JsonResponderClaimApplicationStore>();
     }
 
     private static void AddSqliteStoreImplementations(IServiceCollection services)
@@ -85,6 +89,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<SqliteAdminUserProfileStore>();
         services.AddSingleton<SqliteAdminAuditLogStore>();
         services.AddSingleton<SqliteVolunteerApplicationStore>();
+        services.AddSingleton<SqliteSchoolPersonProfileStore>();
+        services.AddSingleton<SqliteSchoolBindingApplicationStore>();
+        services.AddSingleton<SqliteResponderClaimApplicationStore>();
+        services.AddSingleton<SqliteUserIdentityReviewService>();
         services.AddSingleton(provider => new SqliteVolunteerApplicationReviewOptions
         {
             ForcedResponderId = provider.GetRequiredService<IConfiguration>()["Test:ForcedResponderId"]
@@ -105,12 +113,22 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAdminUserProfileStore>(Pick<IAdminUserProfileStore, JsonAdminUserProfileStore, SqliteAdminUserProfileStore>);
         services.AddSingleton<IAdminAuditLogStore>(Pick<IAdminAuditLogStore, JsonAdminAuditLogStore, SqliteAdminAuditLogStore>);
         services.AddSingleton<IVolunteerApplicationStore>(Pick<IVolunteerApplicationStore, JsonVolunteerApplicationStore, SqliteVolunteerApplicationStore>);
+        services.AddSingleton<ISchoolPersonProfileStore>(Pick<ISchoolPersonProfileStore, JsonSchoolPersonProfileStore, SqliteSchoolPersonProfileStore>);
+        services.AddSingleton<ISchoolBindingApplicationStore>(Pick<ISchoolBindingApplicationStore, JsonSchoolBindingApplicationStore, SqliteSchoolBindingApplicationStore>);
+        services.AddSingleton<IResponderClaimApplicationStore>(Pick<IResponderClaimApplicationStore, JsonResponderClaimApplicationStore, SqliteResponderClaimApplicationStore>);
         services.AddSingleton<IVolunteerApplicationReviewService>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<DataOptions>>().Value;
             return options.UseSqlite()
                 ? provider.GetRequiredService<SqliteVolunteerApplicationReviewService>()
                 : new JsonVolunteerApplicationReviewService();
+        });
+        services.AddSingleton<IUserIdentityReviewService>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<DataOptions>>().Value;
+            return options.UseSqlite()
+                ? provider.GetRequiredService<SqliteUserIdentityReviewService>()
+                : new JsonUserIdentityReviewService();
         });
     }
 

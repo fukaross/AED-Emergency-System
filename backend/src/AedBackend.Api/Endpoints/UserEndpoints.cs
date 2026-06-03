@@ -5,6 +5,8 @@ using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.DTOs.User;
 using AedBackend.Core.Models.Volunteer;
 using AedBackend.Core.Models.WeChat;
+using AedBackend.Core.Services.Help;
+using AedBackend.Core.Services.User;
 using AedBackend.Core.Services.Volunteer;
 using AedBackend.Core.Services.WeChat;
 using AedBackend.Infrastructure.Persistence;
@@ -26,6 +28,14 @@ internal static partial class UserEndpoints
             .WithName("SubmitVolunteerApplication");
         group.MapGet("/volunteer-applications", ListVolunteerApplicationsAsync)
             .WithName("ListMyVolunteerApplications");
+        group.MapPost("/school-bindings", SubmitSchoolBindingAsync)
+            .WithName("SubmitSchoolBinding");
+        group.MapGet("/school-bindings", ListSchoolBindingsAsync)
+            .WithName("ListMySchoolBindings");
+        group.MapPost("/responder-claims", SubmitResponderClaimAsync)
+            .WithName("SubmitResponderClaim");
+        group.MapGet("/responder-claims", ListResponderClaimsAsync)
+            .WithName("ListMyResponderClaims");
         return app;
     }
 
@@ -33,6 +43,9 @@ internal static partial class UserEndpoints
         HttpRequest request,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        ISchoolBindingApplicationStore schoolBindings,
+        ISchoolPersonProfileStore schoolProfiles,
+        IResponderStore responders,
         IOptions<DataOptions> dataOptions,
         CancellationToken ct)
     {
@@ -40,7 +53,7 @@ internal static partial class UserEndpoints
         var current = await RequireUserAsync(request, tokenService, users, ct);
         return current is null
             ? Unauthorized()
-            : Results.Ok(ApiResponse.Ok(ToProfile(current)));
+            : Results.Ok(ApiResponse.Ok(await ToProfileAsync(current, schoolBindings, schoolProfiles, responders, ct)));
     }
 
     private static async Task<IResult> UpdateProfileAsync(
@@ -141,6 +154,126 @@ internal static partial class UserEndpoints
         {
             return FeatureRequiresSqlite();
         }
+    }
+
+    private static async Task<IResult> SubmitSchoolBindingAsync(
+        HttpRequest request,
+        SubmitSchoolBindingRequest body,
+        ISessionTokenService tokenService,
+        IExperienceUserStore users,
+        ISchoolBindingApplicationStore applications,
+        IOptions<DataOptions> dataOptions,
+        CancellationToken ct)
+    {
+        if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
+        var current = await RequireUserAsync(request, tokenService, users, ct);
+        if (current is null) return Unauthorized();
+
+        var payload = CreateSchoolBindingPayload(body);
+        if (payload.Error is not null)
+            return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, payload.Error, 400);
+
+        try
+        {
+            var saved = await applications.SubmitAsync(current.OpenId, payload.Payload, ct);
+            return Results.Ok(ApiResponse.Ok(new SchoolBindingResponse(
+                saved.Id.ToString(), saved.Status, saved.CreatedAt)));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return EndpointFailures.JsonFailure(ErrorCodes.PendingApplicationExists, ex.Message, 409);
+        }
+        catch (NotSupportedException)
+        {
+            return FeatureRequiresSqlite();
+        }
+    }
+
+    private static async Task<IResult> ListSchoolBindingsAsync(
+        HttpRequest request,
+        ISessionTokenService tokenService,
+        IExperienceUserStore users,
+        ISchoolBindingApplicationStore applications,
+        IOptions<DataOptions> dataOptions,
+        int? page,
+        int? pageSize,
+        CancellationToken ct)
+    {
+        if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
+        var current = await RequireUserAsync(request, tokenService, users, ct);
+        if (current is null) return Unauthorized();
+
+        var query = CreateIdentityQuery(page, pageSize);
+        if (query.Error is not null)
+            return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, query.Error, 400);
+
+        var result = await applications.ListByUserAsync(current.OpenId, query.Query, ct);
+        return Results.Ok(ApiResponse.Ok(new SchoolBindingListResponse(
+            result.Items.Select(ToSchoolBindingDetail).ToArray(),
+            result.Total,
+            result.Page,
+            result.PageSize,
+            result.TotalPages)));
+    }
+
+    private static async Task<IResult> SubmitResponderClaimAsync(
+        HttpRequest request,
+        SubmitResponderClaimRequest body,
+        ISessionTokenService tokenService,
+        IExperienceUserStore users,
+        IResponderClaimApplicationStore applications,
+        IOptions<DataOptions> dataOptions,
+        CancellationToken ct)
+    {
+        if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
+        var current = await RequireUserAsync(request, tokenService, users, ct);
+        if (current is null) return Unauthorized();
+
+        var payload = CreateResponderClaimPayload(body);
+        if (payload.Error is not null)
+            return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, payload.Error, 400);
+
+        try
+        {
+            var saved = await applications.SubmitAsync(current.OpenId, payload.Payload, ct);
+            return Results.Ok(ApiResponse.Ok(new ResponderClaimResponse(
+                saved.Id.ToString(), saved.Status, saved.CreatedAt)));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return EndpointFailures.JsonFailure(ErrorCodes.PendingApplicationExists, ex.Message, 409);
+        }
+        catch (NotSupportedException)
+        {
+            return FeatureRequiresSqlite();
+        }
+    }
+
+    private static async Task<IResult> ListResponderClaimsAsync(
+        HttpRequest request,
+        ISessionTokenService tokenService,
+        IExperienceUserStore users,
+        IResponderClaimApplicationStore applications,
+        IOptions<DataOptions> dataOptions,
+        int? page,
+        int? pageSize,
+        CancellationToken ct)
+    {
+        if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
+        var current = await RequireUserAsync(request, tokenService, users, ct);
+        if (current is null) return Unauthorized();
+
+        var query = CreateIdentityQuery(page, pageSize);
+        if (query.Error is not null)
+            return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, query.Error, 400);
+
+        var result = await applications.ListByUserAsync(current.OpenId, query.Query, ct);
+        return Results.Ok(ApiResponse.Ok(new ResponderClaimListResponse(
+            result.Items.Select(ToResponderClaimDetail).ToArray(),
+            result.Total,
+            result.Page,
+            result.PageSize,
+            result.TotalPages)));
     }
 
     private static async Task<ExperienceUserRecord?> RequireUserAsync(

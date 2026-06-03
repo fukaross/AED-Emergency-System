@@ -78,6 +78,13 @@ internal sealed class ProviderTempData : IDisposable
         await WriteAsync("wechat-experience-users.json", new ExperienceUsersDb { Users = [user] });
     }
 
+    public async Task WriteBoundResponderJsonAsync(string openId)
+    {
+        var responder = SampleResponder();
+        responder.BoundOpenId = openId;
+        await WriteAsync("rescuer-profiles.json", new[] { responder });
+    }
+
     public void Dispose() => Directory.Delete(Root, true);
 
     private static AdminUserRecord SampleAdmin()

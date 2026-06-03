@@ -1,6 +1,7 @@
 using AedBackend.Core.Models.Aed;
 using AedBackend.Core.Models.Knowledge;
 using AedBackend.Core.Models.Responder;
+using AedBackend.Core.Models.User;
 using AedBackend.Core.Models.Volunteer;
 
 namespace AedBackend.Infrastructure.Persistence.Sqlite;
@@ -127,6 +128,84 @@ internal static partial class SqliteMapper
             ReviewedAt = item.ReviewedAt,
             CreatedRescuerId = item.CreatedRescuerId,
             CreatedAt = item.CreatedAt,
+            UpdatedAt = item.UpdatedAt
+        };
+    }
+
+    public static SchoolPersonProfileEntity ToEntity(SchoolPersonProfileRecord item)
+    {
+        return new SchoolPersonProfileEntity
+        {
+            Id = item.Id, PersonType = item.PersonType, Name = item.Name,
+            College = item.College, ClassName = item.ClassName, StudentId = item.StudentId,
+            StaffId = item.StaffId, Phone = item.Phone, Status = item.Status,
+            CreatedAt = item.CreatedAt, UpdatedAt = item.UpdatedAt
+        };
+    }
+
+    public static SchoolPersonProfileRecord ToRecord(SchoolPersonProfileEntity item)
+    {
+        return new SchoolPersonProfileRecord
+        {
+            Id = item.Id, PersonType = item.PersonType, Name = item.Name,
+            College = item.College, ClassName = item.ClassName, StudentId = item.StudentId,
+            StaffId = item.StaffId, Phone = item.Phone, Status = item.Status,
+            CreatedAt = item.CreatedAt, UpdatedAt = item.UpdatedAt
+        };
+    }
+
+    public static SchoolBindingApplicationEntity ToEntity(
+        SchoolBindingApplicationRecord item,
+        string payloadJson)
+    {
+        return new SchoolBindingApplicationEntity
+        {
+            Id = item.Id, OpenId = item.OpenId, Status = item.Status,
+            SchoolProfileId = item.SchoolProfileId, PayloadJson = payloadJson,
+            ReviewNote = item.ReviewNote, ReviewedBy = item.ReviewedBy,
+            ReviewedAt = item.ReviewedAt, CreatedAt = item.CreatedAt,
+            UpdatedAt = item.UpdatedAt
+        };
+    }
+
+    public static SchoolBindingApplicationRecord ToRecord(
+        SchoolBindingApplicationEntity item,
+        SchoolBindingPayloadRecord payload)
+    {
+        return new SchoolBindingApplicationRecord
+        {
+            Id = item.Id, OpenId = item.OpenId, Status = item.Status,
+            SchoolProfileId = item.SchoolProfileId, Payload = payload,
+            ReviewNote = item.ReviewNote, ReviewedBy = item.ReviewedBy,
+            ReviewedAt = item.ReviewedAt, CreatedAt = item.CreatedAt,
+            UpdatedAt = item.UpdatedAt
+        };
+    }
+
+    public static ResponderClaimApplicationEntity ToEntity(
+        ResponderClaimApplicationRecord item,
+        string payloadJson)
+    {
+        return new ResponderClaimApplicationEntity
+        {
+            Id = item.Id, OpenId = item.OpenId, Status = item.Status,
+            ResponderProfileId = item.ResponderProfileId, PayloadJson = payloadJson,
+            ReviewNote = item.ReviewNote, ReviewedBy = item.ReviewedBy,
+            ReviewedAt = item.ReviewedAt, CreatedAt = item.CreatedAt,
+            UpdatedAt = item.UpdatedAt
+        };
+    }
+
+    public static ResponderClaimApplicationRecord ToRecord(
+        ResponderClaimApplicationEntity item,
+        ResponderClaimPayloadRecord payload)
+    {
+        return new ResponderClaimApplicationRecord
+        {
+            Id = item.Id, OpenId = item.OpenId, Status = item.Status,
+            ResponderProfileId = item.ResponderProfileId, Payload = payload,
+            ReviewNote = item.ReviewNote, ReviewedBy = item.ReviewedBy,
+            ReviewedAt = item.ReviewedAt, CreatedAt = item.CreatedAt,
             UpdatedAt = item.UpdatedAt
         };
     }
