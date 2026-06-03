@@ -29,19 +29,56 @@
         </template>
         <el-empty v-else-if="!loading" description="申请不存在" />
       </div>
+      <el-dialog v-model="approveDialogVisible" title="审核通过" width="520px">
+        <el-radio-group v-model="approveForm.mode" class="approve-field">
+          <el-radio value="new">创建新档案</el-radio>
+          <el-radio value="existing">选择已有档案</el-radio>
+        </el-radio-group>
+        <el-select
+          v-model="approveForm.schoolProfileId"
+          class="approve-field"
+          :disabled="approveForm.mode !== 'existing'"
+          placeholder="选择学校档案"
+        >
+          <el-option
+            v-for="item in profiles"
+            :key="item.profileId"
+            :label="`${item.name} · ${item.college}`"
+            :value="String(item.profileId)"
+          />
+        </el-select>
+        <el-input
+          v-model="approveForm.reviewNote"
+          type="textarea"
+          :rows="2"
+          placeholder="审核意见（可选）"
+        />
+        <template #footer>
+          <el-button @click="approveDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="actionLoading" @click="submitApprove">通过</el-button>
+        </template>
+      </el-dialog>
     </div>
   </admin-layout>
 </template>
 
 <script setup lang="ts">
-import { h, onMounted, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElInput, ElMessage, ElMessageBox, ElOption, ElRadio, ElRadioGroup, ElSelect } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import adminLayout from '@/components/admin-layout.vue'
 import statusTag from '@/components/status-tag.vue'
 import { approveSchoolBinding, getSchoolBindingDetail, getSchoolProfiles, rejectSchoolBinding } from '@/api/user-identity'
 import { getApiErrorMessage } from '@/api/client'
 import type { AdminSchoolBindingDetail, AdminSchoolProfileItem, SchoolPersonType } from '@/types/user-identity'
+
+type ApproveMode = 'new' | 'existing'
+
+interface ApproveForm {
+  mode: ApproveMode
+  schoolProfileId: string
+  reviewNote: string
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -50,6 +87,12 @@ const detail = ref<AdminSchoolBindingDetail | null>(null)
 const profiles = ref<AdminSchoolProfileItem[]>([])
 const loading = ref(false)
 const actionLoading = ref(false)
+const approveDialogVisible = ref(false)
+const approveForm = reactive<ApproveForm>({
+  mode: 'new',
+  schoolProfileId: '',
+  reviewNote: '',
+})
 
 async function loadDetail() {
   loading.value = true
@@ -71,28 +114,33 @@ async function loadProfiles() {
 
 async function handleApprove() {
   if (!detail.value) return
-  await loadProfiles()
-  const form = { mode: 'new', schoolProfileId: '', reviewNote: '' }
-  const vnode = h('div', [
-    h(ElRadioGroup, { modelValue: form.mode, 'onUpdate:modelValue': (value: unknown) => { form.mode = String(value) }, style: 'margin-bottom: 12px' }, () => [
-      h(ElRadio, { value: 'new' }, () => '创建新档案'),
-      h(ElRadio, { value: 'existing' }, () => '选择已有档案'),
-    ]),
-    h(ElSelect, { modelValue: form.schoolProfileId, 'onUpdate:modelValue': (value: string) => { form.schoolProfileId = value }, disabled: form.mode !== 'existing', placeholder: '选择学校档案', style: 'width: 100%; margin-bottom: 12px' }, () =>
-      profiles.value.map((item) => h(ElOption, { label: `${item.name} · ${item.college}`, value: item.profileId }))),
-    h(ElInput, { modelValue: form.reviewNote, 'onUpdate:modelValue': (value: string) => { form.reviewNote = value }, type: 'textarea', rows: 2, placeholder: '审核意见（可选）' }),
-  ])
   try {
-    await ElMessageBox.confirm(vnode, '审核通过', { confirmButtonText: '通过', cancelButtonText: '取消' })
+    await loadProfiles()
+    resetApproveForm()
+    approveDialogVisible.value = true
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '加载学校档案失败'))
+  }
+}
+
+async function submitApprove() {
+  if (!detail.value) return
+  if (approveForm.mode === 'existing' && !approveForm.schoolProfileId) {
+    ElMessage.error('请选择学校档案')
+    return
+  }
+  try {
     actionLoading.value = true
-    const data = form.mode === 'existing'
-      ? { schoolProfileId: Number(form.schoolProfileId), reviewNote: form.reviewNote || null }
-      : { newProfile: toNewProfile(detail.value), reviewNote: form.reviewNote || null }
+    const reviewNote = toNullableReviewNote(approveForm.reviewNote)
+    const data = approveForm.mode === 'existing'
+      ? { schoolProfileId: Number(approveForm.schoolProfileId), reviewNote }
+      : { newProfile: toNewProfile(detail.value), reviewNote }
     const res = await approveSchoolBinding(id, data)
     detail.value = res.data.data.application
+    approveDialogVisible.value = false
     ElMessage.success('已通过')
   } catch (error) {
-    if (error !== 'cancel') ElMessage.error(getApiErrorMessage(error, '审核失败'))
+    ElMessage.error(getApiErrorMessage(error, '审核失败'))
   } finally {
     actionLoading.value = false
   }
@@ -123,6 +171,17 @@ function toNewProfile(item: AdminSchoolBindingDetail) {
   return { ...payload, status: 'active' as const }
 }
 
+function resetApproveForm() {
+  approveForm.mode = 'new'
+  approveForm.schoolProfileId = ''
+  approveForm.reviewNote = ''
+}
+
+function toNullableReviewNote(value: string) {
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
 function personTypeLabel(value: SchoolPersonType) {
   return value === 'teacher' ? '教师' : value === 'staff' ? '职工' : '学生'
 }
@@ -134,4 +193,5 @@ onMounted(loadDetail)
 .back-link { margin-bottom: 16px; }
 .detail-container { display: flex; flex-direction: column; gap: 16px; }
 .action-bar { display: flex; gap: 12px; padding-bottom: 16px; }
+.approve-field { width: 100%; margin-bottom: 12px; }
 </style>

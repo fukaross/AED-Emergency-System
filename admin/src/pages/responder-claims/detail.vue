@@ -27,14 +27,38 @@
         </template>
         <el-empty v-else-if="!loading" description="申请不存在" />
       </div>
+      <el-dialog v-model="approveDialogVisible" title="审核通过" width="520px">
+        <el-select
+          v-model="approveForm.responderProfileId"
+          class="approve-field"
+          placeholder="选择急救员档案"
+        >
+          <el-option
+            v-for="item in candidates"
+            :key="item.id"
+            :label="`${item.name} · ${item.id}`"
+            :value="item.id"
+          />
+        </el-select>
+        <el-input
+          v-model="approveForm.reviewNote"
+          type="textarea"
+          :rows="2"
+          placeholder="审核意见（可选）"
+        />
+        <template #footer>
+          <el-button @click="approveDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="actionLoading" @click="submitApprove">通过</el-button>
+        </template>
+      </el-dialog>
     </div>
   </admin-layout>
 </template>
 
 <script setup lang="ts">
-import { h, onMounted, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElInput, ElMessage, ElMessageBox, ElOption, ElSelect } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import adminLayout from '@/components/admin-layout.vue'
 import statusTag from '@/components/status-tag.vue'
 import { getRescuers } from '@/api/rescuers'
@@ -43,6 +67,11 @@ import { getApiErrorMessage } from '@/api/client'
 import type { AdminRescuerItem } from '@/types/rescuer'
 import type { AdminResponderClaimDetail } from '@/types/user-identity'
 
+interface ApproveForm {
+  responderProfileId: string
+  reviewNote: string
+}
+
 const route = useRoute()
 const router = useRouter()
 const id = route.params.id as string
@@ -50,6 +79,11 @@ const detail = ref<AdminResponderClaimDetail | null>(null)
 const candidates = ref<AdminRescuerItem[]>([])
 const loading = ref(false)
 const actionLoading = ref(false)
+const approveDialogVisible = ref(false)
+const approveForm = reactive<ApproveForm>({
+  responderProfileId: '',
+  reviewNote: '',
+})
 
 async function loadDetail() {
   loading.value = true
@@ -69,21 +103,31 @@ async function loadCandidates() {
 }
 
 async function handleApprove() {
-  await loadCandidates()
-  const form = { responderProfileId: '', reviewNote: '' }
-  const vnode = h('div', [
-    h(ElSelect, { modelValue: form.responderProfileId, 'onUpdate:modelValue': (value: string) => { form.responderProfileId = value }, placeholder: '选择急救员档案', style: 'width: 100%; margin-bottom: 12px' }, () =>
-      candidates.value.map((item) => h(ElOption, { label: `${item.name} · ${item.id}`, value: item.id }))),
-    h(ElInput, { modelValue: form.reviewNote, 'onUpdate:modelValue': (value: string) => { form.reviewNote = value }, type: 'textarea', rows: 2, placeholder: '审核意见（可选）' }),
-  ])
   try {
-    await ElMessageBox.confirm(vnode, '审核通过', { confirmButtonText: '通过', cancelButtonText: '取消' })
+    await loadCandidates()
+    resetApproveForm()
+    approveDialogVisible.value = true
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '加载急救员档案失败'))
+  }
+}
+
+async function submitApprove() {
+  if (!approveForm.responderProfileId) {
+    ElMessage.error('请选择急救员档案')
+    return
+  }
+  try {
     actionLoading.value = true
-    const res = await approveResponderClaim(id, { responderProfileId: form.responderProfileId, reviewNote: form.reviewNote || null })
+    const res = await approveResponderClaim(id, {
+      responderProfileId: approveForm.responderProfileId,
+      reviewNote: toNullableReviewNote(approveForm.reviewNote),
+    })
     detail.value = res.data.data.application
+    approveDialogVisible.value = false
     ElMessage.success('已通过')
   } catch (error) {
-    if (error !== 'cancel') ElMessage.error(getApiErrorMessage(error, '审核失败'))
+    ElMessage.error(getApiErrorMessage(error, '审核失败'))
   } finally {
     actionLoading.value = false
   }
@@ -109,6 +153,16 @@ async function handleReject() {
   }
 }
 
+function resetApproveForm() {
+  approveForm.responderProfileId = ''
+  approveForm.reviewNote = ''
+}
+
+function toNullableReviewNote(value: string) {
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
 onMounted(loadDetail)
 </script>
 
@@ -116,4 +170,5 @@ onMounted(loadDetail)
 .back-link { margin-bottom: 16px; }
 .detail-container { display: flex; flex-direction: column; gap: 16px; }
 .action-bar { display: flex; gap: 12px; padding-bottom: 16px; }
+.approve-field { width: 100%; margin-bottom: 12px; }
 </style>
