@@ -64,6 +64,7 @@ function toUserProfile(userInfo: {
     avatarUrl: userInfo.avatarUrl,
     gender: 'unknown',
     phone: '',
+    primaryRole: 'student',
     certified: false,
     level: null,
     schoolProfile: null,

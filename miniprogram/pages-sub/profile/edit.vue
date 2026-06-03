@@ -70,6 +70,14 @@
         />
       </view>
 
+      <!-- 身份（只读） -->
+      <view class="pe-row pe-row--readonly">
+        <text class="pe-label">身份</text>
+        <view class="pe-readonly">
+          <text class="pe-role-tag">{{ primaryRoleLabel }}</text>
+        </view>
+      </view>
+
       <!-- 学校档案（只读） -->
       <view class="pe-row pe-row--readonly">
         <text class="pe-label">学校档案</text>
@@ -132,6 +140,7 @@ const {
   handleChooseAvatar,
   handleSave,
   onPhoneInput,
+  primaryRoleLabel,
   rescuerLevel,
   safeAreaBottomPx,
   saving,

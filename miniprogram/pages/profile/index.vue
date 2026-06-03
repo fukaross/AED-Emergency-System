@@ -20,6 +20,9 @@
           </text>
         </view>
         <view class="pf-tags">
+          <view class="pf-role">
+            <text class="pf-role-text">{{ roleText }}</text>
+          </view>
           <view class="pf-cert" :class="certClass">
             <image class="pf-cert-icon" :src="certIcon" mode="aspectFit" />
             <text class="pf-cert-text">{{ certText }}</text>
@@ -108,6 +111,14 @@ const certIcon = computed(() =>
     ? '/static/icons/verified.svg'
     : '/static/icons/unverified.svg',
 )
+
+const roleText = computed(() => {
+  const role = userStore.primaryRole
+  if (role === 'teacher') return '教师'
+  if (role === 'staff') return '职工'
+  if (role === 'admin') return '管理员'
+  return '学生'
+})
 
 // ===== 操作 =====
 function changeAvatar() {
@@ -231,8 +242,23 @@ onShow(() => {
 
 .pf-tags {
   @include flex-align-center;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: $spacing-sm;
   margin-top: $spacing-sm;
+}
+
+.pf-role {
+  height: 40rpx;
+  padding: 0 16rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.22);
+  @include flex-center;
+}
+
+.pf-role-text {
+  font-size: $font-size-xs;
+  color: $text-white;
 }
 
 .pf-cert {

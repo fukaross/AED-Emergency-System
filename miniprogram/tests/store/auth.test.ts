@@ -54,6 +54,7 @@ describe('auth store', () => {
     expect(userStore.userInfo).toMatchObject({
       id: 'obTw23eNrLnMEI3Bbgk8abcd',
       name: '微信用户 obTw...abcd',
+      primaryRole: 'student',
       certified: false,
     })
     expect(userStore.userInfo?.name).not.toBe('REDACTED')

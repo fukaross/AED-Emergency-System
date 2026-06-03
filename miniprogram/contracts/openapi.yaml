@@ -3369,15 +3369,6 @@ components:
         accountStatus:
           type: string
           enum: [active, disabled]
-        responderStatus:
-          type: string
-          enum: [active, inactive]
-        certified:
-          type: boolean
-        level:
-          type: string
-          enum: [honor, trainee, official, core]
-          nullable: true
         adminRemark:
           type: string
           nullable: true
@@ -4567,7 +4558,7 @@ components:
 
     UserProfile:
       type: object
-      required: [id, name, avatarUrl, gender, phone, certified, level]
+      required: [id, name, avatarUrl, gender, phone, primaryRole, certified, level]
       properties:
         id:
           type: string
@@ -4580,6 +4571,9 @@ components:
           enum: [male, female, unknown]
         phone:
           type: string
+        primaryRole:
+          type: string
+          enum: [student, teacher, staff, admin]
         certified:
           type: boolean
         level:

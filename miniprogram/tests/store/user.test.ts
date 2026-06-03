@@ -32,6 +32,7 @@ function buildProfile(name: string, avatarUrl: string): UserProfile {
     avatarUrl,
     gender: 'unknown',
     phone: '',
+    primaryRole: 'student',
     certified: false,
     level: null,
     schoolProfile: null,
@@ -57,6 +58,7 @@ describe('user store', () => {
     expect(store.userInfo).toMatchObject({
       name: '后端昵称',
       avatarUrl: 'https://cdn.example/avatar.png',
+      primaryRole: 'student',
     })
   })
 

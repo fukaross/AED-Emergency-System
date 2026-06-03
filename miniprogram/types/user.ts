@@ -2,6 +2,8 @@
 
 export type Gender = 'male' | 'female' | 'unknown'
 
+export type PrimaryRole = 'student' | 'teacher' | 'staff' | 'admin'
+
 export type RescuerLevel = 'honor' | 'trainee' | 'official' | 'core'
 
 export type ResponderType = 'rescuer' | 'duty_teacher'
@@ -49,6 +51,7 @@ export interface UserProfile {
   readonly avatarUrl: string
   readonly gender: Gender
   readonly phone: string
+  readonly primaryRole: PrimaryRole
   readonly certified: boolean
   readonly level: RescuerLevel | null
   readonly schoolProfile: SchoolProfile | null

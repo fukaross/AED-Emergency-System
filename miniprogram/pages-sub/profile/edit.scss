@@ -126,6 +126,17 @@
   color: $text-tertiary-a11y;
 }
 
+.pe-role-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 44rpx;
+  padding: 0 $spacing-sm;
+  border-radius: $radius-full;
+  background: $background-card-disabled;
+  font-size: $font-size-sm;
+  color: $text-secondary;
+}
+
 .pe-qual {
   @include flex-align-center;
   justify-content: flex-end;

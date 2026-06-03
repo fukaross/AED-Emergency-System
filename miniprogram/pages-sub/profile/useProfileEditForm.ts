@@ -5,6 +5,7 @@ import { useUserStore } from '@/store/user'
 import type {
   BindingStatus,
   Gender,
+  PrimaryRole,
   RescuerLevel,
   UpdateUserProfilePayload,
 } from '@/types/user'
@@ -28,6 +29,13 @@ const BINDING_LABELS: Record<BindingStatus, string> = {
   rejected: '已拒绝',
   replaced: '已替换',
   unbound: '未绑定',
+}
+
+const ROLE_LABELS: Record<PrimaryRole, string> = {
+  student: '学生',
+  teacher: '教师',
+  staff: '职工',
+  admin: '管理员',
 }
 
 interface EditableProfile {
@@ -106,6 +114,9 @@ export function useProfileEditForm() {
   const schoolProfile = computed(() => userStore.userInfo?.schoolProfile ?? null)
   const rescuerLevel = computed<RescuerLevel | null>(
     () => userStore.userInfo?.level ?? null,
+  )
+  const primaryRoleLabel = computed(
+    () => ROLE_LABELS[userStore.primaryRole] ?? '学生',
   )
   const bindingStatusLabel = computed(() => {
     const status = schoolProfile.value?.bindingStatus
@@ -243,6 +254,7 @@ export function useProfileEditForm() {
     handleChooseAvatar,
     handleSave,
     onPhoneInput,
+    primaryRoleLabel,
     rescuerLevel,
     safeAreaBottomPx,
     saving,

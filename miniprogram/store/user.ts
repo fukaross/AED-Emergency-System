@@ -22,6 +22,7 @@ export const useUserStore = defineStore('user', () => {
   const isCertified = computed(() => userInfo.value?.certified ?? false)
   const rescuerLevel = computed(() => userInfo.value?.level ?? null)
   const rescuerSummary = computed(() => userInfo.value?.rescuerSummary ?? null)
+  const primaryRole = computed(() => userInfo.value?.primaryRole ?? 'student')
 
   // ===== Actions =====
   async function loadProfile(): Promise<void> {
@@ -58,6 +59,7 @@ export const useUserStore = defineStore('user', () => {
     isCertified,
     rescuerLevel,
     rescuerSummary,
+    primaryRole,
     loadProfile,
     setLoginProfile,
     saveProfile,
@@ -82,6 +84,7 @@ function buildStoredLoginFallbackProfile(): UserProfile {
     avatarUrl: '',
     gender: 'unknown',
     phone: '',
+    primaryRole: 'student',
     certified: false,
     level: null,
     schoolProfile: null,
@@ -98,6 +101,7 @@ function normalizeAuthUserProfile(profile: UserProfile): UserProfile {
     avatarUrl: profile.avatarUrl || '',
     gender: profile.gender ?? 'unknown',
     phone: profile.phone ?? '',
+    primaryRole: profile.primaryRole ?? 'student',
     certified: profile.certified ?? false,
     level: profile.level ?? null,
     schoolProfile: profile.schoolProfile ?? null,
