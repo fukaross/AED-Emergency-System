@@ -28,6 +28,7 @@ internal static partial class UserEndpoints
             .WithName("SubmitVolunteerApplication");
         group.MapGet("/volunteer-applications", ListVolunteerApplicationsAsync)
             .WithName("ListMyVolunteerApplications");
+        group.MapUserArchiveEndpoints();
         group.MapPost("/school-bindings", SubmitSchoolBindingAsync)
             .WithName("SubmitSchoolBinding");
         group.MapGet("/school-bindings", ListSchoolBindingsAsync)

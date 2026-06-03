@@ -38,6 +38,92 @@ public sealed record UserRescuerSummaryResponse(
     string? CertificateNoMasked,
     string? WorkUnit);
 
+public sealed record ArchiveListResponse(
+    IReadOnlyList<ArchiveListItem> Items,
+    int Total,
+    int Page,
+    int PageSize,
+    int TotalPages,
+    bool CanViewFullPhone,
+    ArchiveListItem? SelfArchive);
+
+public sealed record ArchiveListItem(
+    string Id,
+    string Name,
+    string Phone,
+    string? Level,
+    string College,
+    string CertExpiry,
+    bool CertExpired,
+    string? SchoolBindingStatus);
+
+public sealed record ArchiveDetailResponse(
+    string Id,
+    ArchiveProfileResponse Profile,
+    UserSchoolProfileResponse? SchoolProfile,
+    string? SchoolBindingStatus,
+    ArchiveResponderQualificationResponse? ResponderQualification,
+    IReadOnlyList<ArchiveCertificateRecordResponse> CertificateRecords);
+
+public sealed record ArchiveProfileResponse(
+    string Id,
+    string Name,
+    string Gender,
+    string BirthDate,
+    string PhoneMasked,
+    string IdMasked,
+    string? WorkUnit);
+
+public sealed record ArchiveResponderQualificationResponse(
+    string Id,
+    string? UserId,
+    string RescuerArchiveProfileId,
+    string? CurrentCertificateRecordId,
+    string ResponderType,
+    string Status,
+    string? Level,
+    bool Certified,
+    string? CertExpiry,
+    bool CertExpired,
+    string SourceType,
+    string? SourceBatchNo,
+    string? Remark);
+
+public sealed record ArchiveCertificateRecordResponse(
+    string Id,
+    string ProfileId,
+    string? CertificateNo,
+    string? IssuingAuthority,
+    string? IssueDate,
+    int TrainingYear,
+    string? TrainingProject,
+    string? TrainingSessionName,
+    int? TheoryScore,
+    string? TraumaAssessmentResult,
+    string? CprAssessmentResult,
+    string? AedAssessmentResult,
+    string? CprAedCombinedResult,
+    string? Remark,
+    bool IsCurrent,
+    ArchiveSourceTraceResponse SourceTrace);
+
+public sealed record ArchiveSourceTraceResponse(
+    string? SourceFile,
+    string? SourceSheet,
+    int SourceRowNo,
+    string? SourceSeqNo,
+    ArchiveImportBatchResponse Batch);
+
+public sealed record ArchiveImportBatchResponse(
+    string Id,
+    int SourceYear,
+    string? SourceFileName,
+    DateTimeOffset ImportedAt,
+    string? Operator,
+    string? Note);
+
+public sealed record ArchivePhoneResponse(string Phone);
+
 public sealed record VolunteerImageAttachmentDto(
     string Url,
     string? FileId,

@@ -85,6 +85,29 @@ internal sealed class ProviderTempData : IDisposable
         await WriteAsync("rescuer-profiles.json", new[] { responder });
     }
 
+    public async Task WriteResponderJsonAsync(params ResponderProfileRecord[] responders)
+    {
+        await WriteAsync("rescuer-profiles.json", responders);
+    }
+
+    public static ResponderProfileRecord Responder(
+        string id,
+        string name,
+        string? level = "trainee",
+        string status = "active",
+        string? boundOpenId = null)
+    {
+        return SampleResponder() with
+        {
+            Id = id,
+            RecordId = $"JZR-{id}",
+            Name = name,
+            Level = level,
+            QualificationStatus = status,
+            BoundOpenId = boundOpenId
+        };
+    }
+
     public void Dispose() => Directory.Delete(Root, true);
 
     private static AdminUserRecord SampleAdmin()
