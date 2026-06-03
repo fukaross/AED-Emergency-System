@@ -5,6 +5,7 @@ using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.DTOs.User;
 using AedBackend.Core.Models.Volunteer;
 using AedBackend.Core.Models.WeChat;
+using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.User;
 using AedBackend.Core.Services.Volunteer;
@@ -44,6 +45,7 @@ internal static partial class UserEndpoints
         HttpRequest request,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        IUserAccountStatusService accountStatus,
         ISchoolBindingApplicationStore schoolBindings,
         ISchoolPersonProfileStore schoolProfiles,
         IResponderStore responders,
@@ -51,10 +53,11 @@ internal static partial class UserEndpoints
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await RequireUserAsync(request, tokenService, users, ct);
-        return current is null
-            ? Unauthorized()
-            : Results.Ok(ApiResponse.Ok(await ToProfileAsync(current, schoolBindings, schoolProfiles, responders, ct)));
+        var current = await RequireUserAsync(request, tokenService, users, accountStatus, ct);
+        return current.Failure is not null
+            ? current.Failure
+            : Results.Ok(ApiResponse.Ok(await ToProfileAsync(
+                current.User!, accountStatus, schoolBindings, schoolProfiles, responders, ct)));
     }
 
     private static async Task<IResult> UpdateProfileAsync(
@@ -62,12 +65,13 @@ internal static partial class UserEndpoints
         JsonElement body,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        IUserAccountStatusService accountStatus,
         IOptions<DataOptions> dataOptions,
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await RequireUserAsync(request, tokenService, users, ct);
-        if (current is null) return Unauthorized();
+        var current = await RequireUserAsync(request, tokenService, users, accountStatus, ct);
+        if (current.Failure is not null) return current.Failure;
 
         var patchResult = CreatePatch(body);
         if (patchResult.Error is not null)
@@ -75,7 +79,7 @@ internal static partial class UserEndpoints
 
         try
         {
-            await users.UpdateProfileAsync(current.OpenId, patchResult.Patch, ct);
+            await users.UpdateProfileAsync(current.User!.OpenId, patchResult.Patch, ct);
             return Results.Ok(ApiResponse.Ok());
         }
         catch (NotSupportedException)
@@ -89,13 +93,14 @@ internal static partial class UserEndpoints
         SubmitVolunteerApplicationRequest body,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        IUserAccountStatusService accountStatus,
         IVolunteerApplicationStore applications,
         IOptions<DataOptions> dataOptions,
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await RequireUserAsync(request, tokenService, users, ct);
-        if (current is null) return Unauthorized();
+        var current = await RequireUserAsync(request, tokenService, users, accountStatus, ct);
+        if (current.Failure is not null) return current.Failure;
 
         var payloadResult = CreatePayload(body);
         if (payloadResult.Error is not null)
@@ -104,7 +109,7 @@ internal static partial class UserEndpoints
         try
         {
             var saved = await applications.SubmitAsync(
-                current.OpenId,
+                current.User!.OpenId,
                 payloadResult.Payload,
                 body.DerivedFromId,
                 ct);
@@ -127,6 +132,7 @@ internal static partial class UserEndpoints
         HttpRequest request,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        IUserAccountStatusService accountStatus,
         IVolunteerApplicationStore applications,
         IOptions<DataOptions> dataOptions,
         int? page,
@@ -134,8 +140,8 @@ internal static partial class UserEndpoints
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await RequireUserAsync(request, tokenService, users, ct);
-        if (current is null) return Unauthorized();
+        var current = await RequireUserAsync(request, tokenService, users, accountStatus, ct);
+        if (current.Failure is not null) return current.Failure;
 
         var queryResult = CreateApplicationQuery(page, pageSize);
         if (queryResult.Error is not null)
@@ -143,7 +149,7 @@ internal static partial class UserEndpoints
 
         try
         {
-            var items = await applications.ListByUserAsync(current.OpenId, queryResult.Query, ct);
+            var items = await applications.ListByUserAsync(current.User!.OpenId, queryResult.Query, ct);
             return Results.Ok(ApiResponse.Ok(new VolunteerApplicationListResponse(
                 items.Items.Select(ToApplicationDetail).ToArray(),
                 items.Total,
@@ -162,13 +168,14 @@ internal static partial class UserEndpoints
         SubmitSchoolBindingRequest body,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        IUserAccountStatusService accountStatus,
         ISchoolBindingApplicationStore applications,
         IOptions<DataOptions> dataOptions,
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await RequireUserAsync(request, tokenService, users, ct);
-        if (current is null) return Unauthorized();
+        var current = await RequireUserAsync(request, tokenService, users, accountStatus, ct);
+        if (current.Failure is not null) return current.Failure;
 
         var payload = CreateSchoolBindingPayload(body);
         if (payload.Error is not null)
@@ -176,7 +183,7 @@ internal static partial class UserEndpoints
 
         try
         {
-            var saved = await applications.SubmitAsync(current.OpenId, payload.Payload, ct);
+            var saved = await applications.SubmitAsync(current.User!.OpenId, payload.Payload, ct);
             return Results.Ok(ApiResponse.Ok(new SchoolBindingResponse(
                 saved.Id.ToString(), saved.Status, saved.CreatedAt)));
         }
@@ -194,6 +201,7 @@ internal static partial class UserEndpoints
         HttpRequest request,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        IUserAccountStatusService accountStatus,
         ISchoolBindingApplicationStore applications,
         IOptions<DataOptions> dataOptions,
         int? page,
@@ -201,14 +209,14 @@ internal static partial class UserEndpoints
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await RequireUserAsync(request, tokenService, users, ct);
-        if (current is null) return Unauthorized();
+        var current = await RequireUserAsync(request, tokenService, users, accountStatus, ct);
+        if (current.Failure is not null) return current.Failure;
 
         var query = CreateIdentityQuery(page, pageSize);
         if (query.Error is not null)
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, query.Error, 400);
 
-        var result = await applications.ListByUserAsync(current.OpenId, query.Query, ct);
+        var result = await applications.ListByUserAsync(current.User!.OpenId, query.Query, ct);
         return Results.Ok(ApiResponse.Ok(new SchoolBindingListResponse(
             result.Items.Select(ToSchoolBindingDetail).ToArray(),
             result.Total,
@@ -222,13 +230,14 @@ internal static partial class UserEndpoints
         SubmitResponderClaimRequest body,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        IUserAccountStatusService accountStatus,
         IResponderClaimApplicationStore applications,
         IOptions<DataOptions> dataOptions,
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await RequireUserAsync(request, tokenService, users, ct);
-        if (current is null) return Unauthorized();
+        var current = await RequireUserAsync(request, tokenService, users, accountStatus, ct);
+        if (current.Failure is not null) return current.Failure;
 
         var payload = CreateResponderClaimPayload(body);
         if (payload.Error is not null)
@@ -236,7 +245,7 @@ internal static partial class UserEndpoints
 
         try
         {
-            var saved = await applications.SubmitAsync(current.OpenId, payload.Payload, ct);
+            var saved = await applications.SubmitAsync(current.User!.OpenId, payload.Payload, ct);
             return Results.Ok(ApiResponse.Ok(new ResponderClaimResponse(
                 saved.Id.ToString(), saved.Status, saved.CreatedAt)));
         }
@@ -254,6 +263,7 @@ internal static partial class UserEndpoints
         HttpRequest request,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        IUserAccountStatusService accountStatus,
         IResponderClaimApplicationStore applications,
         IOptions<DataOptions> dataOptions,
         int? page,
@@ -261,14 +271,14 @@ internal static partial class UserEndpoints
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await RequireUserAsync(request, tokenService, users, ct);
-        if (current is null) return Unauthorized();
+        var current = await RequireUserAsync(request, tokenService, users, accountStatus, ct);
+        if (current.Failure is not null) return current.Failure;
 
         var query = CreateIdentityQuery(page, pageSize);
         if (query.Error is not null)
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, query.Error, 400);
 
-        var result = await applications.ListByUserAsync(current.OpenId, query.Query, ct);
+        var result = await applications.ListByUserAsync(current.User!.OpenId, query.Query, ct);
         return Results.Ok(ApiResponse.Ok(new ResponderClaimListResponse(
             result.Items.Select(ToResponderClaimDetail).ToArray(),
             result.Total,
@@ -277,18 +287,14 @@ internal static partial class UserEndpoints
             result.TotalPages)));
     }
 
-    private static async Task<ExperienceUserRecord?> RequireUserAsync(
+    private static async Task<CurrentUserResult> RequireUserAsync(
         HttpRequest request,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        IUserAccountStatusService accountStatus,
         CancellationToken ct)
     {
-        return await EndpointUsers.FindCurrentUserAsync(request, tokenService, users, ct);
-    }
-
-    private static IResult Unauthorized()
-    {
-        return EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "登录 token 无效", 401);
+        return await EndpointUsers.RequireActiveUserAsync(request, tokenService, users, accountStatus, ct);
     }
 
     private static IResult FeatureRequiresSqlite()

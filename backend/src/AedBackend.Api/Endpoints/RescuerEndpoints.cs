@@ -3,6 +3,7 @@ using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Rescuer;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.Models.Responder;
+using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.WeChat;
 
@@ -39,12 +40,12 @@ public static class RescuerEndpoints
         IResponderStore store,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
+        IUserAccountStatusService accountStatus,
         CancellationToken ct)
     {
-        var currentUser = await EndpointUsers.FindCurrentUserAsync(
-            httpRequest, tokenService, userStore, ct);
-        if (currentUser is null) return Results.Json(
-            ApiResponse.Fail(1002, "未登录"), statusCode: 401);
+        var currentUser = await EndpointUsers.RequireActiveUserAsync(
+            httpRequest, tokenService, userStore, accountStatus, ct);
+        if (currentUser.Failure is not null) return currentUser.Failure;
 
         var viewerPoint = ParseViewerPoint(lat, lng);
         if (viewerPoint.Error is not null)
@@ -180,12 +181,12 @@ public static class RescuerEndpoints
         IResponderStore store,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
+        IUserAccountStatusService accountStatus,
         CancellationToken ct)
     {
-        var currentUser = await EndpointUsers.FindCurrentUserAsync(
-            httpRequest, tokenService, userStore, ct);
-        if (currentUser is null) return Results.Json(
-            ApiResponse.Fail(1002, "未登录"), statusCode: 401);
+        var currentUser = await EndpointUsers.RequireActiveUserAsync(
+            httpRequest, tokenService, userStore, accountStatus, ct);
+        if (currentUser.Failure is not null) return currentUser.Failure;
 
         var profile = await store.FindByIdAsync(id, ct);
         if (profile is null) return Results.Json(

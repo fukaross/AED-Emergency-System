@@ -24,21 +24,22 @@ internal static class UserArchiveEndpoints
         HttpRequest request,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        IUserAccountStatusService accountStatus,
         IResponderStore responders,
         IOptions<DataOptions> dataOptions,
         [AsParameters] ArchiveQuery query,
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await EndpointUsers.FindCurrentUserAsync(request, tokenService, users, ct);
-        if (current is null) return Unauthorized();
+        var current = await EndpointUsers.RequireActiveUserAsync(request, tokenService, users, accountStatus, ct);
+        if (current.Failure is not null) return current.Failure;
 
         var validationError = query.Validate();
         if (validationError is not null) return ParameterInvalid(validationError);
 
         var profiles = await responders.GetAllAsync(ct);
         return Results.Ok(ApiResponse.Ok(UserArchiveMapping.ToListResponse(
-            profiles, current.OpenId, query)));
+            profiles, current.User!.OpenId, query)));
     }
 
     private static async Task<IResult> GetArchiveAsync(
@@ -46,13 +47,14 @@ internal static class UserArchiveEndpoints
         string id,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        IUserAccountStatusService accountStatus,
         IResponderStore responders,
         IOptions<DataOptions> dataOptions,
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await EndpointUsers.FindCurrentUserAsync(request, tokenService, users, ct);
-        if (current is null) return Unauthorized();
+        var current = await EndpointUsers.RequireActiveUserAsync(request, tokenService, users, accountStatus, ct);
+        if (current.Failure is not null) return current.Failure;
 
         var profile = await responders.FindByIdAsync(id, ct);
         if (profile is null) return RescuerNotFound();
@@ -65,20 +67,21 @@ internal static class UserArchiveEndpoints
         string? purpose,
         ISessionTokenService tokenService,
         IExperienceUserStore users,
+        IUserAccountStatusService accountStatus,
         IResponderStore responders,
         IAdminAuditLogStore auditLogs,
         IOptions<DataOptions> dataOptions,
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await EndpointUsers.FindCurrentUserAsync(context.Request, tokenService, users, ct);
-        if (current is null) return Unauthorized();
+        var current = await EndpointUsers.RequireActiveUserAsync(context.Request, tokenService, users, accountStatus, ct);
+        if (current.Failure is not null) return current.Failure;
         if (string.IsNullOrWhiteSpace(purpose)) return ParameterInvalid("purpose 不能为空");
 
         var profile = await responders.FindByIdAsync(id, ct);
         if (profile is null) return RescuerNotFound();
 
-        await auditLogs.AppendAsync(CreatePhoneAudit(context, current.OpenId, id, purpose.Trim()), ct);
+        await auditLogs.AppendAsync(CreatePhoneAudit(context, current.User!.OpenId, id, purpose.Trim()), ct);
         return Results.Ok(ApiResponse.Ok(new ArchivePhoneResponse(profile.Phone)));
     }
 
@@ -104,11 +107,6 @@ internal static class UserArchiveEndpoints
             UserAgent = AdminEndpointHelpers.GetUserAgent(context.Request),
             CreatedAt = DateTimeOffset.UtcNow
         };
-    }
-
-    private static IResult Unauthorized()
-    {
-        return EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "登录 token 无效", 401);
     }
 
     private static IResult ParameterInvalid(string message)

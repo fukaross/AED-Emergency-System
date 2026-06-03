@@ -40,7 +40,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IUploadImageStorage, LocalUploadImageStorage>();
         services.AddSingleton<IUploadVideoStorage, LocalUploadVideoStorage>();
         services.AddSingleton<IAdminAuthorizationService, AdminAuthorizationService>();
-        services.AddSingleton<IAdminUserService, AdminUserService>();
+        services.AddSingleton<AdminUserService>();
+        services.AddSingleton<IAdminUserService>(provider => provider.GetRequiredService<AdminUserService>());
+        services.AddSingleton<IUserAccountStatusService>(provider => provider.GetRequiredService<AdminUserService>());
         services.AddSingleton<IPasswordHasher<AdminUserRecord>, PasswordHasher<AdminUserRecord>>();
         services.AddHttpClient<IWeChatLoginClient, WeChatLoginClient>();
         services.AddHttpClient<IWeChatPhoneNumberClient, WeChatPhoneNumberClient>();

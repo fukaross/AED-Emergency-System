@@ -43,6 +43,13 @@ public interface IAdminUserProfileStore
         CancellationToken cancellationToken);
 }
 
+public interface IUserAccountStatusService
+{
+    Task<bool> IsDisabledAsync(string openId, CancellationToken cancellationToken);
+
+    Task<string> GetPrimaryRoleAsync(string openId, CancellationToken cancellationToken);
+}
+
 public interface IAdminAuditLogStore
 {
     Task AppendAsync(AdminAuditLogRecord record, CancellationToken cancellationToken);

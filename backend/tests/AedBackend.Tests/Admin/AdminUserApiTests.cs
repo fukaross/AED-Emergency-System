@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
+using AedBackend.Core.Models.Responder;
 using AedBackend.Infrastructure.Persistence.Sqlite;
 using AedBackend.Tests.Persistence;
 
@@ -18,14 +20,36 @@ public sealed class AdminUserApiTests : AdminApiTestBase
 
         var update = await Client.PutAsJsonAsync(
             "/api/admin/users/openid-1",
-            new { primaryRole = "teacher", responderStatus = "active", level = "core", adminRemark = "急救骨干" });
+            new { primaryRole = "teacher", adminRemark = "急救骨干" });
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
 
-        var list = await Client.GetAsync("/api/admin/users?primaryRole=teacher&responderStatus=active&level=core&keyword=骨干");
+        var list = await Client.GetAsync("/api/admin/users?primaryRole=teacher&keyword=骨干");
         var data = (await ReadAsync<ApiResponse<JsonElement>>(list)).Data;
 
         Assert.Equal(1, data.GetProperty("total").GetInt32());
         Assert.Equal("138****8000", data.GetProperty("items")[0].GetProperty("phone").GetString());
+        Assert.False(data.GetProperty("items")[0].GetProperty("certified").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, data.GetProperty("items")[0].GetProperty("level").ValueKind);
+    }
+
+    [Fact]
+    public async Task Users_ReadRescuerQualificationFromBoundResponder()
+    {
+        using var fixture = await UserProfileFixture.CreateAsync(
+            [ProviderTempData.Responder("rescuer-core", "王小明", "core", "active", "openid-1")]);
+        fixture.UseAdminKey();
+
+        var list = await fixture.Client.GetAsync("/api/admin/users?responderStatus=active&level=core");
+        var listData = (await ReadAsync<ApiResponse<JsonElement>>(list)).Data;
+        var detail = await fixture.Client.GetAsync("/api/admin/users/openid-1");
+        var detailData = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
+
+        Assert.Equal(1, listData.GetProperty("total").GetInt32());
+        Assert.True(listData.GetProperty("items")[0].GetProperty("certified").GetBoolean());
+        Assert.Equal("core", listData.GetProperty("items")[0].GetProperty("level").GetString());
+        Assert.Equal("active", listData.GetProperty("items")[0].GetProperty("responderStatus").GetString());
+        Assert.Equal("rescuer-core", detailData.GetProperty("rescuerSummary").GetProperty("responderProfileId").GetString());
+        Assert.True(detailData.GetProperty("rescuerSummary").GetProperty("certified").GetBoolean());
     }
 
     [Fact]
@@ -95,7 +119,7 @@ public sealed class AdminUserApiTests : AdminApiTestBase
 
         Assert.Equal(HttpStatusCode.OK, (await Client.PutAsJsonAsync(
             "/api/admin/users/openid-1",
-            new { primaryRole = "teacher", certified = true, level = "core" })).StatusCode);
+            new { primaryRole = "teacher", accountStatus = "disabled" })).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await Client.PutAsJsonAsync(
             "/api/admin/users/openid-1",
             new { adminRemark = "仅更新备注" })).StatusCode);
@@ -103,9 +127,23 @@ public sealed class AdminUserApiTests : AdminApiTestBase
         var detail = await Client.GetAsync("/api/admin/users/openid-1");
         var data = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
         Assert.Equal("teacher", data.GetProperty("primaryRole").GetString());
-        Assert.True(data.GetProperty("certified").GetBoolean());
-        Assert.Equal("core", data.GetProperty("level").GetString());
+        Assert.Equal("disabled", data.GetProperty("accountStatus").GetString());
+        Assert.False(data.GetProperty("certified").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, data.GetProperty("level").ValueKind);
         Assert.Equal("仅更新备注", data.GetProperty("adminRemark").GetString());
+    }
+
+    [Fact]
+    public async Task UpdateUser_RejectsRescuerQualificationFields()
+    {
+        SeedExperienceUsers(("openid-1", "REDACTED"));
+        UseAdminKey(await BootstrapAndLoginAsync());
+
+        var response = await Client.PutAsJsonAsync(
+            "/api/admin/users/openid-1",
+            new { certified = true, responderStatus = "active", level = "core" });
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, ErrorCodes.ParameterInvalid);
     }
 
     [Fact]
@@ -142,11 +180,13 @@ public sealed class AdminUserApiTests : AdminApiTestBase
 
         public HttpClient Client { get; }
 
-        public static async Task<UserProfileFixture> CreateAsync()
+        public static async Task<UserProfileFixture> CreateAsync(
+            ResponderProfileRecord[]? responders = null)
         {
             var temp = new ProviderTempData();
             await temp.WriteValidDataAsync();
             await temp.WriteUserJsonAsync("openid-1", "REDACTED", DefaultUserToken);
+            if (responders is not null) await temp.WriteResponderJsonAsync(responders);
             await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
             return new UserProfileFixture(temp, new AdminTestApplication(temp.Root, SqliteConfig(temp)));
         }

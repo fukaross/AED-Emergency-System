@@ -71,6 +71,7 @@ public static class UploadEndpoints
         HttpRequest request,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
+        IUserAccountStatusService accountStatus,
         IAdminAuthorizationService adminAuthorization,
         IUploadImageStorage storage,
         CancellationToken cancellationToken)
@@ -87,6 +88,7 @@ public static class UploadEndpoints
             request,
             tokenService,
             userStore,
+            accountStatus,
             adminAuthorization,
             cancellationToken);
         if (validationError is not null) return validationError;
@@ -133,6 +135,7 @@ public static class UploadEndpoints
         HttpRequest request,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
+        IUserAccountStatusService accountStatus,
         IAdminAuthorizationService adminAuthorization,
         CancellationToken cancellationToken)
     {
@@ -145,12 +148,13 @@ public static class UploadEndpoints
 
         if (AuthScenes.Contains(scene))
         {
-            var user = await EndpointUsers.FindCurrentUserAsync(
+            var user = await EndpointUsers.RequireActiveUserAsync(
                 request,
                 tokenService,
                 userStore,
+                accountStatus,
                 cancellationToken);
-            return user is null ? EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "登录 token 无效", 401) : null;
+            return user.Failure;
         }
 
         return await ValidateAdminAsync(request, adminAuthorization, cancellationToken);

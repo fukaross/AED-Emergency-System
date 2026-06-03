@@ -120,7 +120,7 @@ public sealed class AdminManagementAuditApiTests : AdminApiTestBase
         await CreateAdminAsync("operator");
         var update = await Client.PutAsJsonAsync(
             "/api/admin/users/openid-1",
-            new { adminRemark = "敏感字段检查", certified = true });
+            new { primaryRole = "teacher", accountStatus = "active", adminRemark = "敏感字段检查" });
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
 
         var logs = await Client.GetAsync("/api/admin/audit-logs?eventType=admin&eventName=admin.user_profile_update&actor=root&keyword=openid-1");
@@ -129,6 +129,9 @@ public sealed class AdminManagementAuditApiTests : AdminApiTestBase
 
         Assert.Equal(1, data.GetProperty("total").GetInt32());
         Assert.Contains("changedFields", metadata);
+        Assert.DoesNotContain("certified", metadata);
+        Assert.DoesNotContain("responderStatus", metadata);
+        Assert.DoesNotContain("level", metadata);
         Assert.DoesNotContain("Password123", metadata);
         Assert.DoesNotContain("REDACTED", metadata);
         Assert.DoesNotContain("legacy-test-key", metadata);

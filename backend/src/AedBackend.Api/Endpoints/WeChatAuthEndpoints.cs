@@ -3,6 +3,7 @@ using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.DTOs.WeChat;
 using AedBackend.Core.Models.WeChat;
+using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.WeChat;
 using AedBackend.Infrastructure.WeChat;
 using Microsoft.Extensions.Options;
@@ -40,6 +41,7 @@ public static class WeChatAuthEndpoints
         IWeChatLoginClient loginClient,
         ISessionTokenService tokenService,
         IExperienceUserStore store,
+        IUserAccountStatusService accountStatus,
         CancellationToken cancellationToken)
     {
         var validationError = ValidateLoginRequest(request, options.Value);
@@ -52,6 +54,11 @@ public static class WeChatAuthEndpoints
         if (!codeSession.Succeeded || codeSession.Session is null)
         {
             return ToCodeSessionFailure(codeSession.ErrorCode, codeSession.ErrorMessage);
+        }
+
+        if (await accountStatus.IsDisabledAsync(codeSession.Session.OpenId, cancellationToken))
+        {
+            return EndpointUsers.AccountDisabled();
         }
 
         var token = tokenService.CreateToken();
@@ -72,6 +79,7 @@ public static class WeChatAuthEndpoints
         HttpRequest httpRequest,
         ISessionTokenService tokenService,
         IExperienceUserStore store,
+        IUserAccountStatusService accountStatus,
         CancellationToken cancellationToken)
     {
         var oldToken = EndpointSecurity.ReadBearerToken(httpRequest);
@@ -81,9 +89,19 @@ public static class WeChatAuthEndpoints
         }
 
         var oldTokenHash = tokenService.HashToken(oldToken);
+        var current = await store.FindByTokenHashAsync(oldTokenHash, cancellationToken);
+        if (current is null)
+        {
+            return EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "Token 无效或已过期", 401);
+        }
+
+        if (await accountStatus.IsDisabledAsync(current.OpenId, cancellationToken))
+        {
+            return EndpointUsers.AccountDisabled();
+        }
+
         var newToken = tokenService.CreateToken();
         var newTokenHash = tokenService.HashToken(newToken);
-
         var result = await store.RefreshTokenAsync(oldTokenHash, newTokenHash, cancellationToken);
         if (result is null)
         {
@@ -107,6 +125,7 @@ public static class WeChatAuthEndpoints
         IWeChatPhoneNumberClient phoneClient,
         ISessionTokenService tokenService,
         IExperienceUserStore store,
+        IUserAccountStatusService accountStatus,
         CancellationToken cancellationToken)
     {
         var validationError = ValidatePhoneRequest(request, options.Value);
@@ -115,11 +134,9 @@ public static class WeChatAuthEndpoints
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, validationError, 400);
         }
 
-        var user = await FindCurrentUserAsync(httpRequest, tokenService, store, cancellationToken);
-        if (user is null)
-        {
-            return EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "登录 token 无效", 401);
-        }
+        var current = await EndpointUsers.RequireActiveUserAsync(
+            httpRequest, tokenService, store, accountStatus, cancellationToken);
+        if (current.Failure is not null) return current.Failure;
 
         var tokenHash = tokenService.HashToken(EndpointSecurity.ReadBearerToken(httpRequest)!);
         if (!string.IsNullOrWhiteSpace(request.Phone))

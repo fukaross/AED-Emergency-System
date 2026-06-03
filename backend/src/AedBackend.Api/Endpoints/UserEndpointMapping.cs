@@ -3,6 +3,7 @@ using AedBackend.Core.Models.Responder;
 using AedBackend.Core.Models.User;
 using AedBackend.Core.Models.Volunteer;
 using AedBackend.Core.Models.WeChat;
+using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.User;
 
@@ -12,11 +13,13 @@ internal static partial class UserEndpoints
 {
     private static async Task<UserProfileResponse> ToProfileAsync(
         ExperienceUserRecord user,
+        IUserAccountStatusService accountStatus,
         ISchoolBindingApplicationStore schoolBindings,
         ISchoolPersonProfileStore schoolProfiles,
         IResponderStore responders,
         CancellationToken ct)
     {
+        var primaryRole = await accountStatus.GetPrimaryRoleAsync(user.OpenId, ct);
         var schoolProfile = await ResolveSchoolProfileAsync(user.OpenId, schoolBindings, schoolProfiles, ct);
         var rescuerSummary = await ResolveRescuerSummaryAsync(user.OpenId, responders, ct);
         return new UserProfileResponse(
@@ -25,6 +28,7 @@ internal static partial class UserEndpoints
             user.AvatarUrl ?? string.Empty,
             NormalizeGender(user.Gender),
             user.Phone ?? string.Empty,
+            primaryRole,
             rescuerSummary?.Certified ?? false,
             rescuerSummary?.Level,
             schoolProfile,

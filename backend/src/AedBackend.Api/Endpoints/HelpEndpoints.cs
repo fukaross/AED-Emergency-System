@@ -3,6 +3,7 @@ using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.DTOs.Help;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Models.WeChat;
+using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.WeChat;
 using AedBackend.Infrastructure.WeChat;
@@ -34,15 +35,20 @@ public static class HelpEndpoints
         IOptions<WeChatOptions> options,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
+        IUserAccountStatusService accountStatus,
         IHelpRequestStore helpStore,
         IWeChatSubscribeMessageSender sender,
         CancellationToken cancellationToken)
     {
-        var currentUser = await EndpointUsers.FindCurrentUserAsync(
+        var current = await EndpointUsers.RequireActiveUserAsync(
             httpRequest,
             tokenService,
             userStore,
+            accountStatus,
             cancellationToken);
+        if (current.Failure is not null) return current.Failure;
+
+        var currentUser = current.User!;
         var validationError = HelpPublishFlow.ValidatePublishRequest(
             request,
             options.Value,
@@ -81,15 +87,16 @@ public static class HelpEndpoints
         string? status,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
+        IUserAccountStatusService accountStatus,
         IHelpRequestStore helpStore,
         CancellationToken cancellationToken)
     {
-        var user = await RequireUserAsync(httpRequest, tokenService, userStore, cancellationToken);
-        if (user is null) return Unauthorized();
+        var user = await RequireUserAsync(httpRequest, tokenService, userStore, accountStatus, cancellationToken);
+        if (user.Failure is not null) return user.Failure;
 
-        var records = await helpStore.ListByUserAsync(user.OpenId, cancellationToken);
+        var records = await helpStore.ListByUserAsync(user.User!.OpenId, cancellationToken);
         var filtered = HelpListPaging.FilterByStatus(records, status);
-        return Results.Ok(ApiResponse.Ok(HelpListPaging.ToPage(filtered, page, pageSize, user.OpenId)));
+        return Results.Ok(ApiResponse.Ok(HelpListPaging.ToPage(filtered, page, pageSize, user.User.OpenId)));
     }
 
     // TODO: Tighten detail access to role / notification-recipient snapshot once responder_profiles / push-recipient tracking lands.
@@ -99,11 +106,12 @@ public static class HelpEndpoints
         string id,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
+        IUserAccountStatusService accountStatus,
         IHelpRequestStore helpStore,
         CancellationToken cancellationToken)
     {
-        var user = await RequireUserAsync(httpRequest, tokenService, userStore, cancellationToken);
-        if (user is null) return Unauthorized();
+        var user = await RequireUserAsync(httpRequest, tokenService, userStore, accountStatus, cancellationToken);
+        if (user.Failure is not null) return user.Failure;
 
         var record = await helpStore.FindByIdOrRequestNoAsync(id, cancellationToken);
         return record is null
@@ -118,11 +126,12 @@ public static class HelpEndpoints
         IOptions<WeChatOptions> options,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
+        IUserAccountStatusService accountStatus,
         IHelpRequestStore helpStore,
         CancellationToken cancellationToken)
     {
-        var user = await RequireUserAsync(httpRequest, tokenService, userStore, cancellationToken);
-        if (user is null) return Unauthorized();
+        var user = await RequireUserAsync(httpRequest, tokenService, userStore, accountStatus, cancellationToken);
+        if (user.Failure is not null) return user.Failure;
 
         // TODO: Revalidate responder_profiles status/type before accepting reports.
         var validationError = HelpPublishFlow.ValidateReport(request, options.Value);
@@ -134,7 +143,7 @@ public static class HelpEndpoints
         var now = DateTimeOffset.UtcNow;
         var report = new HelpReportRecord(
             Guid.NewGuid().ToString("N"),
-            user.OpenId,
+            user.User!.OpenId,
             request.Images!,
             request.RecordText.Trim(),
             request.IsFalseAlarm,
@@ -154,11 +163,12 @@ public static class HelpEndpoints
         CloseHelpRequest request,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
+        IUserAccountStatusService accountStatus,
         IHelpRequestStore helpStore,
         CancellationToken cancellationToken)
     {
-        var user = await RequireUserAsync(httpRequest, tokenService, userStore, cancellationToken);
-        if (user is null) return Unauthorized();
+        var user = await RequireUserAsync(httpRequest, tokenService, userStore, accountStatus, cancellationToken);
+        if (user.Failure is not null) return user.Failure;
 
         if (request.Status is not (HelpStatuses.Closed or HelpStatuses.FalseAlarm))
         {
@@ -213,16 +223,18 @@ public static class HelpEndpoints
                 updated.ClosedAt!.Value))));
     }
 
-    private static async Task<ExperienceUserRecord?> RequireUserAsync(
+    private static async Task<CurrentUserResult> RequireUserAsync(
         HttpRequest request,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
+        IUserAccountStatusService accountStatus,
         CancellationToken cancellationToken)
     {
-        return await EndpointUsers.FindCurrentUserAsync(
+        return await EndpointUsers.RequireActiveUserAsync(
             request,
             tokenService,
             userStore,
+            accountStatus,
             cancellationToken);
     }
 
@@ -245,11 +257,6 @@ public static class HelpEndpoints
                 "该求助已结束",
                 409);
         }
-    }
-
-    private static IResult Unauthorized()
-    {
-        return EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "登录 token 无效", 401);
     }
 
     private static IResult NotFound(string message)

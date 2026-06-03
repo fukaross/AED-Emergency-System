@@ -4,9 +4,13 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
+using AedBackend.Core.Models.WeChat;
+using AedBackend.Core.Services.WeChat;
 using AedBackend.Infrastructure.Persistence.Sqlite;
 using AedBackend.Tests.Admin;
 using AedBackend.Tests.Persistence;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AedBackend.Tests.User;
 
@@ -32,9 +36,77 @@ public sealed class UserApiTests
         Assert.Equal(string.Empty, data.GetProperty("avatarUrl").GetString());
         Assert.Equal("unknown", data.GetProperty("gender").GetString());
         Assert.Equal("REDACTED", data.GetProperty("phone").GetString());
+        Assert.Equal("student", data.GetProperty("primaryRole").GetString());
         Assert.False(data.GetProperty("certified").GetBoolean());
         Assert.Equal(JsonValueKind.Null, data.GetProperty("schoolProfile").ValueKind);
         Assert.Equal(JsonValueKind.Null, data.GetProperty("rescuerSummary").ValueKind);
+    }
+
+    [Fact]
+    public async Task Profile_ReturnsAdminPrimaryRoleAndBlocksDisabledAccount()
+    {
+        using var fixture = await UserApiFixture.CreateAsync();
+        fixture.UseAdminKey();
+        var update = await fixture.Client.PutAsJsonAsync(
+            $"/api/admin/users/{OpenId}",
+            new { primaryRole = "teacher" });
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+
+        fixture.UseUserToken();
+        var profile = await fixture.Client.GetAsync("/api/user/profile");
+        var data = (await ReadAsync<ApiResponse<JsonElement>>(profile)).Data;
+        Assert.Equal("teacher", data.GetProperty("primaryRole").GetString());
+
+        fixture.UseAdminKey();
+        Assert.Equal(HttpStatusCode.OK, (await fixture.Client.PutAsJsonAsync(
+            $"/api/admin/users/{OpenId}",
+            new { accountStatus = "disabled" })).StatusCode);
+
+        fixture.UseUserToken();
+        await AssertErrorAsync(
+            await fixture.Client.GetAsync("/api/user/profile"),
+            HttpStatusCode.Forbidden,
+            ErrorCodes.Forbidden);
+        await AssertErrorAsync(
+            await fixture.Client.PostAsync("/api/auth/refresh", null),
+            HttpStatusCode.Forbidden,
+            ErrorCodes.Forbidden);
+
+        fixture.UseAdminKey();
+        Assert.Equal(HttpStatusCode.OK, (await fixture.Client.PutAsJsonAsync(
+            $"/api/admin/users/{OpenId}",
+            new { accountStatus = "active" })).StatusCode);
+
+        fixture.UseUserToken();
+        var restored = await fixture.Client.GetAsync("/api/user/profile");
+        Assert.Equal(HttpStatusCode.OK, restored.StatusCode);
+    }
+
+    [Fact]
+    public async Task WeChatLogin_BlocksDisabledAccount()
+    {
+        using var fixture = await UserApiFixture.CreateAsync(withFakeLogin: true);
+        fixture.UseAdminKey();
+        Assert.Equal(HttpStatusCode.OK, (await fixture.Client.PutAsJsonAsync(
+            $"/api/admin/users/{OpenId}",
+            new { accountStatus = "disabled" })).StatusCode);
+
+        fixture.ClearHeaders();
+        var disabled = await fixture.Client.PostAsJsonAsync(
+            "/api/auth/wechat-login",
+            new { code = "login-code" });
+        await AssertErrorAsync(disabled, HttpStatusCode.Forbidden, ErrorCodes.Forbidden);
+
+        fixture.UseAdminKey();
+        Assert.Equal(HttpStatusCode.OK, (await fixture.Client.PutAsJsonAsync(
+            $"/api/admin/users/{OpenId}",
+            new { accountStatus = "active" })).StatusCode);
+
+        fixture.ClearHeaders();
+        var restored = await fixture.Client.PostAsJsonAsync(
+            "/api/auth/wechat-login",
+            new { code = "login-code" });
+        Assert.Equal(HttpStatusCode.OK, restored.StatusCode);
     }
 
     [Fact]
@@ -251,13 +323,16 @@ public sealed class UserApiTests
 
         public HttpClient Client { get; }
 
-        public static async Task<UserApiFixture> CreateAsync()
+        public static async Task<UserApiFixture> CreateAsync(bool withFakeLogin = false)
         {
             var temp = new ProviderTempData();
-            await temp.WriteMinimalJsonAsync();
+            await temp.WriteValidDataAsync();
             await temp.WriteUserJsonAsync(OpenId, "REDACTED", UserToken);
             await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
-            var app = new AdminTestApplication(temp.Root, SqliteConfig(temp));
+            var app = new AdminTestApplication(
+                temp.Root,
+                SqliteConfig(temp, withFakeLogin),
+                withFakeLogin ? ConfigureFakeLogin : null);
             return new UserApiFixture(temp, app);
         }
 
@@ -271,8 +346,22 @@ public sealed class UserApiTests
 
         public void UseUserToken()
         {
+            Client.DefaultRequestHeaders.Remove("X-Aed-Admin-Key");
             Client.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", UserToken);
+        }
+
+        public void UseAdminKey()
+        {
+            Client.DefaultRequestHeaders.Authorization = null;
+            Client.DefaultRequestHeaders.Remove("X-Aed-Admin-Key");
+            Client.DefaultRequestHeaders.Add("X-Aed-Admin-Key", ProviderTempData.AdminSessionKey);
+        }
+
+        public void ClearHeaders()
+        {
+            Client.DefaultRequestHeaders.Authorization = null;
+            Client.DefaultRequestHeaders.Remove("X-Aed-Admin-Key");
         }
 
         public void Dispose()
@@ -282,13 +371,49 @@ public sealed class UserApiTests
             temp.Dispose();
         }
 
-        private static Dictionary<string, string?> SqliteConfig(ProviderTempData temp)
+        private static Dictionary<string, string?> SqliteConfig(
+            ProviderTempData temp,
+            bool withFakeLogin = false)
         {
-            return new Dictionary<string, string?>
+            var config = new Dictionary<string, string?>
             {
                 ["Data:Provider"] = "Sqlite",
                 ["Data:SqlitePath"] = temp.DbPath
             };
+            if (withFakeLogin)
+            {
+                config["WeChat:AppId"] = "test-app-id";
+                config["WeChat:AppSecret"] = "test-app-secret";
+            }
+            return config;
+        }
+
+        private static void ConfigureFakeLogin(IServiceCollection services)
+        {
+            services.RemoveAll<IWeChatLoginClient>();
+            services.AddSingleton<IWeChatLoginClient>(new FakeWeChatLoginClient(OpenId));
+        }
+    }
+
+    private sealed class FakeWeChatLoginClient : IWeChatLoginClient
+    {
+        private readonly string openId;
+
+        public FakeWeChatLoginClient(string openId)
+        {
+            this.openId = openId;
+        }
+
+        public Task<WeChatCodeSessionResult> CodeToSessionAsync(
+            string code,
+            CancellationToken cancellationToken)
+        {
+            var result = new WeChatCodeSessionResult(
+                true,
+                new WeChatLoginSession(openId, null),
+                0,
+                string.Empty);
+            return Task.FromResult(result);
         }
     }
 }

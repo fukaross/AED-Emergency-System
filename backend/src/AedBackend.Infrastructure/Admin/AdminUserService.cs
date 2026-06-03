@@ -1,26 +1,33 @@
 using AedBackend.Core.DTOs.Admin;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.Models.Admin;
+using AedBackend.Core.Models.Responder;
 using AedBackend.Core.Models.WeChat;
 using AedBackend.Core.Services.Admin;
+using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.WeChat;
 
 namespace AedBackend.Infrastructure.Admin;
 
-public sealed class AdminUserService : IAdminUserService
+public sealed class AdminUserService : IAdminUserService, IUserAccountStatusService
 {
     private const int DefaultPage = 1;
     private const int DefaultPageSize = 20;
+    private const string ActiveQualificationStatus = "active";
+    private const string DefaultResponderType = "rescuer";
 
     private readonly IExperienceUserStore experienceUsers;
     private readonly IAdminUserProfileStore profiles;
+    private readonly IResponderStore responders;
 
     public AdminUserService(
         IExperienceUserStore experienceUsers,
-        IAdminUserProfileStore profiles)
+        IAdminUserProfileStore profiles,
+        IResponderStore responders)
     {
         this.experienceUsers = experienceUsers;
         this.profiles = profiles;
+        this.responders = responders;
     }
 
     public async Task<PaginatedData<AdminUserListItem>> ListUsersAsync(
@@ -31,7 +38,9 @@ public sealed class AdminUserService : IAdminUserService
 
         var users = await experienceUsers.ListUsersAsync(cancellationToken);
         var profileMap = await profiles.ListAsync(cancellationToken);
-        var items = users.Select(user => ToSearchItem(user, GetProfile(user.OpenId, profileMap)));
+        var responderMap = await ListBoundRespondersAsync(cancellationToken);
+        var items = users.Select(user =>
+            ToSearchItem(user, GetProfile(user.OpenId, profileMap), GetResponder(user.OpenId, responderMap)));
         var filtered = ApplyFilters(items, query).ToArray();
         var page = Math.Max(DefaultPage, query.Page ?? DefaultPage);
         var pageSize = Math.Clamp(query.PageSize ?? DefaultPageSize, 1, 100);
@@ -58,7 +67,8 @@ public sealed class AdminUserService : IAdminUserService
         if (user is null) return null;
 
         var profile = await profiles.FindAsync(openId, cancellationToken) ?? DefaultProfile(openId);
-        return ToDetail(user, profile);
+        var responder = await FindBoundResponderAsync(openId, cancellationToken);
+        return ToDetail(user, profile, responder);
     }
 
     public async Task<AdminUserDetail> UpdateUserAsync(
@@ -76,7 +86,24 @@ public sealed class AdminUserService : IAdminUserService
             current => ApplyUpdate(current ?? DefaultProfile(openId), payload),
             cancellationToken);
 
-        return ToDetail(user, updated);
+        var responder = await FindBoundResponderAsync(openId, cancellationToken);
+        return ToDetail(user, updated, responder);
+    }
+
+    public async Task<bool> IsDisabledAsync(
+        string openId,
+        CancellationToken cancellationToken)
+    {
+        var profile = await profiles.FindAsync(openId, cancellationToken);
+        return profile?.AccountStatus == AdminStatuses.Disabled;
+    }
+
+    public async Task<string> GetPrimaryRoleAsync(
+        string openId,
+        CancellationToken cancellationToken)
+    {
+        var profile = await profiles.FindAsync(openId, cancellationToken);
+        return profile?.PrimaryRole ?? DefaultProfile(openId).PrimaryRole;
     }
 
     private static void ValidateQuery(AdminUserQuery query)
@@ -91,8 +118,8 @@ public sealed class AdminUserService : IAdminUserService
     {
         ValidateOptional(payload.PrimaryRole, AdminUserFields.PrimaryRoles, "primaryRole 不支持");
         ValidateOptional(payload.AccountStatus, AdminUserFields.AccountStatuses, "accountStatus 不支持");
-        ValidateOptional(payload.ResponderStatus, AdminUserFields.ResponderStatuses, "responderStatus 不支持");
-        ValidateOptional(payload.Level, AdminUserFields.Levels, "level 不支持");
+        if (payload.ResponderStatus.HasValue || payload.Certified.HasValue || payload.Level.HasValue)
+            throw new ArgumentException("急救资格请在急救员管理中维护");
     }
 
     private static void ValidateNullable(
@@ -176,13 +203,6 @@ public sealed class AdminUserService : IAdminUserService
             AccountStatus = payload.AccountStatus.HasValue
                 ? payload.AccountStatus.Value ?? current.AccountStatus
                 : current.AccountStatus,
-            ResponderStatus = payload.ResponderStatus.HasValue
-                ? payload.ResponderStatus.Value
-                : current.ResponderStatus,
-            Certified = payload.Certified.HasValue
-                ? payload.Certified.Value
-                : current.Certified,
-            Level = payload.Level.HasValue ? payload.Level.Value : current.Level,
             AdminRemark = payload.AdminRemark.HasValue
                 ? payload.AdminRemark.Value
                 : current.AdminRemark,
@@ -192,15 +212,18 @@ public sealed class AdminUserService : IAdminUserService
 
     private static AdminUserSearchItem ToSearchItem(
         ExperienceUserRecord user,
-        AdminUserProfileRecord profile)
+        AdminUserProfileRecord profile,
+        ResponderProfileRecord? responder)
     {
-        return new AdminUserSearchItem(user.Phone, ToListItem(user, profile));
+        return new AdminUserSearchItem(user.Phone, ToListItem(user, profile, responder));
     }
 
     private static AdminUserListItem ToListItem(
         ExperienceUserRecord user,
-        AdminUserProfileRecord profile)
+        AdminUserProfileRecord profile,
+        ResponderProfileRecord? responder)
     {
+        var summary = ToRescuerSummary(responder);
         return new AdminUserListItem(
             user.OpenId,
             CreateDisplayName(user),
@@ -208,18 +231,19 @@ public sealed class AdminUserService : IAdminUserService
             MaskPhone(user.Phone),
             profile.PrimaryRole,
             profile.AccountStatus,
-            profile.ResponderStatus,
-            profile.Certified,
-            profile.Level,
+            summary?.ResponderStatus,
+            summary?.Certified ?? false,
+            summary?.Level,
             profile.AdminRemark,
             profile.UpdatedAt);
     }
 
     private static AdminUserDetail ToDetail(
         ExperienceUserRecord user,
-        AdminUserProfileRecord profile)
+        AdminUserProfileRecord profile,
+        ResponderProfileRecord? responder)
     {
-        var item = ToListItem(user, profile);
+        var item = ToListItem(user, profile, responder);
         var subscriptions = user.Subscriptions.ToDictionary(
             pair => pair.Key,
             pair => (object?)pair.Value.Status);
@@ -237,7 +261,7 @@ public sealed class AdminUserService : IAdminUserService
             item.AdminRemark,
             item.UpdatedAt,
             null,
-            null,
+            ToRescuerSummary(responder),
             subscriptions,
             user.CreatedAt,
             user.LastLoginAt);
@@ -254,6 +278,47 @@ public sealed class AdminUserService : IAdminUserService
         return string.IsNullOrWhiteSpace(phone) || phone.Length < 7
             ? phone
             : $"{phone[..3]}****{phone[^4..]}";
+    }
+
+    private async Task<IReadOnlyDictionary<string, ResponderProfileRecord>> ListBoundRespondersAsync(
+        CancellationToken cancellationToken)
+    {
+        var items = await responders.GetAllAsync(cancellationToken);
+        return items
+            .Where(item => !string.IsNullOrWhiteSpace(item.BoundOpenId))
+            .GroupBy(item => item.BoundOpenId!)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    private async Task<ResponderProfileRecord?> FindBoundResponderAsync(
+        string openId,
+        CancellationToken cancellationToken)
+    {
+        var items = await responders.GetAllAsync(cancellationToken);
+        return items.FirstOrDefault(item => item.BoundOpenId == openId);
+    }
+
+    private static ResponderProfileRecord? GetResponder(
+        string openId,
+        IReadOnlyDictionary<string, ResponderProfileRecord> responders)
+    {
+        return responders.TryGetValue(openId, out var responder) ? responder : null;
+    }
+
+    private static RescuerSummaryDto? ToRescuerSummary(ResponderProfileRecord? profile)
+    {
+        if (profile is null) return null;
+        return new RescuerSummaryDto(
+            profile.Id,
+            profile.Id,
+            profile.QualificationStatus == ActiveQualificationStatus,
+            profile.Level,
+            DefaultResponderType,
+            profile.QualificationStatus,
+            null,
+            null,
+            profile.CertificateNoMasked,
+            profile.WorkUnit);
     }
 
     private sealed record AdminUserSearchItem(

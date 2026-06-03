@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
@@ -8,15 +9,21 @@ internal sealed class AdminTestApplication : WebApplicationFactory<Program>
 {
     private readonly string dataRoot;
     private readonly IReadOnlyDictionary<string, string?> extraConfiguration;
+    private readonly Action<IServiceCollection>? configureServices;
 
-    public AdminTestApplication(string dataRoot, IReadOnlyDictionary<string, string?>? extraConfiguration = null)
+    public AdminTestApplication(
+        string dataRoot,
+        IReadOnlyDictionary<string, string?>? extraConfiguration = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         this.dataRoot = dataRoot;
         this.extraConfiguration = extraConfiguration ?? new Dictionary<string, string?>();
+        this.configureServices = configureServices;
     }
 
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
+        builder.ConfigureServices(services => configureServices?.Invoke(services));
         builder.ConfigureAppConfiguration((_, config) =>
         {
             var values = new Dictionary<string, string?>

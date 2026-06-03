@@ -10,6 +10,7 @@ public sealed record UserProfileResponse(
     string AvatarUrl,
     string Gender,
     string Phone,
+    string PrimaryRole,
     bool Certified,
     string? Level,
     UserSchoolProfileResponse? SchoolProfile,
