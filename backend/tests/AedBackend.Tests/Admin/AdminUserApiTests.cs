@@ -26,6 +26,30 @@ public sealed class AdminUserApiTests : AdminApiTestBase
     }
 
     [Fact]
+    public async Task UserProfileNameAndAvatar_AreVisibleInAdminUsers()
+    {
+        SeedExperienceUsers(
+            ("openid-1", "REDACTED", "王小明", "/uploads/avatar/wang.jpg"),
+            ("openid-2", "REDACTED", null, null));
+        UseAdminKey(await BootstrapAndLoginAsync());
+
+        var list = await Client.GetAsync("/api/admin/users?keyword=王小明");
+        var listData = (await ReadAsync<ApiResponse<JsonElement>>(list)).Data;
+        var detail = await Client.GetAsync("/api/admin/users/openid-1");
+        var detailData = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
+
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        Assert.Equal(1, listData.GetProperty("total").GetInt32());
+        Assert.Equal("王小明", listData.GetProperty("items")[0].GetProperty("name").GetString());
+        Assert.Equal(
+            "/uploads/avatar/wang.jpg",
+            listData.GetProperty("items")[0].GetProperty("avatarUrl").GetString());
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        Assert.Equal("王小明", detailData.GetProperty("name").GetString());
+        Assert.Equal("/uploads/avatar/wang.jpg", detailData.GetProperty("avatarUrl").GetString());
+    }
+
+    [Fact]
     public async Task UpdateUser_OnlyChangesProvidedFields()
     {
         SeedExperienceUsers(("openid-1", "REDACTED"));

@@ -192,7 +192,7 @@ public sealed class AdminUserService : IAdminUserService
         return new AdminUserListItem(
             user.OpenId,
             CreateDisplayName(user),
-            null,
+            string.IsNullOrWhiteSpace(user.AvatarUrl) ? null : user.AvatarUrl,
             MaskPhone(user.Phone),
             profile.PrimaryRole,
             profile.AccountStatus,
@@ -233,6 +233,7 @@ public sealed class AdminUserService : IAdminUserService
 
     private static string CreateDisplayName(ExperienceUserRecord user)
     {
+        if (!string.IsNullOrWhiteSpace(user.Name)) return user.Name;
         return string.IsNullOrWhiteSpace(user.Phone) ? user.OpenId : $"用户{user.Phone[^4..]}";
     }
 

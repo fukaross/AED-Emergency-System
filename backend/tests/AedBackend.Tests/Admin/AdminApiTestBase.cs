@@ -100,7 +100,7 @@ public abstract class AdminApiTestBase : IAsyncLifetime
         string token = DefaultUserToken)
     {
         WriteExperienceUsers([
-            new ExperienceUserSeed(openId, phone, HashToken(token))
+            new ExperienceUserSeed(openId, phone, null, null, HashToken(token))
         ]);
         UseUserToken(token);
     }
@@ -128,7 +128,19 @@ public abstract class AdminApiTestBase : IAsyncLifetime
     protected void SeedExperienceUsers(params (string OpenId, string Phone)[] users)
     {
         WriteExperienceUsers(users.Select(user =>
-            new ExperienceUserSeed(user.OpenId, user.Phone, $"hash-{user.OpenId}")));
+            new ExperienceUserSeed(user.OpenId, user.Phone, null, null, $"hash-{user.OpenId}")));
+    }
+
+    protected void SeedExperienceUsers(
+        params (string OpenId, string Phone, string? Name, string? AvatarUrl)[] users)
+    {
+        WriteExperienceUsers(users.Select(user =>
+            new ExperienceUserSeed(
+                user.OpenId,
+                user.Phone,
+                user.Name,
+                user.AvatarUrl,
+                $"hash-{user.OpenId}")));
     }
 
     private void WriteExperienceUsers(IEnumerable<ExperienceUserSeed> users)
@@ -138,6 +150,9 @@ public abstract class AdminApiTestBase : IAsyncLifetime
                   "openId": "{{user.OpenId}}",
                   "unionId": null,
                   "phone": "{{user.Phone}}",
+                  "name": {{JsonValue(user.Name)}},
+                  "avatarUrl": {{JsonValue(user.AvatarUrl)}},
+                  "gender": "unknown",
                   "sessionTokenHash": "{{user.TokenHash}}",
                   "createdAt": "2026-05-23T00:00:00+00:00",
                   "lastLoginAt": "2026-05-23T00:00:00+00:00",
@@ -240,7 +255,14 @@ public abstract class AdminApiTestBase : IAsyncLifetime
     private sealed record ExperienceUserSeed(
         string OpenId,
         string Phone,
+        string? Name,
+        string? AvatarUrl,
         string TokenHash);
+
+    private static string JsonValue(string? value)
+    {
+        return value is null ? "null" : JsonSerializer.Serialize(value);
+    }
 
     protected static async Task AssertErrorAsync(
         HttpResponseMessage response,
