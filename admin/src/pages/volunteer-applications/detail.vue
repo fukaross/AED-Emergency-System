@@ -91,14 +91,53 @@
         </template>
         <el-empty v-else-if="!loading" description="申请不存在" />
       </div>
+
+      <el-dialog v-model="approveDialogVisible" title="审核通过" width="520px">
+        <el-select
+          v-model="approveForm.campus"
+          class="approve-field"
+          @change="handleCampusChange"
+        >
+          <el-option
+            v-for="(item, value) in CAMPUS_POINTS"
+            :key="value"
+            :label="item.label"
+            :value="value"
+          />
+        </el-select>
+        <el-input-number
+          v-model="approveForm.lat"
+          class="approve-field"
+          :min="-90"
+          :max="90"
+          :precision="6"
+        />
+        <el-input-number
+          v-model="approveForm.lng"
+          class="approve-field"
+          :min="-180"
+          :max="180"
+          :precision="6"
+        />
+        <el-input
+          v-model="approveForm.reviewNote"
+          type="textarea"
+          :rows="2"
+          placeholder="审核意见（可选）"
+        />
+        <template #footer>
+          <el-button @click="approveDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="actionLoading" @click="submitApprove">通过</el-button>
+        </template>
+      </el-dialog>
     </div>
   </admin-layout>
 </template>
 
 <script setup lang="ts">
-import { computed, h, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElInput, ElInputNumber, ElMessage, ElMessageBox, ElSelect, ElOption } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import adminLayout from '@/components/admin-layout.vue'
 import statusTag from '@/components/status-tag.vue'
@@ -129,6 +168,13 @@ const id = route.params.id as string
 const loading = ref(false)
 const actionLoading = ref(false)
 const detail = ref<AdminVolunteerApplicationDetail | null>(null)
+const approveDialogVisible = ref(false)
+const approveForm = reactive<ApproveForm>({
+  campus: 'guilinyang',
+  lat: CAMPUS_POINTS.guilinyang.lat,
+  lng: CAMPUS_POINTS.guilinyang.lng,
+  reviewNote: '',
+})
 const imageGroups = computed(() => {
   if (!detail.value) return []
   const payload = detail.value.payload
@@ -153,60 +199,24 @@ async function loadDetail() {
 }
 
 async function handleApprove() {
-  const form: ApproveForm = {
-    campus: 'guilinyang',
-    lat: CAMPUS_POINTS.guilinyang.lat,
-    lng: CAMPUS_POINTS.guilinyang.lng,
-    reviewNote: '',
-  }
-  const vnode = h('div', { class: 'approve-form' }, [
-    h(ElSelect, {
-      modelValue: form.campus,
-      'onUpdate:modelValue': (value: CampusCode) => {
-        form.campus = value
-        form.lat = CAMPUS_POINTS[value].lat
-        form.lng = CAMPUS_POINTS[value].lng
-      },
-      style: 'width: 100%; margin-bottom: 12px',
-    }, () => Object.entries(CAMPUS_POINTS).map(([value, item]) =>
-      h(ElOption, { label: item.label, value }))),
-    h(ElInputNumber, {
-      modelValue: form.lat,
-      'onUpdate:modelValue': (value: number | undefined) => { if (value !== undefined) form.lat = value },
-      min: -90,
-      max: 90,
-      precision: 6,
-      style: 'width: 100%; margin-bottom: 12px',
-    }),
-    h(ElInputNumber, {
-      modelValue: form.lng,
-      'onUpdate:modelValue': (value: number | undefined) => { if (value !== undefined) form.lng = value },
-      min: -180,
-      max: 180,
-      precision: 6,
-      style: 'width: 100%; margin-bottom: 12px',
-    }),
-    h(ElInput, {
-      modelValue: form.reviewNote,
-      'onUpdate:modelValue': (value: string) => { form.reviewNote = value },
-      type: 'textarea',
-      rows: 2,
-      placeholder: '审核意见（可选）',
-    }),
-  ])
+  resetApproveForm()
+  approveDialogVisible.value = true
+}
+
+async function submitApprove() {
   try {
-    await ElMessageBox.confirm(vnode, '审核通过', { confirmButtonText: '通过', cancelButtonText: '取消' })
     actionLoading.value = true
     const res = await approveVolunteerApplication(id, {
-      campus: form.campus,
-      lat: form.lat,
-      lng: form.lng,
-      reviewNote: form.reviewNote || null,
+      campus: approveForm.campus,
+      lat: approveForm.lat,
+      lng: approveForm.lng,
+      reviewNote: toNullableReviewNote(approveForm.reviewNote),
     })
     detail.value = res.data.data.application
+    approveDialogVisible.value = false
     ElMessage.success(`已创建急救员草稿 ${res.data.data.createdRescuerId}`)
   } catch (error) {
-    if (error !== 'cancel') ElMessage.error(getApiErrorMessage(error, '审核通过失败'))
+    ElMessage.error(getApiErrorMessage(error, '审核通过失败'))
   } finally {
     actionLoading.value = false
   }
@@ -236,6 +246,20 @@ function goBack() { router.push('/volunteer-applications') }
 function goRescuer(rescuerId: string) { router.push(`/rescuers/${rescuerId}`) }
 function formatTime(value: string) { return new Date(value).toLocaleString('zh-CN', { hour12: false }) }
 function genderLabel(value: string) { return value === 'female' ? '女' : value === 'male' ? '男' : '未知' }
+function handleCampusChange(value: CampusCode) {
+  approveForm.lat = CAMPUS_POINTS[value].lat
+  approveForm.lng = CAMPUS_POINTS[value].lng
+}
+function resetApproveForm() {
+  approveForm.campus = 'guilinyang'
+  approveForm.lat = CAMPUS_POINTS.guilinyang.lat
+  approveForm.lng = CAMPUS_POINTS.guilinyang.lng
+  approveForm.reviewNote = ''
+}
+function toNullableReviewNote(value: string) {
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
 
 onMounted(loadDetail)
 </script>
@@ -248,4 +272,5 @@ onMounted(loadDetail)
 .image-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .attachment-image { width: 96px; height: 96px; border-radius: 4px; border: 1px solid #ebeef5; }
 .action-bar { display: flex; gap: 12px; padding-bottom: 16px; }
+.approve-field { width: 100%; margin-bottom: 12px; }
 </style>
