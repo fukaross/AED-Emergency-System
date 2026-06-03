@@ -11,6 +11,8 @@ public sealed class JsonSchoolPersonProfileStore : ISchoolPersonProfileStore
         => throw NotSupported();
     public Task<SchoolPersonProfileRecord?> UpdateAsync(int id, SchoolPersonProfileRecord profile, CancellationToken ct)
         => throw NotSupported();
+    public Task<bool> DeleteAsync(int id, CancellationToken ct)
+        => throw NotSupported();
     public Task<UserIdentityPage<SchoolPersonProfileRecord>> ListAsync(SchoolPersonProfileQuery query, CancellationToken ct)
         => throw NotSupported();
     private static NotSupportedException NotSupported() => new("Phase 7D 学校档案接口仅支持 SQLite 数据源");
@@ -25,6 +27,8 @@ public sealed class JsonSchoolBindingApplicationStore : ISchoolBindingApplicatio
     public Task<UserIdentityPage<SchoolBindingApplicationRecord>> ListByUserAsync(string openId, UserIdentityQuery query, CancellationToken ct)
         => throw NotSupported();
     public Task<UserIdentityPage<SchoolBindingApplicationRecord>> ListAllAsync(UserIdentityAdminQuery query, CancellationToken ct)
+        => throw NotSupported();
+    public Task<bool> DeleteAsync(int id, CancellationToken ct)
         => throw NotSupported();
     private static NotSupportedException NotSupported() => new("Phase 7D 学校绑定接口仅支持 SQLite 数据源");
 }

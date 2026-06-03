@@ -38,6 +38,28 @@ internal sealed class SqliteSchoolPersonProfileStore : ISchoolPersonProfileStore
         return SqliteMapper.ToRecord(current);
     }
 
+    public async Task<bool> DeleteAsync(int id, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var current = await db.SchoolPersonProfiles.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (current is null) return false;
+
+        var bindings = await db.SchoolBindingApplications
+            .Where(x => x.SchoolProfileId == id)
+            .ToArrayAsync(ct);
+        foreach (var binding in bindings)
+        {
+            binding.SchoolProfileId = null;
+            binding.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        db.SchoolPersonProfiles.Remove(current);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return true;
+    }
+
     public async Task<UserIdentityPage<SchoolPersonProfileRecord>> ListAsync(SchoolPersonProfileQuery query, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
@@ -147,6 +169,17 @@ internal sealed class SqliteSchoolBindingApplicationStore : ISchoolBindingApplic
         var items = entities.Select(ToRecord).Where(x => MatchesStatus(x.Status, query.Status))
             .Where(x => MatchesKeyword(x, query.Keyword)).OrderByDescending(x => x.CreatedAt).ToArray();
         return Page(items, query.Page, query.PageSize);
+    }
+
+    public async Task<bool> DeleteAsync(int id, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var entity = await db.SchoolBindingApplications.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (entity is null) return false;
+
+        db.SchoolBindingApplications.Remove(entity);
+        await db.SaveChangesAsync(ct);
+        return true;
     }
 
     private static SchoolBindingApplicationRecord ToRecord(SchoolBindingApplicationEntity entity)

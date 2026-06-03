@@ -1,7 +1,10 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AedBackend.Core.DTOs.Common;
+using AedBackend.Infrastructure.Persistence.Sqlite;
+using AedBackend.Tests.Persistence;
 
 namespace AedBackend.Tests.Admin;
 
@@ -50,6 +53,34 @@ public sealed class AdminUserApiTests : AdminApiTestBase
     }
 
     [Fact]
+    public async Task UserProfileUpdate_IsImmediatelyVisibleInAdminUsers()
+    {
+        using var fixture = await UserProfileFixture.CreateAsync();
+        fixture.UseUserToken();
+
+        var updateProfile = await fixture.Client.PutAsJsonAsync(
+            "/api/user/profile",
+            new { name = "新的昵称", avatarUrl = "/uploads/avatar/new.jpg" });
+        Assert.Equal(HttpStatusCode.OK, updateProfile.StatusCode);
+
+        fixture.UseAdminKey();
+        var list = await fixture.Client.GetAsync("/api/admin/users?keyword=新的昵称");
+        var listData = (await ReadAsync<ApiResponse<JsonElement>>(list)).Data;
+        var detail = await fixture.Client.GetAsync("/api/admin/users/openid-1");
+        var detailData = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
+
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        Assert.Equal(1, listData.GetProperty("total").GetInt32());
+        Assert.Equal("新的昵称", listData.GetProperty("items")[0].GetProperty("name").GetString());
+        Assert.Equal(
+            "/uploads/avatar/new.jpg",
+            listData.GetProperty("items")[0].GetProperty("avatarUrl").GetString());
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        Assert.Equal("新的昵称", detailData.GetProperty("name").GetString());
+        Assert.Equal("/uploads/avatar/new.jpg", detailData.GetProperty("avatarUrl").GetString());
+    }
+
+    [Fact]
     public async Task UpdateUser_OnlyChangesProvidedFields()
     {
         SeedExperienceUsers(("openid-1", "REDACTED"));
@@ -88,5 +119,59 @@ public sealed class AdminUserApiTests : AdminApiTestBase
             "/api/admin/users/missing-openid",
             new { primaryRole = "teacher" });
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+
+    private sealed class UserProfileFixture : IDisposable
+    {
+        private readonly ProviderTempData temp;
+        private readonly AdminTestApplication app;
+
+        private UserProfileFixture(ProviderTempData temp, AdminTestApplication app)
+        {
+            this.temp = temp;
+            this.app = app;
+            Client = app.CreateClient();
+        }
+
+        public HttpClient Client { get; }
+
+        public static async Task<UserProfileFixture> CreateAsync()
+        {
+            var temp = new ProviderTempData();
+            await temp.WriteValidDataAsync();
+            await temp.WriteUserJsonAsync("openid-1", "REDACTED", DefaultUserToken);
+            await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
+            return new UserProfileFixture(temp, new AdminTestApplication(temp.Root, SqliteConfig(temp)));
+        }
+
+        public void UseAdminKey()
+        {
+            Client.DefaultRequestHeaders.Authorization = null;
+            Client.DefaultRequestHeaders.Remove("X-Aed-Admin-Key");
+            Client.DefaultRequestHeaders.Add("X-Aed-Admin-Key", ProviderTempData.AdminSessionKey);
+        }
+
+        public void UseUserToken()
+        {
+            Client.DefaultRequestHeaders.Remove("X-Aed-Admin-Key");
+            Client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", DefaultUserToken);
+        }
+
+        public void Dispose()
+        {
+            Client.Dispose();
+            app.Dispose();
+            temp.Dispose();
+        }
+
+        private static Dictionary<string, string?> SqliteConfig(ProviderTempData temp)
+        {
+            return new Dictionary<string, string?>
+            {
+                ["Data:Provider"] = "Sqlite",
+                ["Data:SqlitePath"] = temp.DbPath
+            };
+        }
     }
 }

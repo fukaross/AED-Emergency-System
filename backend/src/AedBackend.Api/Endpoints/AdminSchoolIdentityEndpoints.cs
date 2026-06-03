@@ -21,10 +21,12 @@ internal static partial class AdminSchoolIdentityEndpoints
         group.MapGet("/school-profiles/{id:int}", GetProfileAsync).WithName("AdminGetSchoolProfile");
         group.MapPost("/school-profiles", CreateProfileAsync).WithName("AdminCreateSchoolProfile");
         group.MapPut("/school-profiles/{id:int}", UpdateProfileAsync).WithName("AdminUpdateSchoolProfile");
+        group.MapDelete("/school-profiles/{id:int}", DeleteProfileAsync).WithName("AdminDeleteSchoolProfile");
         group.MapGet("/school-bindings", ListBindingsAsync).WithName("AdminListSchoolBindings");
         group.MapGet("/school-bindings/{id:int}", GetBindingAsync).WithName("AdminGetSchoolBinding");
         group.MapPut("/school-bindings/{id:int}/approve", ApproveBindingAsync).WithName("AdminApproveSchoolBinding");
         group.MapPut("/school-bindings/{id:int}/reject", RejectBindingAsync).WithName("AdminRejectSchoolBinding");
+        group.MapDelete("/school-bindings/{id:int}", DeleteBindingAsync).WithName("AdminDeleteSchoolBinding");
         return group;
     }
 
@@ -101,6 +103,41 @@ internal static partial class AdminSchoolIdentityEndpoints
         return updated is null
             ? EndpointFailures.JsonFailure(ErrorCodes.SchoolProfileNotFound, "学校档案不存在", 404)
             : Results.Ok(ApiResponse.Ok(ToProfileDetail(updated)));
+    }
+
+    private static async Task<IResult> DeleteProfileAsync(
+        HttpContext context,
+        int id,
+        ISchoolPersonProfileStore profiles,
+        IAdminAuditLogStore auditLogs,
+        IAdminAuthorizationService authorization,
+        IOptions<DataOptions> dataOptions,
+        CancellationToken ct)
+    {
+        var auth = await AuthorizeAsync(context, authorization, dataOptions, ct);
+        if (!auth.Succeeded) return auth.Result!;
+        var existing = await profiles.GetByIdAsync(id, ct);
+        if (existing is null)
+            return EndpointFailures.JsonFailure(ErrorCodes.SchoolProfileNotFound, "学校档案不存在", 404);
+
+        var deleted = await profiles.DeleteAsync(id, ct);
+        if (!deleted)
+            return EndpointFailures.JsonFailure(ErrorCodes.SchoolProfileNotFound, "学校档案不存在", 404);
+
+        await auditLogs.AppendAsync(CreateAudit(
+            "school_profile",
+            "school_profile.deleted",
+            auth.Principal!,
+            id.ToString(),
+            $"删除学校档案：{existing.Name}",
+            context,
+            new Dictionary<string, object?>
+            {
+                ["profileId"] = id,
+                ["personType"] = existing.PersonType,
+                ["name"] = existing.Name
+            }), ct);
+        return Results.Ok(ApiResponse.Ok<object?>(null));
     }
 
     private static async Task<IResult> ListBindingsAsync(
@@ -196,6 +233,42 @@ internal static partial class AdminSchoolIdentityEndpoints
         }
     }
 
+    private static async Task<IResult> DeleteBindingAsync(
+        HttpContext context,
+        int id,
+        ISchoolBindingApplicationStore applications,
+        IAdminAuditLogStore auditLogs,
+        IAdminAuthorizationService authorization,
+        IOptions<DataOptions> dataOptions,
+        CancellationToken ct)
+    {
+        var auth = await AuthorizeSuperAdminAsync(context, authorization, dataOptions, ct);
+        if (!auth.Succeeded) return auth.Result!;
+        var existing = await applications.GetByIdAsync(id, ct);
+        if (existing is null)
+            return EndpointFailures.JsonFailure(ErrorCodes.SchoolBindingNotFound, "学校绑定申请不存在", 404);
+
+        var deleted = await applications.DeleteAsync(id, ct);
+        if (!deleted)
+            return EndpointFailures.JsonFailure(ErrorCodes.SchoolBindingNotFound, "学校绑定申请不存在", 404);
+
+        await auditLogs.AppendAsync(CreateAudit(
+            "school_binding",
+            "school_binding.deleted",
+            auth.Principal!,
+            id.ToString(),
+            $"删除学校绑定申请：#{id}",
+            context,
+            new Dictionary<string, object?>
+            {
+                ["applicationId"] = id,
+                ["openId"] = existing.OpenId,
+                ["status"] = existing.Status,
+                ["schoolProfileId"] = existing.SchoolProfileId
+            }), ct);
+        return Results.Ok(ApiResponse.Ok<object?>(null));
+    }
+
     private static async Task<AuthResult> AuthorizeAsync(
         HttpContext context,
         IAdminAuthorizationService authorization,
@@ -211,6 +284,38 @@ internal static partial class AdminSchoolIdentityEndpoints
         return auth.Succeeded
             ? new AuthResult(true, null, auth.Principal)
             : new AuthResult(false, AdminEndpointHelpers.AuthorizationFailure(auth), null);
+    }
+
+    private static async Task<AuthResult> AuthorizeSuperAdminAsync(
+        HttpContext context,
+        IAdminAuthorizationService authorization,
+        IOptions<DataOptions> dataOptions,
+        CancellationToken ct)
+    {
+        var auth = await AuthorizeAsync(context, authorization, dataOptions, ct);
+        if (!auth.Succeeded) return auth;
+        return auth.Principal!.Role == Core.Models.Admin.AdminRoles.SuperAdmin
+            ? auth
+            : new AuthResult(false, AdminEndpointHelpers.Forbidden(), auth.Principal);
+    }
+
+    private static Core.Models.Admin.AdminAuditLogRecord CreateAudit(
+        string eventType,
+        string eventName,
+        Core.Models.Admin.AdminPrincipal actor,
+        string targetId,
+        string summary,
+        HttpContext context,
+        IReadOnlyDictionary<string, object?> metadata)
+    {
+        return AdminEndpointHelpers.CreateAudit(
+            eventType,
+            eventName,
+            actor,
+            targetId,
+            summary,
+            context,
+            metadata);
     }
 
     private static (SchoolPersonProfileRecord Profile, string? Error) CreateProfileRecord(UpsertSchoolProfileRequest body)

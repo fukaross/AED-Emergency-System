@@ -74,6 +74,54 @@ public sealed class AdminUserIdentityApiTests
     }
 
     [Fact]
+    public async Task SchoolProfileDelete_UnlinksApprovedBindingAndAllowsReapply()
+    {
+        using var fixture = await Fixture.CreateAsync();
+        var applicationId = await fixture.SubmitSchoolBindingAsync("20260101");
+        fixture.UseAdminKey();
+
+        var approved = await fixture.Client.PutAsJsonAsync(
+            $"/api/admin/school-bindings/{applicationId}/approve",
+            new { newProfile = SchoolProfile("20260101"), reviewNote = "核验通过" });
+        var approvedData = (await ReadAsync<ApiResponse<JsonElement>>(approved)).Data;
+        var profileId = approvedData.GetProperty("application").GetProperty("schoolProfileId").GetInt32();
+        var normalAdminKey = await fixture.CreateAndLoginAdminAsync("operator");
+
+        fixture.UseAdminKey(normalAdminKey);
+        var deleted = await fixture.Client.DeleteAsync($"/api/admin/school-profiles/{profileId}");
+        var binding = await fixture.Client.GetAsync($"/api/admin/school-bindings/{applicationId}");
+        var bindingData = (await ReadAsync<ApiResponse<JsonElement>>(binding)).Data;
+        fixture.UseUserToken();
+        var profile = await fixture.Client.GetAsync("/api/user/profile");
+        var profileData = (await ReadAsync<ApiResponse<JsonElement>>(profile)).Data;
+        var reapply = await fixture.Client.PostAsJsonAsync("/api/user/school-bindings", SchoolBindingPayload("20260102"));
+
+        Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, binding.StatusCode);
+        Assert.True(bindingData.GetProperty("schoolProfileId").ValueKind == JsonValueKind.Null);
+        Assert.True(profileData.GetProperty("schoolProfile").ValueKind == JsonValueKind.Null);
+        Assert.Equal(HttpStatusCode.OK, reapply.StatusCode);
+    }
+
+    [Fact]
+    public async Task SchoolBindingDelete_RequiresSuperAdmin()
+    {
+        using var fixture = await Fixture.CreateAsync();
+        var normalAdminKey = await fixture.CreateAndLoginAdminAsync("operator");
+        var applicationId = await fixture.SubmitSchoolBindingAsync("20260101");
+
+        fixture.UseAdminKey(normalAdminKey);
+        var forbidden = await fixture.Client.DeleteAsync($"/api/admin/school-bindings/{applicationId}");
+        fixture.UseAdminKey();
+        var deleted = await fixture.Client.DeleteAsync($"/api/admin/school-bindings/{applicationId}");
+        var missing = await fixture.Client.GetAsync($"/api/admin/school-bindings/{applicationId}");
+
+        await AssertErrorAsync(forbidden, HttpStatusCode.Forbidden, ErrorCodes.Forbidden);
+        Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
+        await AssertErrorAsync(missing, HttpStatusCode.NotFound, ErrorCodes.SchoolBindingNotFound);
+    }
+
+    [Fact]
     public async Task ResponderClaimReview_ApprovesUnboundResponderAndAggregatesSummary()
     {
         using var fixture = await Fixture.CreateAsync();
@@ -122,10 +170,14 @@ public sealed class AdminUserIdentityApiTests
         var profiles = await fixture.Client.GetAsync("/api/admin/school-profiles");
         var bindings = await fixture.Client.GetAsync("/api/admin/school-bindings");
         var claims = await fixture.Client.GetAsync("/api/admin/responder-claims");
+        var profileDelete = await fixture.Client.DeleteAsync("/api/admin/school-profiles/1");
+        var bindingDelete = await fixture.Client.DeleteAsync("/api/admin/school-bindings/1");
 
         await AssertErrorAsync(profiles, HttpStatusCode.NotImplemented, ErrorCodes.FeatureRequiresSqlite);
         await AssertErrorAsync(bindings, HttpStatusCode.NotImplemented, ErrorCodes.FeatureRequiresSqlite);
         await AssertErrorAsync(claims, HttpStatusCode.NotImplemented, ErrorCodes.FeatureRequiresSqlite);
+        await AssertErrorAsync(profileDelete, HttpStatusCode.NotImplemented, ErrorCodes.FeatureRequiresSqlite);
+        await AssertErrorAsync(bindingDelete, HttpStatusCode.NotImplemented, ErrorCodes.FeatureRequiresSqlite);
     }
 
     private static object SchoolProfile(
@@ -232,6 +284,22 @@ public sealed class AdminUserIdentityApiTests
             var response = await Client.PostAsJsonAsync("/api/user/responder-claims", ClaimPayload());
             var data = (await ReadAsync<ApiResponse<JsonElement>>(response)).Data;
             return int.Parse(data.GetProperty("applicationId").GetString()!);
+        }
+
+        public async Task<string> CreateAndLoginAdminAsync(string username)
+        {
+            UseAdminKey();
+            var created = await Client.PostAsJsonAsync(
+                "/api/admin/admins",
+                new { username, password = "Password123!" });
+            Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+
+            Client.DefaultRequestHeaders.Remove("X-Aed-Admin-Key");
+            var login = await Client.PostAsJsonAsync(
+                "/api/admin/auth/login",
+                new { username, password = "Password123!", deviceId = $"test-device-{username}-0001" });
+            var body = await ReadAsync<ApiResponse<JsonElement>>(login);
+            return body.Data.GetProperty("adminKey").GetString()!;
         }
 
         public void UseAdminKey(string key = ProviderTempData.AdminSessionKey)

@@ -17,6 +17,10 @@ public interface ISchoolPersonProfileStore
         SchoolPersonProfileRecord profile,
         CancellationToken cancellationToken);
 
+    Task<bool> DeleteAsync(
+        int id,
+        CancellationToken cancellationToken);
+
     Task<UserIdentityPage<SchoolPersonProfileRecord>> ListAsync(
         SchoolPersonProfileQuery query,
         CancellationToken cancellationToken);
@@ -40,6 +44,10 @@ public interface ISchoolBindingApplicationStore
 
     Task<UserIdentityPage<SchoolBindingApplicationRecord>> ListAllAsync(
         UserIdentityAdminQuery query,
+        CancellationToken cancellationToken);
+
+    Task<bool> DeleteAsync(
+        int id,
         CancellationToken cancellationToken);
 }
 
