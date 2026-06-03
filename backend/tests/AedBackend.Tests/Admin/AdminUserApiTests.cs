@@ -60,23 +60,30 @@ public sealed class AdminUserApiTests : AdminApiTestBase
 
         var updateProfile = await fixture.Client.PutAsJsonAsync(
             "/api/user/profile",
-            new { name = "新的昵称", avatarUrl = "/uploads/avatar/new.jpg" });
+            new
+            {
+                name = "马希罗",
+                phone = "REDACTED",
+                avatarUrl = "/uploads/avatar/new.jpg"
+            });
         Assert.Equal(HttpStatusCode.OK, updateProfile.StatusCode);
 
         fixture.UseAdminKey();
-        var list = await fixture.Client.GetAsync("/api/admin/users?keyword=新的昵称");
+        var list = await fixture.Client.GetAsync("/api/admin/users?keyword=REDACTED");
         var listData = (await ReadAsync<ApiResponse<JsonElement>>(list)).Data;
         var detail = await fixture.Client.GetAsync("/api/admin/users/openid-1");
         var detailData = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
 
         Assert.Equal(HttpStatusCode.OK, list.StatusCode);
         Assert.Equal(1, listData.GetProperty("total").GetInt32());
-        Assert.Equal("新的昵称", listData.GetProperty("items")[0].GetProperty("name").GetString());
+        Assert.Equal("马希罗", listData.GetProperty("items")[0].GetProperty("name").GetString());
+        Assert.Equal("131****1314", listData.GetProperty("items")[0].GetProperty("phone").GetString());
         Assert.Equal(
             "/uploads/avatar/new.jpg",
             listData.GetProperty("items")[0].GetProperty("avatarUrl").GetString());
         Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
-        Assert.Equal("新的昵称", detailData.GetProperty("name").GetString());
+        Assert.Equal("马希罗", detailData.GetProperty("name").GetString());
+        Assert.Equal("131****1314", detailData.GetProperty("phone").GetString());
         Assert.Equal("/uploads/avatar/new.jpg", detailData.GetProperty("avatarUrl").GetString());
     }
 

@@ -31,11 +31,15 @@ public sealed class AdminUserService : IAdminUserService
 
         var users = await experienceUsers.ListUsersAsync(cancellationToken);
         var profileMap = await profiles.ListAsync(cancellationToken);
-        var items = users.Select(user => ToListItem(user, GetProfile(user.OpenId, profileMap)));
+        var items = users.Select(user => ToSearchItem(user, GetProfile(user.OpenId, profileMap)));
         var filtered = ApplyFilters(items, query).ToArray();
         var page = Math.Max(DefaultPage, query.Page ?? DefaultPage);
         var pageSize = Math.Clamp(query.PageSize ?? DefaultPageSize, 1, 100);
-        var paged = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToArray();
+        var paged = filtered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(item => item.Display)
+            .ToArray();
 
         return new PaginatedData<AdminUserListItem>(
             paged,
@@ -115,31 +119,32 @@ public sealed class AdminUserService : IAdminUserService
         }
     }
 
-    private static IEnumerable<AdminUserListItem> ApplyFilters(
-        IEnumerable<AdminUserListItem> items,
+    private static IEnumerable<AdminUserSearchItem> ApplyFilters(
+        IEnumerable<AdminUserSearchItem> items,
         AdminUserQuery query)
     {
         var filtered = items;
         if (!string.IsNullOrWhiteSpace(query.PrimaryRole))
-            filtered = filtered.Where(item => item.PrimaryRole == query.PrimaryRole);
+            filtered = filtered.Where(item => item.Display.PrimaryRole == query.PrimaryRole);
         if (!string.IsNullOrWhiteSpace(query.AccountStatus))
-            filtered = filtered.Where(item => item.AccountStatus == query.AccountStatus);
+            filtered = filtered.Where(item => item.Display.AccountStatus == query.AccountStatus);
         if (!string.IsNullOrWhiteSpace(query.ResponderStatus))
-            filtered = filtered.Where(item => item.ResponderStatus == query.ResponderStatus);
+            filtered = filtered.Where(item => item.Display.ResponderStatus == query.ResponderStatus);
         if (!string.IsNullOrWhiteSpace(query.Level))
-            filtered = filtered.Where(item => item.Level == query.Level);
+            filtered = filtered.Where(item => item.Display.Level == query.Level);
 
         return string.IsNullOrWhiteSpace(query.Keyword)
             ? filtered
             : filtered.Where(item => MatchesKeyword(item, query.Keyword.Trim()));
     }
 
-    private static bool MatchesKeyword(AdminUserListItem item, string keyword)
+    private static bool MatchesKeyword(AdminUserSearchItem item, string keyword)
     {
-        return Contains(item.OpenId, keyword)
-            || Contains(item.Name, keyword)
-            || Contains(item.Phone, keyword)
-            || Contains(item.AdminRemark, keyword);
+        return Contains(item.Display.OpenId, keyword)
+            || Contains(item.Display.Name, keyword)
+            || Contains(item.RawPhone, keyword)
+            || Contains(item.Display.Phone, keyword)
+            || Contains(item.Display.AdminRemark, keyword);
     }
 
     private static bool Contains(string? value, string keyword)
@@ -183,6 +188,13 @@ public sealed class AdminUserService : IAdminUserService
                 : current.AdminRemark,
             UpdatedAt = DateTimeOffset.UtcNow
         };
+    }
+
+    private static AdminUserSearchItem ToSearchItem(
+        ExperienceUserRecord user,
+        AdminUserProfileRecord profile)
+    {
+        return new AdminUserSearchItem(user.Phone, ToListItem(user, profile));
     }
 
     private static AdminUserListItem ToListItem(
@@ -243,4 +255,8 @@ public sealed class AdminUserService : IAdminUserService
             ? phone
             : $"{phone[..3]}****{phone[^4..]}";
     }
+
+    private sealed record AdminUserSearchItem(
+        string? RawPhone,
+        AdminUserListItem Display);
 }
