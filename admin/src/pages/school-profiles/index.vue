@@ -31,10 +31,20 @@
             <el-table-column label="状态" width="90">
               <template #default="{ row }"><status-tag :status="row.status" category="schoolProfile" /></template>
             </el-table-column>
-            <el-table-column label="操作" width="150" fixed="right">
+            <el-table-column label="操作" width="210" fixed="right">
               <template #default="{ row }">
                 <el-button text type="primary" size="small" @click="router.push(`/school-profiles/${row.profileId}`)">详情</el-button>
                 <el-button text type="primary" size="small" @click="openEdit(row.profileId)">编辑</el-button>
+                <el-popconfirm
+                  title="删除档案会解绑相关用户，确认删除？"
+                  confirm-button-text="删除"
+                  cancel-button-text="取消"
+                  @confirm="removeProfile(row.profileId)"
+                >
+                  <template #reference>
+                    <el-button text type="danger" size="small">删除</el-button>
+                  </template>
+                </el-popconfirm>
               </template>
             </el-table-column>
             <template #empty><el-empty description="暂无学校档案" /></template>
@@ -72,7 +82,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import adminLayout from '@/components/admin-layout.vue'
 import statusTag from '@/components/status-tag.vue'
-import { createSchoolProfile, getSchoolProfileDetail, getSchoolProfiles, updateSchoolProfile } from '@/api/user-identity'
+import { createSchoolProfile, deleteSchoolProfile, getSchoolProfileDetail, getSchoolProfiles, updateSchoolProfile } from '@/api/user-identity'
 import { getApiErrorMessage } from '@/api/client'
 import type { AdminSchoolProfileItem, SchoolPersonType, SchoolProfilePayload } from '@/types/user-identity'
 
@@ -140,6 +150,16 @@ async function save() {
     ElMessage.error(getApiErrorMessage(error, '保存失败'))
   } finally {
     saving.value = false
+  }
+}
+
+async function removeProfile(id: string) {
+  try {
+    await deleteSchoolProfile(id)
+    ElMessage.success('已删除')
+    await load()
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '删除档案失败'))
   }
 }
 

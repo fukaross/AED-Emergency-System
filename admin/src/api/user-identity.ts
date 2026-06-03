@@ -47,6 +47,10 @@ export function updateSchoolProfile(id: string, data: SchoolProfilePayload) {
   return client.put<ApiResponse<AdminSchoolProfileDetail>>(`/school-profiles/${id}`, data)
 }
 
+export function deleteSchoolProfile(id: string) {
+  return client.delete<ApiResponse<null>>(`/school-profiles/${id}`)
+}
+
 export function getSchoolBindings(params: IdentityApplicationListParams = {}) {
   return client.get<ApiResponse<AdminSchoolBindingListResponse>>('/school-bindings', { params })
 }
@@ -67,6 +71,10 @@ export function rejectSchoolBinding(id: string, data: RejectIdentityPayload) {
     `/school-bindings/${id}/reject`,
     data,
   )
+}
+
+export function deleteSchoolBinding(id: string) {
+  return client.delete<ApiResponse<null>>(`/school-bindings/${id}`)
 }
 
 export function getResponderClaims(params: IdentityApplicationListParams = {}) {

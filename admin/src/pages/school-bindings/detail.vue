@@ -7,7 +7,20 @@
           <div class="admin-card">
             <div class="card-header-bar">
               <h3 class="card-header-title">绑定申请</h3>
-              <status-tag :status="detail.status" category="identityApplication" />
+              <div class="header-actions">
+                <status-tag :status="detail.status" category="identityApplication" />
+                <el-popconfirm
+                  v-if="adminStore.isSuperAdmin"
+                  title="确认删除这条审核记录？"
+                  confirm-button-text="删除"
+                  cancel-button-text="取消"
+                  @confirm="removeBinding"
+                >
+                  <template #reference>
+                    <el-button type="danger" size="small" :loading="deleting">删除记录</el-button>
+                  </template>
+                </el-popconfirm>
+              </div>
             </div>
             <el-descriptions :column="2" border>
               <el-descriptions-item label="申请ID">{{ detail.applicationId }}</el-descriptions-item>
@@ -68,8 +81,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import adminLayout from '@/components/admin-layout.vue'
 import statusTag from '@/components/status-tag.vue'
-import { approveSchoolBinding, getSchoolBindingDetail, getSchoolProfiles, rejectSchoolBinding } from '@/api/user-identity'
+import { approveSchoolBinding, deleteSchoolBinding, getSchoolBindingDetail, getSchoolProfiles, rejectSchoolBinding } from '@/api/user-identity'
 import { getApiErrorMessage } from '@/api/client'
+import { useAdminStore } from '@/stores/admin'
 import type { AdminSchoolBindingDetail, AdminSchoolProfileItem, SchoolPersonType } from '@/types/user-identity'
 
 type ApproveMode = 'new' | 'existing'
@@ -82,11 +96,13 @@ interface ApproveForm {
 
 const route = useRoute()
 const router = useRouter()
+const adminStore = useAdminStore()
 const id = route.params.id as string
 const detail = ref<AdminSchoolBindingDetail | null>(null)
 const profiles = ref<AdminSchoolProfileItem[]>([])
 const loading = ref(false)
 const actionLoading = ref(false)
+const deleting = ref(false)
 const approveDialogVisible = ref(false)
 const approveForm = reactive<ApproveForm>({
   mode: 'new',
@@ -166,6 +182,19 @@ async function handleReject() {
   }
 }
 
+async function removeBinding() {
+  deleting.value = true
+  try {
+    await deleteSchoolBinding(id)
+    ElMessage.success('已删除')
+    router.push('/school-bindings')
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '删除记录失败'))
+  } finally {
+    deleting.value = false
+  }
+}
+
 function toNewProfile(item: AdminSchoolBindingDetail) {
   const payload = item.payload
   return { ...payload, status: 'active' as const }
@@ -194,4 +223,5 @@ onMounted(loadDetail)
 .detail-container { display: flex; flex-direction: column; gap: 16px; }
 .action-bar { display: flex; gap: 12px; padding-bottom: 16px; }
 .approve-field { width: 100%; margin-bottom: 12px; }
+.header-actions { display: flex; align-items: center; gap: 12px; }
 </style>

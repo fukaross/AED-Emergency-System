@@ -203,7 +203,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { CopyDocument } from '@element-plus/icons-vue'
@@ -219,6 +219,8 @@ const openIdParam = route.params.openId as string
 const loading = ref(true)
 const saveLoading = ref(false)
 const detail = ref<AdminUserDetail | null>(null)
+const REFRESH_INTERVAL_MS = 10000
+let refreshTimer: number | null = null
 
 // Editing states matching Payload properties
 const editForm = reactive({
@@ -335,25 +337,63 @@ function copyOpenId(text: string) {
   })
 }
 
-async function loadDetail() {
-  loading.value = true
+async function loadDetail(syncForm = true, silent = false) {
+  if (!silent) loading.value = true
   try {
     const res = await getUserDetail(openIdParam)
     detail.value = res.data.data
 
-    // Hydrate form states
-    editForm.primaryRole = res.data.data.primaryRole
-    editForm.accountStatus = res.data.data.accountStatus
-    editForm.responderStatus = res.data.data.responderStatus || 'inactive'
-    editForm.certified = res.data.data.certified
-    editForm.level = res.data.data.level
-    editForm.adminRemark = res.data.data.adminRemark || ''
+    if (syncForm) syncEditForm(res.data.data)
   } catch (error: unknown) {
     console.error(error)
-    ElMessage.error(getApiErrorMessage(error, '获取用户详情信息失败'))
+    if (!silent) ElMessage.error(getApiErrorMessage(error, '获取用户详情信息失败'))
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
+}
+
+function syncEditForm(data: AdminUserDetail) {
+  editForm.primaryRole = data.primaryRole
+  editForm.accountStatus = data.accountStatus
+  editForm.responderStatus = data.responderStatus || 'inactive'
+  editForm.certified = data.certified
+  editForm.level = data.level
+  editForm.adminRemark = data.adminRemark || ''
+}
+
+function isEditDirty() {
+  if (!detail.value) return false
+  return editForm.primaryRole !== detail.value.primaryRole
+    || editForm.accountStatus !== detail.value.accountStatus
+    || editForm.responderStatus !== (detail.value.responderStatus || 'inactive')
+    || editForm.certified !== detail.value.certified
+    || editForm.level !== detail.value.level
+    || editForm.adminRemark !== (detail.value.adminRemark || '')
+}
+
+function refreshNow() {
+  if (document.hidden) return
+  loadDetail(!isEditDirty(), true)
+}
+
+function startPolling() {
+  stopPolling()
+  refreshTimer = window.setInterval(refreshNow, REFRESH_INTERVAL_MS)
+}
+
+function stopPolling() {
+  if (refreshTimer === null) return
+  window.clearInterval(refreshTimer)
+  refreshTimer = null
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) {
+    stopPolling()
+    return
+  }
+  refreshNow()
+  startPolling()
 }
 
 // Handles edits update submitting only modified parameters (delta check)
@@ -411,6 +451,13 @@ async function handleSave() {
 
 onMounted(() => {
   loadDetail()
+  startPolling()
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+})
+
+onUnmounted(() => {
+  stopPolling()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 

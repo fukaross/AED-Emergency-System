@@ -186,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { LocationQueryRaw } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -209,6 +209,8 @@ const filterRole = ref('')
 const filterStatus = ref('')
 const searchKeyword = ref('')
 const currentPage = ref(1)
+const REFRESH_INTERVAL_MS = 10000
+let refreshTimer: number | null = null
 
 const roleMap: Record<string, string> = {
   student: '学生',
@@ -286,8 +288,8 @@ function handlePageChange(page: number) {
   updateRouteQuery(false)
 }
 
-async function loadData() {
-  loading.value = true
+async function loadData(silent = false) {
+  if (!silent) loading.value = true
   try {
     const res = await getUsers({
       page: currentPage.value,
@@ -300,10 +302,35 @@ async function loadData() {
     totalItems.value = res.data.data.total
   } catch (error: unknown) {
     console.error(error)
-    ElMessage.error(getApiErrorMessage(error, '获取用户列表数据失败'))
+    if (!silent) ElMessage.error(getApiErrorMessage(error, '获取用户列表数据失败'))
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
+}
+
+function refreshNow() {
+  if (document.hidden) return
+  loadData(true)
+}
+
+function startPolling() {
+  stopPolling()
+  refreshTimer = window.setInterval(refreshNow, REFRESH_INTERVAL_MS)
+}
+
+function stopPolling() {
+  if (refreshTimer === null) return
+  window.clearInterval(refreshTimer)
+  refreshTimer = null
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) {
+    stopPolling()
+    return
+  }
+  loadData(true)
+  startPolling()
 }
 
 watch(
@@ -317,6 +344,13 @@ watch(
 onMounted(() => {
   syncFromRoute()
   loadData()
+  startPolling()
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+})
+
+onUnmounted(() => {
+  stopPolling()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
