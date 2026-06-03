@@ -3,6 +3,16 @@ import { computed, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useSettingsStore } from '@/store/settings'
 
+function setPageThemeChrome(bg: string, fg: '#ffffff' | '#000000'): void {
+  if (typeof uni.setBackgroundColor === 'function') {
+    uni.setBackgroundColor({ backgroundColor: bg, backgroundColorTop: bg })
+  }
+
+  if (typeof uni.setNavigationBarColor === 'function') {
+    uni.setNavigationBarColor({ frontColor: fg, backgroundColor: bg })
+  }
+}
+
 export function useTheme() {
   const settings = useSettingsStore()
 
@@ -15,8 +25,7 @@ export function useTheme() {
     const bg = dark ? '#121926' : '#F5F5F5'
     const fg = dark ? '#ffffff' : '#000000'
 
-    uni.setBackgroundColor({ backgroundColor: bg, backgroundColorTop: bg })
-    uni.setNavigationBarColor({ frontColor: fg, backgroundColor: bg })
+    setPageThemeChrome(bg, fg)
   }
 
   onShow(() => applyPageTheme())

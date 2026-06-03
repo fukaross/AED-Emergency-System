@@ -3,14 +3,23 @@
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import { useSettingsStore } from '@/store/settings'
 
+function setThemeChrome(bg: string, fg: '#ffffff' | '#000000') {
+  if (typeof uni.setBackgroundColor === 'function') {
+    uni.setBackgroundColor({ backgroundColor: bg, backgroundColorTop: bg })
+  }
+
+  if (typeof uni.setNavigationBarColor === 'function') {
+    uni.setNavigationBarColor({ frontColor: fg, backgroundColor: bg })
+  }
+}
+
 function applyGlobalTheme() {
   const store = useSettingsStore()
   const dark = store.darkMode
   const bg = dark ? '#121926' : '#F5F5F5'
   const fg = dark ? '#ffffff' : '#000000'
 
-  uni.setBackgroundColor({ backgroundColor: bg, backgroundColorTop: bg })
-  uni.setNavigationBarColor({ frontColor: fg, backgroundColor: bg })
+  setThemeChrome(bg, fg)
 }
 
 onLaunch(() => {
