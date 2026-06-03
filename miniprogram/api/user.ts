@@ -6,6 +6,12 @@ import type {
   UpdateUserProfilePayload,
   ArchiveListParams,
   ArchiveListResponse,
+  IdentityApplicationListResponse,
+  IdentityApplicationResponse,
+  ResponderClaimDetail,
+  SchoolBindingDetail,
+  SubmitResponderClaimPayload,
+  SubmitSchoolBindingPayload,
 } from '@/types/user'
 import type {
   VolunteerApplicationPayload,
@@ -17,6 +23,10 @@ import {
   getMockArchivePhone,
   loadMockUserProfile,
   queryMockArchives,
+  queryMockResponderClaims,
+  queryMockSchoolBindings,
+  saveMockResponderClaim,
+  saveMockSchoolBinding,
   saveMockVolunteerApplication,
   saveMockUserProfile,
 } from '@/mock/user'
@@ -124,5 +134,55 @@ export function submitVolunteerApplication(
   return post<VolunteerApplicationResponse>(
     '/api/user/volunteer-applications',
     payload as unknown as Record<string, unknown>,
+  )
+}
+
+export function submitSchoolBinding(
+  payload: SubmitSchoolBindingPayload,
+): Promise<IdentityApplicationResponse> {
+  if (USE_USER_MOCK) {
+    return Promise.resolve(saveMockSchoolBinding(payload))
+  }
+
+  return post<IdentityApplicationResponse>(
+    '/api/user/school-bindings',
+    payload as unknown as Record<string, unknown>,
+  )
+}
+
+export function fetchSchoolBindings(): Promise<
+  IdentityApplicationListResponse<SchoolBindingDetail>
+> {
+  if (USE_USER_MOCK) {
+    return Promise.resolve(queryMockSchoolBindings())
+  }
+
+  return get<IdentityApplicationListResponse<SchoolBindingDetail>>(
+    '/api/user/school-bindings',
+  )
+}
+
+export function submitResponderClaim(
+  payload: SubmitResponderClaimPayload,
+): Promise<IdentityApplicationResponse> {
+  if (USE_USER_MOCK) {
+    return Promise.resolve(saveMockResponderClaim(payload))
+  }
+
+  return post<IdentityApplicationResponse>(
+    '/api/user/responder-claims',
+    payload as unknown as Record<string, unknown>,
+  )
+}
+
+export function fetchResponderClaims(): Promise<
+  IdentityApplicationListResponse<ResponderClaimDetail>
+> {
+  if (USE_USER_MOCK) {
+    return Promise.resolve(queryMockResponderClaims())
+  }
+
+  return get<IdentityApplicationListResponse<ResponderClaimDetail>>(
+    '/api/user/responder-claims',
   )
 }

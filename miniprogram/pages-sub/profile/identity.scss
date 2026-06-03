@@ -1,0 +1,135 @@
+.id-page {
+  min-height: 100vh;
+  background: $background;
+}
+
+.id-scroll {
+  height: calc(100vh - #{$nav-bar-content-height});
+  box-sizing: border-box;
+  padding: $spacing-md $spacing-md 0;
+}
+
+.id-card {
+  margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  border-radius: $radius-lg;
+  background: $background-white;
+  box-shadow: $shadow-sm;
+}
+
+.id-row {
+  display: flex;
+  align-items: center;
+  min-height: 92rpx;
+  border-bottom: 1rpx solid $divider-light;
+}
+
+.id-row:last-child {
+  border-bottom: none;
+}
+
+.id-label {
+  width: 210rpx;
+  flex-shrink: 0;
+  color: $text-primary;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+}
+
+.id-label--required::before {
+  content: '*';
+  color: $primary;
+}
+
+.id-input,
+.id-picker {
+  flex: 1;
+  min-width: 0;
+  color: $text-primary;
+  font-size: $font-size-base;
+  text-align: right;
+}
+
+.id-picker {
+  line-height: 92rpx;
+  color: $text-secondary;
+}
+
+.id-textarea {
+  width: 100%;
+  min-height: 160rpx;
+  margin-top: $spacing-sm;
+  padding: $spacing-sm;
+  box-sizing: border-box;
+  border-radius: $radius-md;
+  background: $background;
+  color: $text-primary;
+  font-size: $font-size-base;
+  line-height: $line-height-normal;
+}
+
+.id-list-title {
+  display: block;
+  margin-bottom: $spacing-sm;
+  color: $text-primary;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+}
+
+.id-empty,
+.id-status-sub {
+  color: $text-secondary;
+  font-size: $font-size-sm;
+}
+
+.id-status-item {
+  padding: $spacing-sm 0;
+  border-top: 1rpx solid $divider-light;
+}
+
+.id-status-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.id-status-name {
+  flex: 1;
+  min-width: 0;
+  color: $text-primary;
+  font-size: $font-size-base;
+}
+
+.id-status-pill {
+  flex-shrink: 0;
+  padding: 4rpx $spacing-sm;
+  border-radius: $radius-full;
+  background: $background;
+  color: $text-secondary;
+  font-size: $font-size-xs;
+}
+
+.id-status-pill--approved {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.id-status-pill--rejected {
+  background: #fff1f3;
+  color: #c01048;
+}
+
+.id-submit-wrap {
+  padding: $spacing-sm 0 calc(#{$spacing-xl} + env(safe-area-inset-bottom));
+}
+
+.id-submit {
+  @include btn-primary;
+  width: 100%;
+}
+
+.id-submit--disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}

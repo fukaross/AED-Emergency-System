@@ -35,6 +35,8 @@ interface ProfileMenuItem {
 const PROFILE_MENU_ITEMS: readonly ProfileMenuItem[] = [
   { key: 'profile', title: '个人资料', icon: '/static/icons/menu-profile.svg', url: '/pages-sub/profile/edit', needAuth: true },
   { key: 'volunteer', title: '加入志愿者', icon: '/static/icons/volunteer-prepare.svg', url: '/pages-sub/profile/volunteer', needAuth: true },
+  { key: 'school-binding', title: '学校绑定', iconText: '证', url: '/pages-sub/profile/school-binding', needAuth: true },
+  { key: 'responder-claim', title: '急救员认领', iconText: '急', url: '/pages-sub/profile/responder-claim', needAuth: true },
   { key: 'archive', title: '急救档案', icon: '/static/icons/menu-archive.svg', url: '/pages-sub/profile/archives', needAuth: true },
   { key: 'help-history', title: '求助历史', iconText: '☎', url: '/pages-sub/help/history', needAuth: true },
   { key: 'settings', title: '设置', icon: '/static/icons/menu-settings.svg', url: '/pages-sub/profile/settings', needAuth: true },

@@ -768,6 +768,138 @@ paths:
         '501':
           $ref: '#/components/responses/FeatureRequiresSqlite'
 
+  /api/user/school-bindings:
+    get:
+      summary: 获取当前用户学校绑定申请列表
+      operationId: listMySchoolBindings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SchoolBindingListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
+    post:
+      summary: 提交学校档案绑定申请
+      operationId: createSchoolBinding
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitSchoolBindingPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/IdentityApplicationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
+
+  /api/user/responder-claims:
+    get:
+      summary: 获取当前用户急救员认领申请列表
+      operationId: listMyResponderClaims
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ResponderClaimListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
+    post:
+      summary: 提交急救员认领申请
+      operationId: createResponderClaim
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitResponderClaimPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/IdentityApplicationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
+
   /api/knowledge/summary:
     get:
       summary: 获取课堂统计横幅数据
@@ -1619,6 +1751,328 @@ paths:
           $ref: '#/components/responses/Conflict'
         '501':
           $ref: '#/components/responses/FeatureRequiresSqlite'
+
+  /api/admin/school-profiles:
+    get:
+      summary: 管理端获取学校档案列表
+      operationId: listAdminSchoolProfiles
+      security:
+        - adminSessionKey: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminSchoolProfileListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
+    post:
+      summary: 管理端创建学校档案
+      operationId: createAdminSchoolProfile
+      security:
+        - adminSessionKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchoolProfileUpsertPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminSchoolProfileDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
+
+  /api/admin/school-profiles/{id}:
+    get:
+      summary: 管理端获取学校档案详情
+      operationId: getAdminSchoolProfile
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminSchoolProfileDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: 管理端更新学校档案
+      operationId: updateAdminSchoolProfile
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchoolProfileUpsertPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminSchoolProfileDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/school-bindings:
+    get:
+      summary: 管理端获取学校绑定申请列表
+      operationId: listAdminSchoolBindings
+      security:
+        - adminSessionKey: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminSchoolBindingListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
+
+  /api/admin/school-bindings/{id}:
+    get:
+      summary: 管理端获取学校绑定申请详情
+      operationId: getAdminSchoolBinding
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminSchoolBindingDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/school-bindings/{id}/approve:
+    put:
+      summary: 管理端通过学校绑定申请
+      operationId: approveAdminSchoolBinding
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveSchoolBindingPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/admin/school-bindings/{id}/reject:
+    put:
+      summary: 管理端驳回学校绑定申请
+      operationId: rejectAdminSchoolBinding
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectIdentityPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/admin/responder-claims:
+    get:
+      summary: 管理端获取急救员认领申请列表
+      operationId: listAdminResponderClaims
+      security:
+        - adminSessionKey: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminResponderClaimListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '501':
+          $ref: '#/components/responses/FeatureRequiresSqlite'
+
+  /api/admin/responder-claims/{id}:
+    get:
+      summary: 管理端获取急救员认领申请详情
+      operationId: getAdminResponderClaim
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminResponderClaimDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/responder-claims/{id}/approve:
+    put:
+      summary: 管理端通过急救员认领申请
+      operationId: approveAdminResponderClaim
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveResponderClaimPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/admin/responder-claims/{id}/reject:
+    put:
+      summary: 管理端驳回急救员认领申请
+      operationId: rejectAdminResponderClaim
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectIdentityPayload'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /api/admin/users/{openId}:
     get:
@@ -2925,6 +3379,302 @@ components:
           enum: [honor, trainee, official, core]
           nullable: true
         adminRemark:
+          type: string
+          nullable: true
+
+    IdentityApplicationStatus:
+      type: string
+      enum: [submitted, approved, rejected]
+
+    SchoolPersonType:
+      type: string
+      enum: [student, teacher, staff]
+
+    SubmitSchoolBindingPayload:
+      type: object
+      required: [personType, name, college]
+      properties:
+        personType:
+          $ref: '#/components/schemas/SchoolPersonType'
+        name:
+          type: string
+        college:
+          type: string
+        className:
+          type: string
+          nullable: true
+        studentId:
+          type: string
+          nullable: true
+        staffId:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+
+    SubmitResponderClaimPayload:
+      type: object
+      required: [name, idNumberLast6, phone]
+      properties:
+        name:
+          type: string
+        idNumberLast6:
+          type: string
+        phone:
+          type: string
+        certificateNo:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+
+    IdentityApplicationResponse:
+      type: object
+      required: [applicationId, status, submittedAt]
+      properties:
+        applicationId:
+          type: string
+        status:
+          $ref: '#/components/schemas/IdentityApplicationStatus'
+        submittedAt:
+          type: string
+          format: date-time
+
+    SchoolBindingDetail:
+      type: object
+      required: [applicationId, status, schoolProfileId, submittedAt, updatedAt, payload]
+      properties:
+        applicationId:
+          type: string
+        status:
+          $ref: '#/components/schemas/IdentityApplicationStatus'
+        schoolProfileId:
+          type: integer
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        reviewNote:
+          type: string
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        payload:
+          $ref: '#/components/schemas/SubmitSchoolBindingPayload'
+
+    SchoolBindingListResponse:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SchoolBindingDetail'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    ResponderClaimDetail:
+      type: object
+      required: [applicationId, status, responderProfileId, submittedAt, updatedAt, payload]
+      properties:
+        applicationId:
+          type: string
+        status:
+          $ref: '#/components/schemas/IdentityApplicationStatus'
+        responderProfileId:
+          type: string
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        reviewNote:
+          type: string
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        payload:
+          $ref: '#/components/schemas/SubmitResponderClaimPayload'
+
+    ResponderClaimListResponse:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResponderClaimDetail'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    SchoolProfileUpsertPayload:
+      type: object
+      required: [personType, name, college, status]
+      properties:
+        personType:
+          $ref: '#/components/schemas/SchoolPersonType'
+        name:
+          type: string
+        college:
+          type: string
+        className:
+          type: string
+          nullable: true
+        studentId:
+          type: string
+          nullable: true
+        staffId:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+
+    AdminSchoolProfileDetail:
+      allOf:
+        - $ref: '#/components/schemas/SchoolProfileUpsertPayload'
+        - type: object
+          required: [profileId, createdAt, updatedAt]
+          properties:
+            profileId:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    AdminSchoolProfileListResponse:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminSchoolProfileDetail'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    AdminSchoolBindingDetail:
+      allOf:
+        - $ref: '#/components/schemas/SchoolBindingDetail'
+        - type: object
+          required: [openId]
+          properties:
+            openId:
+              type: string
+            reviewedBy:
+              type: string
+              nullable: true
+
+    AdminSchoolBindingListResponse:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminSchoolBindingDetail'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    ApproveSchoolBindingPayload:
+      type: object
+      properties:
+        schoolProfileId:
+          type: integer
+          nullable: true
+        newProfile:
+          $ref: '#/components/schemas/SchoolProfileUpsertPayload'
+        reviewNote:
+          type: string
+          nullable: true
+
+    RejectIdentityPayload:
+      type: object
+      required: [reviewNote]
+      properties:
+        reviewNote:
+          type: string
+
+    AdminResponderClaimDetail:
+      allOf:
+        - $ref: '#/components/schemas/ResponderClaimDetail'
+        - type: object
+          required: [openId]
+          properties:
+            openId:
+              type: string
+            reviewedBy:
+              type: string
+              nullable: true
+
+    AdminResponderClaimListResponse:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminResponderClaimDetail'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    ApproveResponderClaimPayload:
+      type: object
+      required: [responderProfileId]
+      properties:
+        responderProfileId:
+          type: string
+        reviewNote:
           type: string
           nullable: true
 

@@ -3,7 +3,11 @@ import {
   canMockViewFullPhone,
   getMockArchiveDetail,
   loadMockUserProfile,
+  queryMockResponderClaims,
+  queryMockSchoolBindings,
   queryMockArchives,
+  saveMockResponderClaim,
+  saveMockSchoolBinding,
   saveMockUserProfile,
 } from '@/mock/user'
 import { FEATURED_MOCK_RESCUER_ARCHIVE_ID } from '@/mock/rescuer-qualification-fixtures'
@@ -109,5 +113,31 @@ describe('mock rescuer archives', () => {
 
   it('does not allow full phone access for the default mock viewer', () => {
     expect(canMockViewFullPhone()).toBe(false)
+  })
+
+  it('stores mock school binding application', () => {
+    const response = saveMockSchoolBinding({
+      personType: 'student',
+      name: '王小明',
+      college: '教育学院',
+      studentId: '20260101',
+    })
+    const result = queryMockSchoolBindings()
+
+    expect(response.status).toBe('submitted')
+    expect(result.items[0]?.payload.studentId).toBe('20260101')
+  })
+
+  it('stores mock responder claim application', () => {
+    const response = saveMockResponderClaim({
+      name: '王小明',
+      idNumberLast6: '10011X',
+      phone: 'REDACTED',
+      certificateNo: 'CERT20260001',
+    })
+    const result = queryMockResponderClaims()
+
+    expect(response.status).toBe('submitted')
+    expect(result.items[0]?.payload.certificateNo).toBe('CERT20260001')
   })
 })

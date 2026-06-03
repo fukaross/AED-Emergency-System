@@ -80,6 +80,20 @@
           }
         },
         {
+          "path": "profile/school-binding",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "学校绑定"
+          }
+        },
+        {
+          "path": "profile/responder-claim",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "急救员认领"
+          }
+        },
+        {
           "path": "profile/settings",
           "style": {
             "navigationStyle": "custom",
