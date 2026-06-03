@@ -18,11 +18,7 @@ import type {
   VolunteerApplicationResponse,
 } from '@/types/volunteer'
 import {
-  canMockViewFullPhone,
-  getMockArchiveDetail,
-  getMockArchivePhone,
   loadMockUserProfile,
-  queryMockArchives,
   queryMockResponderClaims,
   queryMockSchoolBindings,
   saveMockResponderClaim,
@@ -68,9 +64,6 @@ export function updateUserProfile(
 export function fetchArchives(
   params?: ArchiveListParams,
 ): Promise<ArchiveListResponse> {
-  if (USE_MOCK) {
-    return Promise.resolve(queryMockArchives(params))
-  }
   return get<ArchiveListResponse>(
     '/api/user/archives',
     params as unknown as Record<string, unknown>,
@@ -81,42 +74,16 @@ export function fetchArchives(
 export function fetchArchiveDetail(
   archiveId: string,
 ): Promise<ArchiveDetail> {
-  if (USE_MOCK) {
-    const detail = getMockArchiveDetail(archiveId)
-    if (!detail) {
-      return Promise.reject(new Error('档案不存在'))
-    }
-
-    return Promise.resolve(detail)
-  }
-
   return get<ArchiveDetail>(`/api/user/archives/${archiveId}`)
 }
 
 /**
- * 查看档案完整电话 —— 只有值班老师/管理员能调，需要填用途
+ * 查看档案完整电话 —— 登录用户紧急联络场景使用，需要填用途
  */
 export function fetchArchivePhone(
   archiveId: string,
   purpose: string,
 ): Promise<{ phone: string }> {
-  if (USE_MOCK) {
-    if (!purpose.trim()) {
-      return Promise.reject(new Error('查看用途不能为空'))
-    }
-
-    if (!canMockViewFullPhone()) {
-      return Promise.reject(new Error('当前角色无权查看完整号码'))
-    }
-
-    const phone = getMockArchivePhone(archiveId)
-    if (!phone) {
-      return Promise.reject(new Error('档案不存在'))
-    }
-
-    return Promise.resolve({ phone })
-  }
-
   return get<{ phone: string }>(
     `/api/user/archives/${archiveId}/phone`,
     { purpose },

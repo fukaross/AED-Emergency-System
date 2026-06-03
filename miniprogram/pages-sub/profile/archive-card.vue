@@ -6,7 +6,8 @@
   >
     <view class="ar-card-top">
       <text class="ar-card-name">{{ item.name }}</text>
-      <level-badge :level="item.level" />
+      <level-badge v-if="item.level" :level="item.level" />
+      <text v-else class="ar-card-level-empty">未定级</text>
     </view>
     <view class="ar-card-row">
       <image class="ar-card-icon" :src="PHONE_ICON" mode="aspectFit" />
@@ -84,6 +85,16 @@ function formatExpiry(expiry: string): string {
   font-size: 34rpx;
   font-weight: $font-weight-semibold;
   color: $text-primary;
+}
+
+.ar-card-level-empty {
+  height: 40rpx;
+  padding: 0 14rpx;
+  border-radius: 20rpx;
+  background: $background-card-disabled;
+  font-size: $font-size-xs;
+  color: $text-tertiary;
+  line-height: 40rpx;
 }
 
 .ar-card-row {

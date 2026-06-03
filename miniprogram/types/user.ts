@@ -73,7 +73,7 @@ export interface RescuerArchiveListItem {
   readonly id: string
   readonly name: string
   readonly phone: string
-  readonly level: RescuerLevel
+  readonly level: RescuerLevel | null
   readonly college: string
   readonly certExpiry: string
   readonly certExpired: boolean
@@ -93,29 +93,29 @@ export interface RescuerArchiveListResponse {
 export interface RescuerImportBatch {
   readonly id: string
   readonly sourceYear: number
-  readonly sourceFileName: string
+  readonly sourceFileName?: string | null
   readonly importedAt: string
   readonly operator?: string | null
   readonly note?: string | null
 }
 
 export interface RescuerArchiveSourceTrace {
-  readonly sourceFile: string
-  readonly sourceSheet: string
+  readonly sourceFile?: string | null
+  readonly sourceSheet?: string | null
   readonly sourceRowNo: number
-  readonly sourceSeqNo: string
+  readonly sourceSeqNo?: string | null
   readonly batch: RescuerImportBatch
 }
 
 export interface RescuerCertificateRecord {
   readonly id: string
   readonly profileId: string
-  readonly certificateNo: string
-  readonly issuingAuthority: string
-  readonly issueDate: string
+  readonly certificateNo?: string | null
+  readonly issuingAuthority?: string | null
+  readonly issueDate?: string | null
   readonly trainingYear: number
-  readonly trainingProject: string
-  readonly trainingSessionName: string
+  readonly trainingProject?: string | null
+  readonly trainingSessionName?: string | null
   readonly theoryScore: number | null
   readonly traumaAssessmentResult: string | null
   readonly cprAssessmentResult: string | null
