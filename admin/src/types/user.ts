@@ -56,8 +56,5 @@ export interface AdminUserDetail extends AdminUserListItem {
 export interface AdminUserUpdatePayload {
   primaryRole?: PrimaryRole
   accountStatus?: AccountStatus
-  responderStatus?: ResponderStatus
-  certified?: boolean
-  level?: RescuerLevel | null
   adminRemark?: string | null
 }

@@ -114,6 +114,16 @@
                     <span class="desc-label">有效期至</span>
                     <span class="desc-value">{{ formatDateOnly(detail.rescuerSummary.certExpiry) }}</span>
                   </div>
+                  <div class="section-action">
+                    <el-button
+                      type="primary"
+                      size="small"
+                      plain
+                      @click="viewRescuer(detail.rescuerSummary.responderProfileId)"
+                    >
+                      查看档案
+                    </el-button>
+                  </div>
                 </div>
                 <div v-else class="empty-section">
                   未绑定急救资格
@@ -142,33 +152,6 @@
                   <el-select v-model="editForm.accountStatus" class="full-width">
                     <el-option label="正常" value="active" />
                     <el-option label="禁用" value="disabled" />
-                  </el-select>
-                </el-form-item>
-
-                <!-- Responder qualifications status select -->
-                <el-form-item label="资格状态">
-                  <el-select v-model="editForm.responderStatus" class="full-width">
-                    <el-option label="已激活" value="active" />
-                    <el-option label="未激活" value="inactive" />
-                  </el-select>
-                </el-form-item>
-
-                <!-- Certified Select -->
-                <el-form-item label="已认证">
-                  <el-select v-model="editForm.certified" class="full-width">
-                    <el-option label="是" :value="true" />
-                    <el-option label="否" :value="false" />
-                  </el-select>
-                </el-form-item>
-
-                <!-- Rescuer Level Select -->
-                <el-form-item label="等级">
-                  <el-select v-model="editForm.level" class="full-width" placeholder="请选择等级" clearable>
-                    <el-option label="无" :value="null" />
-                    <el-option label="荣誉" value="honor" />
-                    <el-option label="见习" value="trainee" />
-                    <el-option label="正式" value="official" />
-                    <el-option label="core 核心" value="core" />
                   </el-select>
                 </el-form-item>
 
@@ -209,7 +192,7 @@ import { ElMessage } from 'element-plus'
 import { CopyDocument } from '@element-plus/icons-vue'
 import adminLayout from '@/components/admin-layout.vue'
 import { getUserDetail, updateUser } from '@/api/users'
-import type { AdminUserDetail, AdminUserUpdatePayload, PrimaryRole, AccountStatus, ResponderStatus, RescuerLevel } from '@/types/user'
+import type { AdminUserDetail, AdminUserUpdatePayload, PrimaryRole, AccountStatus } from '@/types/user'
 import { getApiErrorMessage } from '@/api/client'
 
 const route = useRoute()
@@ -226,9 +209,6 @@ let refreshTimer: number | null = null
 const editForm = reactive({
   primaryRole: 'student' as PrimaryRole,
   accountStatus: 'active' as AccountStatus,
-  responderStatus: 'inactive' as ResponderStatus,
-  certified: false,
-  level: null as RescuerLevel | null,
   adminRemark: '',
 })
 
@@ -276,6 +256,10 @@ function getBindingTagType(status: string) {
 
 function goBack() {
   router.push('/users')
+}
+
+function viewRescuer(id: string) {
+  router.push(`/rescuers/${id}`)
 }
 
 // Convert UTC dates to formatting
@@ -355,9 +339,6 @@ async function loadDetail(syncForm = true, silent = false) {
 function syncEditForm(data: AdminUserDetail) {
   editForm.primaryRole = data.primaryRole
   editForm.accountStatus = data.accountStatus
-  editForm.responderStatus = data.responderStatus || 'inactive'
-  editForm.certified = data.certified
-  editForm.level = data.level
   editForm.adminRemark = data.adminRemark || ''
 }
 
@@ -365,9 +346,6 @@ function isEditDirty() {
   if (!detail.value) return false
   return editForm.primaryRole !== detail.value.primaryRole
     || editForm.accountStatus !== detail.value.accountStatus
-    || editForm.responderStatus !== (detail.value.responderStatus || 'inactive')
-    || editForm.certified !== detail.value.certified
-    || editForm.level !== detail.value.level
     || editForm.adminRemark !== (detail.value.adminRemark || '')
 }
 
@@ -411,19 +389,6 @@ async function handleSave() {
     }
     if (editForm.accountStatus !== detail.value.accountStatus) {
       payload.accountStatus = editForm.accountStatus
-      hasChanges = true
-    }
-    const currentResponderStatus = detail.value.responderStatus || 'inactive'
-    if (editForm.responderStatus !== currentResponderStatus) {
-      payload.responderStatus = editForm.responderStatus
-      hasChanges = true
-    }
-    if (editForm.certified !== detail.value.certified) {
-      payload.certified = editForm.certified
-      hasChanges = true
-    }
-    if (editForm.level !== detail.value.level) {
-      payload.level = editForm.level
       hasChanges = true
     }
     const currentRemark = detail.value.adminRemark || ''
@@ -601,6 +566,11 @@ onUnmounted(() => {
   color: #909399;
   text-align: center;
   padding: 12px 0;
+}
+
+.section-action {
+  margin-top: 16px;
+  text-align: right;
 }
 
 .mt-20 {
