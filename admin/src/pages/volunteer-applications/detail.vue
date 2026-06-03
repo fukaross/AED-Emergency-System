@@ -93,32 +93,39 @@
       </div>
 
       <el-dialog v-model="approveDialogVisible" title="审核通过" width="520px">
-        <el-select
-          v-model="approveForm.campus"
-          class="approve-field"
-          @change="handleCampusChange"
-        >
-          <el-option
-            v-for="(item, value) in CAMPUS_POINTS"
-            :key="value"
-            :label="item.label"
-            :value="value"
-          />
-        </el-select>
-        <el-input-number
-          v-model="approveForm.lat"
-          class="approve-field"
-          :min="-90"
-          :max="90"
-          :precision="6"
-        />
-        <el-input-number
-          v-model="approveForm.lng"
-          class="approve-field"
-          :min="-180"
-          :max="180"
-          :precision="6"
-        />
+        <div class="approve-help">
+          坐标格式按地图常见复制顺序填写：经度 lng 在前、纬度 lat 在后，例如 110.52,19.98
+        </div>
+        <label class="approve-label">
+          <span>校区</span>
+          <el-select v-model="approveForm.campus" class="approve-field" @change="handleCampusChange">
+            <el-option v-for="(item, value) in CAMPUS_POINTS" :key="value" :label="item.label" :value="value" />
+          </el-select>
+        </label>
+        <div class="coordinate-grid">
+          <label class="approve-label">
+            <span>经度 lng（例：110.52）</span>
+            <el-input-number
+              v-model="approveForm.lng"
+              class="approve-field"
+              :min="-180"
+              :max="180"
+              :precision="6"
+              placeholder="先填经度"
+            />
+          </label>
+          <label class="approve-label">
+            <span>纬度 lat（例：19.98）</span>
+            <el-input-number
+              v-model="approveForm.lat"
+              class="approve-field"
+              :min="-90"
+              :max="90"
+              :precision="6"
+              placeholder="后填纬度"
+            />
+          </label>
+        </div>
         <el-input
           v-model="approveForm.reviewNote"
           type="textarea"
@@ -272,5 +279,9 @@ onMounted(loadDetail)
 .image-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .attachment-image { width: 96px; height: 96px; border-radius: 4px; border: 1px solid #ebeef5; }
 .action-bar { display: flex; gap: 12px; padding-bottom: 16px; }
-.approve-field { width: 100%; margin-bottom: 12px; }
+.approve-help { margin-bottom: 12px; color: #606266; font-size: 13px; }
+.approve-label { display: block; margin-bottom: 12px; color: #303133; font-size: 13px; font-weight: 500; }
+.approve-label span { display: block; margin-bottom: 6px; }
+.approve-field { width: 100%; }
+.coordinate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 </style>
