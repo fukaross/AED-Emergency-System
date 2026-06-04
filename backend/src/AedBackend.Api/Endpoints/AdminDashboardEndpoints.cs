@@ -19,6 +19,7 @@ internal static class AdminDashboardEndpoints
         HttpContext context,
         IAdminAuthorizationService authorization,
         IExperienceUserStore users,
+        IResponderStore responders,
         IHelpRequestStore helpRequests,
         IAdminAuditLogStore auditLogs,
         CancellationToken cancellationToken)
@@ -31,15 +32,18 @@ internal static class AdminDashboardEndpoints
         if (!auth.Succeeded) return AdminEndpointHelpers.AuthorizationFailure(auth);
 
         var userList = await users.ListUsersAsync(cancellationToken);
+        var responderList = await responders.GetAllAsync(cancellationToken);
         var helps = await helpRequests.ListAllAsync(cancellationToken);
         var logs = await auditLogs.ListAsync(cancellationToken);
-        var today = DateTimeOffset.UtcNow.Date;
+        var now = DateTimeOffset.UtcNow;
+        var today = now.UtcDateTime.Date;
         var response = new AdminDashboardResponse(
             userList.Count,
             helps.Count,
             helps.Count(item => item.Status == HelpStatuses.PendingReview),
             helps.Count(item => item.CreatedAt.UtcDateTime.Date == today),
-            logs.Take(10).Select(AdminEndpointHelpers.ToRecentLog).ToArray());
+            logs.Take(10).Select(AdminEndpointHelpers.ToRecentLog).ToArray(),
+            AdminDashboardChartAggregator.Build(userList, responderList, helps, now));
 
         return Results.Ok(ApiResponse.Ok(response));
     }

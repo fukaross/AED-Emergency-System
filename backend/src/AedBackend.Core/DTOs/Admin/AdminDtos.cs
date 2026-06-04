@@ -35,7 +35,24 @@ public sealed record AdminDashboardResponse(
     int HelpRequestsTotal,
     int PendingReviewTotal,
     int TodayNewHelpRequests,
-    IReadOnlyList<AdminDashboardRecentLogItem> RecentLogs);
+    IReadOnlyList<AdminDashboardRecentLogItem> RecentLogs,
+    AdminDashboardCharts Charts);
+
+/// <summary>仪表盘四组图表数据：用户增长、急救员增长、求助处理概览、求助状态分布。</summary>
+public sealed record AdminDashboardCharts(
+    IReadOnlyList<AdminDashboardTrendPoint> UserGrowth,
+    IReadOnlyList<AdminDashboardTrendPoint> ResponderGrowth,
+    IReadOnlyList<AdminDashboardProcessingPoint> HelpProcessing,
+    IReadOnlyList<AdminDashboardStatusSlice> StatusDistribution);
+
+/// <summary>累计趋势单点（date 为 yyyy-MM-dd，total 为截至当日的累计值）。</summary>
+public sealed record AdminDashboardTrendPoint(string Date, int Total);
+
+/// <summary>求助处理单日点：processed=当日新增且已闭环，pending=当日新增仍在处理中。</summary>
+public sealed record AdminDashboardProcessingPoint(string Date, int Processed, int Pending);
+
+/// <summary>求助状态分布切片。</summary>
+public sealed record AdminDashboardStatusSlice(string Status, int Count);
 
 public sealed record AdminHelpListItem(
     string Id,

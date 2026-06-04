@@ -66,6 +66,7 @@ internal static partial class UserEndpoints
         ISessionTokenService tokenService,
         IExperienceUserStore users,
         IUserAccountStatusService accountStatus,
+        IResponderStore responders,
         IOptions<DataOptions> dataOptions,
         CancellationToken ct)
     {
@@ -79,7 +80,9 @@ internal static partial class UserEndpoints
 
         try
         {
-            await users.UpdateProfileAsync(current.User!.OpenId, patchResult.Patch, ct);
+            var openId = current.User!.OpenId;
+            await users.UpdateProfileAsync(openId, patchResult.Patch, ct);
+            await SyncBoundResponderProfileAsync(openId, patchResult.Patch, responders, ct);
             return Results.Ok(ApiResponse.Ok());
         }
         catch (NotSupportedException)

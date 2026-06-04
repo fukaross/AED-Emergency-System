@@ -186,6 +186,24 @@ public abstract class AdminApiTestBase : IAsyncLifetime
         """);
     }
 
+    /// <summary>写入最小急救员档案（仅 id + 发证日期），用于仪表盘急救员增长图测试。</summary>
+    protected void SeedResponders(params (string Id, string? IssueDate)[] responders)
+    {
+        var items = responders.Select(responder => $$"""
+            {
+              "id": "{{responder.Id}}",
+              "recordId": "{{responder.Id}}",
+              "name": "测试急救员",
+              "issueDate": {{JsonValue(responder.IssueDate)}}
+            }
+        """);
+        WriteDataFile("rescuer-profiles.json", $$"""
+        [
+        {{string.Join(",\n", items)}}
+        ]
+        """);
+    }
+
     protected static HelpSeed Help(
         string id,
         string status = HelpStatuses.Published,

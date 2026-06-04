@@ -48,21 +48,44 @@ internal static partial class SqliteMapper
     {
         return new ResponderProfileEntity
         {
-            Id = item.Id, RecordId = item.RecordId, Name = item.Name, Gender = item.Gender,
-            BirthDate = item.BirthDate, Phone = item.Phone, IdNumber = item.IdNumber,
-            PhoneMasked = item.PhoneMasked, IdMasked = item.IdMasked, AvatarUrl = item.AvatarUrl,
-            Campus = item.Campus, Level = item.Level, QualificationStatus = item.QualificationStatus,
-            Lat = item.Lat, Lng = item.Lng, CertificateNo = item.CertificateNo,
-            CertificateNoMasked = item.CertificateNoMasked, IssuingAuthority = item.IssuingAuthority,
-            IssueDate = item.IssueDate, WorkUnit = item.WorkUnit, SkillCpr = item.SkillCpr,
-            SkillAed = item.SkillAed, SkillStb = item.SkillStb, TrainingYear = item.TrainingYear,
-            TrainingProject = item.TrainingProject, TrainingSessionName = item.TrainingSessionName,
-            TheoryScore = item.TheoryScore, TraumaAssessmentResult = item.TraumaAssessmentResult,
-            CprAssessmentResult = item.CprAssessmentResult, AedAssessmentResult = item.AedAssessmentResult,
-            CprAedCombinedResult = item.CprAedCombinedResult, SourceFile = item.SourceFile,
-            SourceSheet = item.SourceSheet, SourceRowNo = item.SourceRowNo,
-            SourceSeqNo = item.SourceSeqNo, Remark = item.Remark,
-            BoundOpenId = item.BoundOpenId, Source = item.Source,
+            Id = item.Id,
+            RecordId = item.RecordId,
+            Name = item.Name,
+            Gender = item.Gender,
+            BirthDate = item.BirthDate,
+            Phone = item.Phone,
+            IdNumber = item.IdNumber,
+            PhoneMasked = item.PhoneMasked,
+            IdMasked = item.IdMasked,
+            AvatarUrl = item.AvatarUrl,
+            Campus = item.Campus,
+            Level = item.Level,
+            QualificationStatus = item.QualificationStatus,
+            Lat = item.Lat,
+            Lng = item.Lng,
+            CertificateNo = item.CertificateNo,
+            CertificateNoMasked = item.CertificateNoMasked,
+            IssuingAuthority = item.IssuingAuthority,
+            IssueDate = item.IssueDate,
+            WorkUnit = item.WorkUnit,
+            SkillCpr = item.SkillCpr,
+            SkillAed = item.SkillAed,
+            SkillStb = item.SkillStb,
+            TrainingYear = item.TrainingYear,
+            TrainingProject = item.TrainingProject,
+            TrainingSessionName = item.TrainingSessionName,
+            TheoryScore = item.TheoryScore,
+            TraumaAssessmentResult = item.TraumaAssessmentResult,
+            CprAssessmentResult = item.CprAssessmentResult,
+            AedAssessmentResult = item.AedAssessmentResult,
+            CprAedCombinedResult = item.CprAedCombinedResult,
+            SourceFile = item.SourceFile,
+            SourceSheet = item.SourceSheet,
+            SourceRowNo = item.SourceRowNo,
+            SourceSeqNo = item.SourceSeqNo,
+            Remark = item.Remark,
+            BoundOpenId = item.BoundOpenId,
+            Source = item.Source,
             SourceApplicationId = item.SourceApplicationId
         };
     }
@@ -71,21 +94,44 @@ internal static partial class SqliteMapper
     {
         return new ResponderProfileRecord
         {
-            Id = item.Id, RecordId = item.RecordId, Name = item.Name, Gender = item.Gender,
-            BirthDate = item.BirthDate, Phone = item.Phone, IdNumber = item.IdNumber,
-            PhoneMasked = item.PhoneMasked, IdMasked = item.IdMasked, AvatarUrl = item.AvatarUrl,
-            Campus = item.Campus, Level = item.Level, QualificationStatus = item.QualificationStatus,
-            Lat = item.Lat, Lng = item.Lng, CertificateNo = item.CertificateNo,
-            CertificateNoMasked = item.CertificateNoMasked, IssuingAuthority = item.IssuingAuthority,
-            IssueDate = item.IssueDate, WorkUnit = item.WorkUnit, SkillCpr = item.SkillCpr,
-            SkillAed = item.SkillAed, SkillStb = item.SkillStb, TrainingYear = item.TrainingYear,
-            TrainingProject = item.TrainingProject, TrainingSessionName = item.TrainingSessionName,
-            TheoryScore = item.TheoryScore, TraumaAssessmentResult = item.TraumaAssessmentResult,
-            CprAssessmentResult = item.CprAssessmentResult, AedAssessmentResult = item.AedAssessmentResult,
-            CprAedCombinedResult = item.CprAedCombinedResult, SourceFile = item.SourceFile,
-            SourceSheet = item.SourceSheet, SourceRowNo = item.SourceRowNo,
-            SourceSeqNo = item.SourceSeqNo, Remark = item.Remark,
-            BoundOpenId = item.BoundOpenId, Source = item.Source,
+            Id = item.Id,
+            RecordId = item.RecordId,
+            Name = item.Name,
+            Gender = item.Gender,
+            BirthDate = item.BirthDate,
+            Phone = item.Phone,
+            IdNumber = item.IdNumber,
+            PhoneMasked = item.PhoneMasked,
+            IdMasked = item.IdMasked,
+            AvatarUrl = item.AvatarUrl,
+            Campus = item.Campus,
+            Level = item.Level,
+            QualificationStatus = item.QualificationStatus,
+            Lat = item.Lat,
+            Lng = item.Lng,
+            CertificateNo = item.CertificateNo,
+            CertificateNoMasked = item.CertificateNoMasked,
+            IssuingAuthority = item.IssuingAuthority,
+            IssueDate = item.IssueDate,
+            WorkUnit = item.WorkUnit,
+            SkillCpr = item.SkillCpr,
+            SkillAed = item.SkillAed,
+            SkillStb = item.SkillStb,
+            TrainingYear = item.TrainingYear,
+            TrainingProject = item.TrainingProject,
+            TrainingSessionName = item.TrainingSessionName,
+            TheoryScore = item.TheoryScore,
+            TraumaAssessmentResult = item.TraumaAssessmentResult,
+            CprAssessmentResult = item.CprAssessmentResult,
+            AedAssessmentResult = item.AedAssessmentResult,
+            CprAedCombinedResult = item.CprAedCombinedResult,
+            SourceFile = item.SourceFile,
+            SourceSheet = item.SourceSheet,
+            SourceRowNo = item.SourceRowNo,
+            SourceSeqNo = item.SourceSeqNo,
+            Remark = item.Remark,
+            BoundOpenId = item.BoundOpenId,
+            Source = item.Source,
             SourceApplicationId = item.SourceApplicationId
         };
     }
@@ -136,10 +182,17 @@ internal static partial class SqliteMapper
     {
         return new SchoolPersonProfileEntity
         {
-            Id = item.Id, PersonType = item.PersonType, Name = item.Name,
-            College = item.College, ClassName = item.ClassName, StudentId = item.StudentId,
-            StaffId = item.StaffId, Phone = item.Phone, Status = item.Status,
-            CreatedAt = item.CreatedAt, UpdatedAt = item.UpdatedAt
+            Id = item.Id,
+            PersonType = item.PersonType,
+            Name = item.Name,
+            College = item.College,
+            ClassName = item.ClassName,
+            StudentId = item.StudentId,
+            StaffId = item.StaffId,
+            Phone = item.Phone,
+            Status = item.Status,
+            CreatedAt = item.CreatedAt,
+            UpdatedAt = item.UpdatedAt
         };
     }
 
@@ -147,10 +200,17 @@ internal static partial class SqliteMapper
     {
         return new SchoolPersonProfileRecord
         {
-            Id = item.Id, PersonType = item.PersonType, Name = item.Name,
-            College = item.College, ClassName = item.ClassName, StudentId = item.StudentId,
-            StaffId = item.StaffId, Phone = item.Phone, Status = item.Status,
-            CreatedAt = item.CreatedAt, UpdatedAt = item.UpdatedAt
+            Id = item.Id,
+            PersonType = item.PersonType,
+            Name = item.Name,
+            College = item.College,
+            ClassName = item.ClassName,
+            StudentId = item.StudentId,
+            StaffId = item.StaffId,
+            Phone = item.Phone,
+            Status = item.Status,
+            CreatedAt = item.CreatedAt,
+            UpdatedAt = item.UpdatedAt
         };
     }
 
@@ -160,10 +220,15 @@ internal static partial class SqliteMapper
     {
         return new SchoolBindingApplicationEntity
         {
-            Id = item.Id, OpenId = item.OpenId, Status = item.Status,
-            SchoolProfileId = item.SchoolProfileId, PayloadJson = payloadJson,
-            ReviewNote = item.ReviewNote, ReviewedBy = item.ReviewedBy,
-            ReviewedAt = item.ReviewedAt, CreatedAt = item.CreatedAt,
+            Id = item.Id,
+            OpenId = item.OpenId,
+            Status = item.Status,
+            SchoolProfileId = item.SchoolProfileId,
+            PayloadJson = payloadJson,
+            ReviewNote = item.ReviewNote,
+            ReviewedBy = item.ReviewedBy,
+            ReviewedAt = item.ReviewedAt,
+            CreatedAt = item.CreatedAt,
             UpdatedAt = item.UpdatedAt
         };
     }
@@ -174,10 +239,15 @@ internal static partial class SqliteMapper
     {
         return new SchoolBindingApplicationRecord
         {
-            Id = item.Id, OpenId = item.OpenId, Status = item.Status,
-            SchoolProfileId = item.SchoolProfileId, Payload = payload,
-            ReviewNote = item.ReviewNote, ReviewedBy = item.ReviewedBy,
-            ReviewedAt = item.ReviewedAt, CreatedAt = item.CreatedAt,
+            Id = item.Id,
+            OpenId = item.OpenId,
+            Status = item.Status,
+            SchoolProfileId = item.SchoolProfileId,
+            Payload = payload,
+            ReviewNote = item.ReviewNote,
+            ReviewedBy = item.ReviewedBy,
+            ReviewedAt = item.ReviewedAt,
+            CreatedAt = item.CreatedAt,
             UpdatedAt = item.UpdatedAt
         };
     }
@@ -188,10 +258,15 @@ internal static partial class SqliteMapper
     {
         return new ResponderClaimApplicationEntity
         {
-            Id = item.Id, OpenId = item.OpenId, Status = item.Status,
-            ResponderProfileId = item.ResponderProfileId, PayloadJson = payloadJson,
-            ReviewNote = item.ReviewNote, ReviewedBy = item.ReviewedBy,
-            ReviewedAt = item.ReviewedAt, CreatedAt = item.CreatedAt,
+            Id = item.Id,
+            OpenId = item.OpenId,
+            Status = item.Status,
+            ResponderProfileId = item.ResponderProfileId,
+            PayloadJson = payloadJson,
+            ReviewNote = item.ReviewNote,
+            ReviewedBy = item.ReviewedBy,
+            ReviewedAt = item.ReviewedAt,
+            CreatedAt = item.CreatedAt,
             UpdatedAt = item.UpdatedAt
         };
     }
@@ -202,10 +277,15 @@ internal static partial class SqliteMapper
     {
         return new ResponderClaimApplicationRecord
         {
-            Id = item.Id, OpenId = item.OpenId, Status = item.Status,
-            ResponderProfileId = item.ResponderProfileId, Payload = payload,
-            ReviewNote = item.ReviewNote, ReviewedBy = item.ReviewedBy,
-            ReviewedAt = item.ReviewedAt, CreatedAt = item.CreatedAt,
+            Id = item.Id,
+            OpenId = item.OpenId,
+            Status = item.Status,
+            ResponderProfileId = item.ResponderProfileId,
+            Payload = payload,
+            ReviewNote = item.ReviewNote,
+            ReviewedBy = item.ReviewedBy,
+            ReviewedAt = item.ReviewedAt,
+            CreatedAt = item.CreatedAt,
             UpdatedAt = item.UpdatedAt
         };
     }
