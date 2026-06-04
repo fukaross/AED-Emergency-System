@@ -189,13 +189,31 @@
         </template>
       </div>
     </div>
+
+    <el-dialog
+      v-model="confirmDialogVisible"
+      title="确认提示"
+      width="420px"
+      :close-on-click-modal="!actionLoading"
+      :close-on-press-escape="!actionLoading"
+    >
+      <span>{{ confirmDialogMessage }}</span>
+      <template #footer>
+        <el-button :disabled="actionLoading" @click="confirmDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="actionLoading" @click="submitCloseRequest">
+          确定
+        </el-button>
+      </template>
+    </el-dialog>
   </admin-layout>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import adminLayout from '@/components/admin-layout.vue'
 import statusTag from '@/components/status-tag.vue'
 import { getHelpRequestDetail, closeHelpRequest } from '@/api/help'
@@ -212,6 +230,8 @@ const loading = ref(true)
 const actionLoading = ref(false)
 const detail = ref<AdminHelpDetailResponse | null>(null)
 const closeNote = ref('')
+const confirmDialogVisible = ref(false)
+const pendingTargetStatus = ref<'closed' | 'false_alarm' | null>(null)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let isPolling = false
@@ -259,6 +279,11 @@ function formatReporterOpenId(openId: string) {
   return openId.length <= 10 ? openId : `${openId.slice(0, 6)}...${openId.slice(-4)}`
 }
 
+const confirmDialogMessage = computed(() => {
+  const actionText = pendingTargetStatus.value === 'false_alarm' ? '标记为误报' : '关闭此求助'
+  return `确定要进行"${actionText}"操作吗？此操作不可逆。`
+})
+
 async function loadDetail() {
   loading.value = true
   try {
@@ -276,36 +301,29 @@ async function loadDetail() {
 }
 
 // Trigger state close action
-async function handleCloseRequest(targetStatus: 'closed' | 'false_alarm') {
-  const isFalseAlarm = targetStatus === 'false_alarm'
-  const actionText = isFalseAlarm ? '标记为误报' : '关闭此求助'
+function handleCloseRequest(targetStatus: 'closed' | 'false_alarm') {
+  pendingTargetStatus.value = targetStatus
+  confirmDialogVisible.value = true
+}
 
-  ElMessageBox.confirm(
-    `确定要进行"${actionText}"操作吗？此操作不可逆。`,
-    '确认提示',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: isFalseAlarm ? 'warning' : 'info',
-    }
-  ).then(async () => {
-    actionLoading.value = true
-    try {
-      await closeHelpRequest(requestId, {
-        status: targetStatus,
-        note: closeNote.value || undefined,
-      })
-      ElMessage.success('操作成功')
-      loadDetail() // Refresh page
-    } catch (error: unknown) {
-      console.error(error)
-      ElMessage.error(getApiErrorMessage(error, '操作失败，请重试'))
-    } finally {
-      actionLoading.value = false
-    }
-  }).catch(() => {
-    // Cancelled
-  })
+async function submitCloseRequest() {
+  if (pendingTargetStatus.value === null) return
+
+  actionLoading.value = true
+  try {
+    await closeHelpRequest(requestId, {
+      status: pendingTargetStatus.value,
+      note: closeNote.value || undefined,
+    })
+    confirmDialogVisible.value = false
+    ElMessage.success('操作成功')
+    await loadDetail()
+  } catch (error: unknown) {
+    console.error(error)
+    ElMessage.error(getApiErrorMessage(error, '操作失败，请重试'))
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 onMounted(() => {

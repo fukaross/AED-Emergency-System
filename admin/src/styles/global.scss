@@ -37,14 +37,17 @@ html, body, #app {
   background-color: $content-bg;
   color: $text-primary;
   -webkit-font-smoothing: antialiased;
+  // 等宽数字：数字变化时不跳动，更稳重
+  font-variant-numeric: tabular-nums;
 }
 
 // Layout main wrappers
 .admin-card {
   background-color: $card-bg;
   border-radius: $radius-card;
+  border: $card-border;
   box-shadow: $card-shadow;
-  padding: 20px 24px;
+  padding: $card-padding;
   margin-bottom: $section-gap;
 
   &.no-padding {

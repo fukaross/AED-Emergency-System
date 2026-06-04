@@ -357,8 +357,8 @@ $header-h: 60px;
 .red-block-logo {
   width: 20px;
   height: 20px;
-  background-color: #f56c6c;
-  border-radius: 4px;
+  background-color: #409eff;
+  border-radius: 5px;
 }
 
 .logo-text {
@@ -398,7 +398,7 @@ $header-h: 60px;
     height: 48px;
     line-height: 48px;
     padding-left: 20px !important;
-    font-size: 14px;
+    font-size: 13px;
     color: #bfcbd9;
 
     .el-icon {
@@ -431,7 +431,7 @@ $header-h: 60px;
         left: 0;
         top: 0;
         bottom: 0;
-        width: 3px;
+        width: 2px;
         background-color: #409eff;
       }
     }
