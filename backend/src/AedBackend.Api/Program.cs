@@ -9,6 +9,8 @@ using Microsoft.Extensions.Options;
 
 var cliExitCode = await JsonToSqliteCli.TryRunAsync(args, CancellationToken.None);
 if (cliExitCode >= 0) return cliExitCode;
+cliExitCode = await UploadsToOssCli.TryRunAsync(args, CancellationToken.None);
+if (cliExitCode >= 0) return cliExitCode;
 
 var builder = WebApplication.CreateBuilder(args);
 

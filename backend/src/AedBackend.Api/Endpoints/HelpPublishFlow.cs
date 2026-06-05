@@ -4,6 +4,7 @@ using AedBackend.Core.DTOs.WeChat;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Models.WeChat;
 using AedBackend.Core.Services.WeChat;
+using AedBackend.Infrastructure.Upload;
 using AedBackend.Infrastructure.WeChat;
 
 namespace AedBackend.Api.Endpoints;
@@ -26,11 +27,14 @@ internal static class HelpPublishFlow
         return ValidateHelpFields(request);
     }
 
-    public static string? ValidateReport(HelpReportRequest request, WeChatOptions options)
+    public static string? ValidateReport(
+        HelpReportRequest request,
+        WeChatOptions options,
+        UploadOptions uploadOptions)
     {
         if (request.Images is null || request.Images.Count == 0) return "images 至少 1 项";
         if (string.IsNullOrWhiteSpace(request.RecordText)) return "recordText 不能为空";
-        return request.Images.All(item => IsUploadedImageUrl(item, options))
+        return request.Images.All(item => IsUploadedImageUrl(item, options, uploadOptions))
             ? null
             : "images 必须是已上传图片 URL";
     }
@@ -107,11 +111,26 @@ internal static class HelpPublishFlow
             : "type 仅支持 help_hand / call_120 / call_school / general";
     }
 
-    private static bool IsUploadedImageUrl(string value, WeChatOptions options)
+    private static bool IsUploadedImageUrl(
+        string value,
+        WeChatOptions options,
+        UploadOptions uploadOptions)
     {
         return Uri.TryCreate(value, UriKind.Absolute, out var uri)
-            && value.StartsWith(options.PublicBaseUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase)
+            && IsAllowedUploadHost(value, options, uploadOptions)
             && uri.AbsolutePath.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAllowedUploadHost(
+        string value,
+        WeChatOptions options,
+        UploadOptions uploadOptions)
+    {
+        if (value.StartsWith(options.PublicBaseUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+            return true;
+        var ossBase = uploadOptions.Oss.PublicBaseUrl;
+        return !string.IsNullOrWhiteSpace(ossBase)
+            && value.StartsWith(ossBase.TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
     }
 
     private static HelpGuestSessionRecord? CreateGuestSession(PublishHelpRequest request)

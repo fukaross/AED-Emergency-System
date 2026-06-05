@@ -35,10 +35,11 @@ public static class ServiceCollectionExtensions
         services.PostConfigure<AdminOptions>(options => options.ApplyEnvironmentAliases(configuration));
         services.Configure<DataOptions>(configuration.GetSection(DataOptions.SectionName));
         services.PostConfigure<DataOptions>(options => options.ApplyEnvironmentAliases(configuration));
+        services.Configure<UploadOptions>(configuration.GetSection(UploadOptions.SectionName));
+        services.PostConfigure<UploadOptions>(options => options.ApplyEnvironmentAliases(configuration));
         services.AddSingleton<ISessionTokenService, SessionTokenService>();
         AddRuntimeDataStores(services);
-        services.AddSingleton<IUploadImageStorage, LocalUploadImageStorage>();
-        services.AddSingleton<IUploadVideoStorage, LocalUploadVideoStorage>();
+        AddUploadStorage(services);
         services.AddSingleton<IAdminAuthorizationService, AdminAuthorizationService>();
         services.AddSingleton<AdminUserService>();
         services.AddSingleton<IAdminUserService>(provider => provider.GetRequiredService<AdminUserService>());
@@ -50,6 +51,20 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<IWeChatSubscribeMessageSender, WeChatSubscribeMessageSender>();
 
         return services;
+    }
+
+    private static void AddUploadStorage(IServiceCollection services)
+    {
+        services.AddSingleton<LocalUploadImageStorage>();
+        services.AddSingleton<LocalUploadVideoStorage>();
+        services.AddSingleton<IOssObjectStore, AliyunOssObjectStore>();
+        services.AddSingleton<OssUploadSupport>();
+        services.AddSingleton<OssUploadImageStorage>();
+        services.AddSingleton<OssUploadVideoStorage>();
+        services.AddSingleton<IUploadImageStorage>(provider => PickUpload<IUploadImageStorage,
+            LocalUploadImageStorage, OssUploadImageStorage>(provider));
+        services.AddSingleton<IUploadVideoStorage>(provider => PickUpload<IUploadVideoStorage,
+            LocalUploadVideoStorage, OssUploadVideoStorage>(provider));
     }
 
     private static void AddRuntimeDataStores(IServiceCollection services)
@@ -153,5 +168,16 @@ public static class ServiceCollectionExtensions
         return options.UseSqlite()
             ? provider.GetRequiredService<TSqlite>()
             : provider.GetRequiredService<TJson>();
+    }
+
+    private static TService PickUpload<TService, TLocal, TOss>(IServiceProvider provider)
+        where TService : notnull
+        where TLocal : TService
+        where TOss : TService
+    {
+        var options = provider.GetRequiredService<IOptions<UploadOptions>>().Value;
+        return options.UseOss()
+            ? provider.GetRequiredService<TOss>()
+            : provider.GetRequiredService<TLocal>();
     }
 }

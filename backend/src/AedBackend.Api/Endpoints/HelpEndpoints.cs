@@ -6,6 +6,7 @@ using AedBackend.Core.Models.WeChat;
 using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.WeChat;
+using AedBackend.Infrastructure.Upload;
 using AedBackend.Infrastructure.WeChat;
 using Microsoft.Extensions.Options;
 
@@ -124,6 +125,7 @@ public static class HelpEndpoints
         string id,
         HelpReportRequest request,
         IOptions<WeChatOptions> options,
+        IOptions<UploadOptions> uploadOptions,
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
         IUserAccountStatusService accountStatus,
@@ -134,7 +136,10 @@ public static class HelpEndpoints
         if (user.Failure is not null) return user.Failure;
 
         // TODO: Revalidate responder_profiles status/type before accepting reports.
-        var validationError = HelpPublishFlow.ValidateReport(request, options.Value);
+        var validationError = HelpPublishFlow.ValidateReport(
+            request,
+            options.Value,
+            uploadOptions.Value);
         if (validationError is not null)
         {
             return EndpointFailures.JsonFailure(ErrorCodes.HelpReportMissingFields, validationError, 400);
