@@ -35,3 +35,4 @@ pnpm build
 - 构建产物部署到 `../AedBackend/src/AedBackend.Api/wwwroot/admin/`，由后端 `/admin/` 静态托管。
 - 生产访问地址为 `REDACTED/admin/`。
 - 不提交 `.env*`、`dist/`、`node_modules/`、运行时数据和构建产物。
+- AED 设备地图选点需要配置高德地图 JS API 2.0：`VITE_AMAP_KEY` / `VITE_AMAP_SECURITY_CODE`（参见 `.env.example`）。

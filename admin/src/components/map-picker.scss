@@ -1,0 +1,112 @@
+.map-picker {
+  width: 100%;
+}
+
+.picker-search-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.picker-search-bar .el-input {
+  flex: 1;
+}
+
+.expand-btn {
+  flex-shrink: 0;
+}
+
+.suggestion-list {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  background: #fff;
+}
+
+.suggestion-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.suggestion-item:hover {
+  background: #f5f7fa;
+}
+
+.suggestion-name {
+  font-size: 13px;
+  color: #303133;
+}
+
+.suggestion-addr {
+  font-size: 12px;
+  color: #909399;
+}
+
+.map-container {
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #dcdfe6;
+}
+
+.map-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.map-error {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 10;
+}
+
+.coord-display {
+  display: flex;
+  gap: 24px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #606266;
+}
+
+.coord-label {
+  font-family: 'Courier New', monospace;
+}
+
+.dialog-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dialog-search {
+  width: 100%;
+}
+
+.dialog-map-canvas {
+  width: 100%;
+  height: 400px;
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dialog-coords {
+  display: flex;
+  gap: 20px;
+  font-size: 14px;
+  color: #303133;
+  font-family: 'Courier New', monospace;
+}

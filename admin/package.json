@@ -12,6 +12,7 @@
     "lint": "eslint . --ext .vue,.ts,.tsx"
   },
   "dependencies": {
+    "@amap/amap-jsapi-loader": "^1.0.1",
     "@element-plus/icons-vue": "^2.3.2",
     "@tiptap/extension-image": "^3.23.6",
     "@tiptap/extension-link": "^3.23.6",
