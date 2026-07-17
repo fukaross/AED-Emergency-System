@@ -452,6 +452,198 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /api/help/{id}/session/join:
+    post:
+      summary: 进入急救会话（幂等，首次进入自动记录 joined 并可能触发 published → responding）
+      operationId: joinRescueSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 完整会话快照
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RescueSessionSnapshotResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/help/{id}/session:
+    get:
+      summary: 拉取会话快照 / 增量（仅已进入的参与者；成功返回时隐式已读）
+      operationId: getRescueSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: afterSeq
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 会话快照（afterSeq 时仅增量消息）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RescueSessionSnapshotResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/help/{id}/session/messages:
+    post:
+      summary: 发送会话文字消息
+      operationId: postRescueMessage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendRescueMessagePayload'
+      responses:
+        '200':
+          description: 追加成功的消息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RescueMessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/help/{id}/session/status-events:
+    post:
+      summary: 发送 / 撤销状态事件（taken_aed / arrived，服务端幂等去抖）
+      operationId: postRescueStatusEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendRescueStatusEventPayload'
+      responses:
+        '200':
+          description: 状态事件处理结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RescueStatusEventResultResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/help/{id}/session/location:
+    put:
+      summary: 上报当前位置（覆盖式，只保留最新一份）
+      operationId: reportRescueLocation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportRescueLocationPayload'
+      responses:
+        '200':
+          description: 上报成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportRescueLocationResultResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/help/{id}/rescue-view:
+    get:
+      summary: 求助人只读实时视图（不含文字消息与参与者 openId）
+      operationId: getRescueView
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 只读实时视图
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RescueViewResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/rescue-sessions/mine:
+    get:
+      summary: 我参与的进行中会话（主页「进行中会话」入口，含未读数）
+      operationId: listMyRescueSessions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 会话列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RescueMineResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /api/courses:
     get:
       summary: 获取课程列表
@@ -2297,6 +2489,12 @@ components:
             $ref: '#/components/schemas/ApiResponse'
     Unauthorized:
       description: 未登录或 Token 已过期
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    Forbidden:
+      description: 权限不足
       content:
         application/json:
           schema:
@@ -4892,3 +5090,302 @@ components:
           type: string
         deviceModel:
           type: string
+
+    RescueSos:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        address:
+          type: string
+
+    RescueLocation:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        reportedAt:
+          type: string
+          format: date-time
+
+    RescueParticipant:
+      type: object
+      properties:
+        openId:
+          type: string
+        displayName:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+        takenAed:
+          type: boolean
+        arrived:
+          type: boolean
+        signal:
+          type: string
+          enum: [ok, lost, gone]
+        location:
+          $ref: '#/components/schemas/RescueLocation'
+
+    RescueMe:
+      type: object
+      properties:
+        openId:
+          type: string
+        takenAed:
+          type: boolean
+        arrived:
+          type: boolean
+        lastReadSeq:
+          type: integer
+
+    RescueMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        seq:
+          type: integer
+        kind:
+          type: string
+          enum: [text, status_event]
+        senderOpenId:
+          type: string
+        senderName:
+          type: string
+        text:
+          type: string
+          nullable: true
+        eventType:
+          type: string
+          enum: [joined, taken_aed, arrived]
+          nullable: true
+        action:
+          type: string
+          enum: [mark, revoke]
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    RescueSessionSnapshot:
+      type: object
+      properties:
+        helpId:
+          type: string
+        requestNo:
+          type: string
+        helpStatus:
+          type: string
+        sos:
+          $ref: '#/components/schemas/RescueSos'
+        me:
+          $ref: '#/components/schemas/RescueMe'
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/RescueParticipant'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/RescueMessage'
+        latestSeq:
+          type: integer
+        serverTime:
+          type: string
+          format: date-time
+
+    RescueSessionSnapshotResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RescueSessionSnapshot'
+
+    RescueMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RescueMessage'
+
+    SendRescueMessagePayload:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    SendRescueStatusEventPayload:
+      type: object
+      required: [eventType, action]
+      properties:
+        eventType:
+          type: string
+          enum: [taken_aed, arrived]
+        action:
+          type: string
+          enum: [mark, revoke]
+
+    RescueMyState:
+      type: object
+      properties:
+        openId:
+          type: string
+        takenAed:
+          type: boolean
+        arrived:
+          type: boolean
+
+    RescueStatusEventResult:
+      type: object
+      properties:
+        appended:
+          type: boolean
+        event:
+          $ref: '#/components/schemas/RescueMessage'
+        me:
+          $ref: '#/components/schemas/RescueMyState'
+
+    RescueStatusEventResultResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RescueStatusEventResult'
+
+    ReportRescueLocationPayload:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+
+    ReportRescueLocationResult:
+      type: object
+      properties:
+        reportedAt:
+          type: string
+          format: date-time
+
+    ReportRescueLocationResultResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ReportRescueLocationResult'
+
+    RescueViewParticipant:
+      type: object
+      properties:
+        displayName:
+          type: string
+        takenAed:
+          type: boolean
+        arrived:
+          type: boolean
+        signal:
+          type: string
+          enum: [ok, lost, gone]
+        location:
+          $ref: '#/components/schemas/RescueLocation'
+
+    RescueViewEvent:
+      type: object
+      properties:
+        seq:
+          type: integer
+        eventType:
+          type: string
+          enum: [joined, taken_aed, arrived]
+        action:
+          type: string
+          enum: [mark, revoke]
+        actorName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    RescueView:
+      type: object
+      properties:
+        helpId:
+          type: string
+        helpStatus:
+          type: string
+        sos:
+          $ref: '#/components/schemas/RescueSos'
+        respondersCount:
+          type: integer
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/RescueViewParticipant'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/RescueViewEvent'
+        serverTime:
+          type: string
+          format: date-time
+
+    RescueViewResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RescueView'
+
+    RescueMineItem:
+      type: object
+      properties:
+        helpId:
+          type: string
+        requestNo:
+          type: string
+        helpStatus:
+          type: string
+        type:
+          type: string
+        address:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+        unreadCount:
+          type: integer
+        lastActivityAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    RescueMineData:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RescueMineItem'
+
+    RescueMineResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RescueMineData'
