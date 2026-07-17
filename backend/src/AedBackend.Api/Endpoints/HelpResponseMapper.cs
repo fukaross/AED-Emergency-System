@@ -21,7 +21,10 @@ internal static class HelpResponseMapper
             userRole);
     }
 
-    public static HelpDetailResponse ToDetail(HelpRequestRecord record)
+    public static HelpDetailResponse ToDetail(
+        HelpRequestRecord record,
+        string? viewerRole = null,
+        bool canSubmitReport = false)
     {
         return new HelpDetailResponse(
             record.Id,
@@ -38,7 +41,9 @@ internal static class HelpResponseMapper
             record.Responders.Select(ToResponder).ToArray(),
             GetEstimatedArrivalTime(record),
             record.Timeline.Select(ToTimeline).ToArray(),
-            record.Reports.Select(ToReport).ToArray());
+            record.Reports.Select(ToReport).ToArray(),
+            viewerRole,
+            canSubmitReport);
     }
 
     public static GuestHelpLookupResponse ToGuestLookup(HelpRequestRecord record)

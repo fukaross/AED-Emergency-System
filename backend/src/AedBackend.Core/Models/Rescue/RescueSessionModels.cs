@@ -30,6 +30,7 @@ public sealed record RescueSessionRecord
 {
     public string HelpRequestId { get; init; } = string.Empty;
     public DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset? ClosedAt { get; init; }
     public IReadOnlyList<RescueSessionParticipantRecord> Participants { get; init; } = [];
     public IReadOnlyList<RescueSessionMessageRecord> Messages { get; init; } = [];
 }

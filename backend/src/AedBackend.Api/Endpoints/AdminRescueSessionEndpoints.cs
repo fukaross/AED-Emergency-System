@@ -41,7 +41,8 @@ internal static class AdminRescueSessionEndpoints
 
         var history = string.Equals(status, "history", StringComparison.OrdinalIgnoreCase);
         var helps = await helpStore.ListAllAsync(cancellationToken);
-        var sessions = (await sessionStore.ListAllAsync(cancellationToken)).ToDictionary(s => s.HelpRequestId);
+        var sessions = (await sessionStore.ListOverviewsAsync(null, cancellationToken))
+            .ToDictionary(session => session.HelpRequestId);
         var items = helps
             .Where(h => history ? HelpStatuses.IsClosed(h.Status) : HelpStatuses.Active.Contains(h.Status))
             .Select(h => ToListItem(h, sessions.GetValueOrDefault(h.Id)))
@@ -67,6 +68,7 @@ internal static class AdminRescueSessionEndpoints
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
         IExperienceUserStore userStore,
+        IAdminAuditLogStore auditLogs,
         CancellationToken cancellationToken)
     {
         var auth = await RequireAdminAsync(context, authorization, cancellationToken);
@@ -80,7 +82,7 @@ internal static class AdminRescueSessionEndpoints
 
         var session = await sessionStore.FindByHelpIdAsync(help.Id, cancellationToken);
         var now = DateTimeOffset.UtcNow;
-        return Results.Ok(ApiResponse.Ok(new AdminRescueSessionDetailResponse(
+        var detail = new AdminRescueSessionDetailResponse(
             help.Id,
             help.RequestNo,
             help.Status,
@@ -90,12 +92,14 @@ internal static class AdminRescueSessionEndpoints
             help.CloseNote,
             session is null ? [] : RescueSessionMapper.ToParticipants(session, rescueOptions.Value, now),
             session?.Messages.Select(RescueSessionMapper.ToMessage).ToArray() ?? [],
-            now)));
+            now);
+        await auditLogs.AppendAsync(CreateViewAudit(context, auth.Principal, help), cancellationToken);
+        return Results.Ok(ApiResponse.Ok(detail));
     }
 
     private static AdminRescueSessionListItem ToListItem(
         HelpRequestRecord help,
-        RescueSessionRecord? session)
+        RescueSessionOverviewRecord? session)
     {
         return new AdminRescueSessionListItem(
             help.Id,
@@ -104,9 +108,9 @@ internal static class AdminRescueSessionEndpoints
             help.Type,
             help.Address,
             help.CreatedAt,
-            session?.Participants.Count ?? 0,
-            session?.Messages.Count ?? 0,
-            session?.Messages.Count > 0 ? session.Messages.Max(m => m.CreatedAt) : null);
+            session?.ParticipantCount ?? 0,
+            session?.MessageCount ?? 0,
+            session?.LastActivityAt);
     }
 
     private static async Task<AdminRescueRequesterDto> ResolveRequesterAsync(
@@ -134,5 +138,20 @@ internal static class AdminRescueSessionEndpoints
             AdminEndpointHelpers.GetClientIp(context),
             AdminEndpointHelpers.GetUserAgent(context.Request),
             cancellationToken);
+    }
+
+    private static Core.Models.Admin.AdminAuditLogRecord CreateViewAudit(
+        HttpContext context,
+        Core.Models.Admin.AdminPrincipal? actor,
+        HelpRequestRecord help)
+    {
+        return AdminEndpointHelpers.CreateAudit(
+            "rescue_session",
+            "rescue_session.viewed",
+            actor,
+            help.Id,
+            $"查看急救会话 {help.RequestNo}",
+            context,
+            new Dictionary<string, object?> { ["helpStatus"] = help.Status });
     }
 }

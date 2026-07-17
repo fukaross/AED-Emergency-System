@@ -10,6 +10,7 @@ internal static partial class SqliteMapper
         {
             HelpRequestId = item.HelpRequestId,
             CreatedAt = item.CreatedAt,
+            ClosedAt = item.ClosedAt,
             Participants = item.Participants.Select(p => ToEntity(item.HelpRequestId, p)).ToList(),
             Messages = item.Messages.Select(m => ToEntity(item.HelpRequestId, m)).ToList()
         };
@@ -21,6 +22,7 @@ internal static partial class SqliteMapper
         {
             HelpRequestId = item.HelpRequestId,
             CreatedAt = item.CreatedAt,
+            ClosedAt = item.ClosedAt,
             Participants = item.Participants.OrderBy(p => p.Id).Select(ToRecord).ToArray(),
             Messages = item.Messages.OrderBy(m => m.Seq).Select(ToRecord).ToArray()
         };
@@ -74,7 +76,7 @@ internal static partial class SqliteMapper
         };
     }
 
-    private static RescueSessionMessageRecord ToRecord(RescueSessionMessageEntity item)
+    internal static RescueSessionMessageRecord ToRecord(RescueSessionMessageEntity item)
     {
         return new RescueSessionMessageRecord
         {

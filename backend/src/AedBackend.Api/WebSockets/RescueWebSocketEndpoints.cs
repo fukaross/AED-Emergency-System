@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using AedBackend.Api.Endpoints;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
@@ -37,7 +38,7 @@ public static class RescueWebSocketEndpoints
             return;
         }
 
-        var token = context.Request.Query["token"].ToString();
+        var token = EndpointSecurity.ReadBearerToken(context.Request);
         var user = string.IsNullOrWhiteSpace(token)
             ? null
             : await userStore.FindByTokenHashAsync(tokenService.HashToken(token), context.RequestAborted);
@@ -62,15 +63,24 @@ public static class RescueWebSocketEndpoints
 
         var session = await sessionStore.FindByHelpIdAsync(help.Id, context.RequestAborted);
         var isParticipant = session?.Participants.Any(p => p.OpenId == user.OpenId) == true;
-        if (!isParticipant || HelpStatuses.IsClosed(help.Status))
+        if (!isParticipant)
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
         }
 
+        if (HelpStatuses.IsClosed(help.Status) || session!.ClosedAt is not null)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            return;
+        }
+
         using var socket = await context.WebSockets.AcceptWebSocketAsync();
         var connectionId = Guid.NewGuid();
-        broadcaster.Register(help.Id, connectionId, socket);
+        if (!broadcaster.Register(help.Id, connectionId, socket))
+        {
+            return;
+        }
         try
         {
             var buffer = new byte[ReceiveBufferSize];
@@ -79,7 +89,13 @@ public static class RescueWebSocketEndpoints
                 var result = await socket.ReceiveAsync(buffer, context.RequestAborted);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+                    if (socket.State == WebSocketState.CloseReceived)
+                    {
+                        await socket.CloseOutputAsync(
+                            WebSocketCloseStatus.NormalClosure,
+                            null,
+                            CancellationToken.None);
+                    }
                     break;
                 }
             }

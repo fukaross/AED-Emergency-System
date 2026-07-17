@@ -137,6 +137,7 @@ public sealed class JsonToSqliteMigrator
         await CheckRespondersAsync(snapshot.ResponderProfiles, db, ct);
         await CheckHelpAsync(snapshot.HelpRequests, db, ct);
         await CheckAdminSessionsAsync(snapshot.AdminUsers, db, ct);
+        await RescueMigrationReconciler.CheckAsync(snapshot.RescueSessions, db, ct);
     }
 
     private static async Task CheckCoursesAsync(IReadOnlyList<CourseRecord> courses, AedDbContext db, CancellationToken ct)

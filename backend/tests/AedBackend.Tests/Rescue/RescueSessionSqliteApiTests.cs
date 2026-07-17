@@ -2,10 +2,14 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
+using AedBackend.Core.Models.Rescue;
+using AedBackend.Core.Services.Rescue;
 using AedBackend.Infrastructure.Persistence.Sqlite;
 using AedBackend.Tests.Admin;
 using AedBackend.Tests.Persistence;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AedBackend.Tests.Rescue;
 
@@ -13,6 +17,69 @@ namespace AedBackend.Tests.Rescue;
 public sealed class RescueSessionSqliteApiTests
 {
     private const string ResponderToken = "token-responder";
+    private static readonly DateTimeOffset BaseTime = new(2026, 7, 17, 12, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public async Task StoreStatusEvents_ConcurrentDuplicate_AppendsOnce()
+    {
+        using var temp = new ProviderTempData();
+        await temp.WriteValidDataAsync();
+        await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
+        using var app = CreateSqliteApplication(temp);
+        var store = app.Services.GetRequiredService<IRescueSessionStore>();
+        await store.JoinAsync(new("help-01", "openid-1", "急救员甲", BaseTime), CancellationToken.None);
+        var initialRevoke = await store.AppendStatusEventAsync(new RescueSessionStatusCommand
+        {
+            HelpRequestId = "help-01",
+            SenderOpenId = "openid-1",
+            SenderName = "急救员甲",
+            EventType = RescueEventTypes.TakenAed,
+            Action = RescueEventActions.Revoke,
+            Now = BaseTime
+        }, CancellationToken.None);
+        var command = new RescueSessionStatusCommand
+        {
+            HelpRequestId = "help-01",
+            SenderOpenId = "openid-1",
+            SenderName = "急救员甲",
+            EventType = RescueEventTypes.TakenAed,
+            Action = RescueEventActions.Mark,
+            Now = BaseTime.AddSeconds(1)
+        };
+
+        var results = await Task.WhenAll(
+            store.AppendStatusEventAsync(command, CancellationToken.None),
+            store.AppendStatusEventAsync(command, CancellationToken.None));
+
+        Assert.False(initialRevoke.Appended);
+        Assert.Single(results, result => result.Appended);
+        var session = await store.FindByHelpIdAsync("help-01", CancellationToken.None);
+        Assert.NotNull(session);
+        Assert.Equal(2, session.Messages.Count);
+        var overview = Assert.Single(await store.ListOverviewsAsync("openid-1", CancellationToken.None));
+        Assert.Equal(1, overview.ParticipantCount);
+        Assert.Equal(2, overview.MessageCount);
+        Assert.NotNull(overview.Viewer);
+        Assert.Equal(0, overview.Viewer.UnreadCount);
+    }
+
+    [Fact]
+    public async Task StoreClose_BlocksLateWritesAndReadCursorNeverRegresses()
+    {
+        using var temp = new ProviderTempData();
+        await temp.WriteValidDataAsync();
+        await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
+        using var app = CreateSqliteApplication(temp);
+        var store = app.Services.GetRequiredService<IRescueSessionStore>();
+        await store.JoinAsync(new("help-01", "openid-1", "急救员甲", BaseTime), CancellationToken.None);
+        await store.MarkReadAsync("help-01", "openid-1", 5, CancellationToken.None);
+
+        var cursor = await store.MarkReadAsync("help-01", "openid-1", 1, CancellationToken.None);
+        Assert.Equal(5, cursor.Participants[0].LastReadSeq);
+        await store.CloseSessionAsync("help-01", CancellationToken.None);
+        await Assert.ThrowsAsync<RescueSessionClosedException>(() => store.UpdateLocationAsync(
+            new("help-01", "openid-1", 20, 110, BaseTime.AddSeconds(1)), CancellationToken.None));
+    }
 
     [Fact]
     public async Task SessionFlow_WorksOnSqliteProvider()
@@ -83,10 +150,16 @@ public sealed class RescueSessionSqliteApiTests
         Assert.Equal(HttpStatusCode.OK, closed.StatusCode);
 
         var view = await client.GetAsync("/api/help/help-01/rescue-view");
-        var viewData = (await ReadAsync(view)).Data;
-        Assert.Equal(HttpStatusCode.OK, view.StatusCode);
-        var participant = Assert.Single(viewData.GetProperty("participants").EnumerateArray());
-        Assert.Equal(JsonValueKind.Null, participant.GetProperty("location").ValueKind);
+        var viewResponse = await ReadAsync(view);
+        Assert.Equal(HttpStatusCode.Conflict, view.StatusCode);
+        Assert.Equal(ErrorCodes.RescueSessionClosed, viewResponse.Code);
+
+        var store = app.Services.GetRequiredService<IRescueSessionStore>();
+        var session = await store.FindByHelpIdAsync("help-01", CancellationToken.None);
+        var participant = Assert.Single(Assert.IsType<RescueSessionRecord>(session).Participants);
+        Assert.Null(participant.LastLat);
+        Assert.Null(participant.LastLng);
+        Assert.Null(participant.LocationReportedAt);
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ResponderToken);
         var rejoin = await client.PostAsync("/api/help/help-01/session/join", null);
@@ -97,6 +170,13 @@ public sealed class RescueSessionSqliteApiTests
     {
         return snapshot.GetProperty("me").GetProperty("lastReadSeq").GetInt64();
     }
+
+    private static AdminTestApplication CreateSqliteApplication(ProviderTempData temp) =>
+        new(temp.Root, new Dictionary<string, string?>
+        {
+            ["Data:Provider"] = "Sqlite",
+            ["Data:SqlitePath"] = temp.DbPath
+        });
 
     private static async Task<ApiResponse<JsonElement>> ReadAsync(HttpResponseMessage response)
     {

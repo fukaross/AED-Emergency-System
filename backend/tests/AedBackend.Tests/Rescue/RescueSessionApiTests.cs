@@ -53,7 +53,7 @@ public sealed class RescueSessionApiTests : AdminApiTestBase
         Assert.Equal("openid-2", participant.GetProperty("openId").GetString());
         Assert.Equal("张急救", participant.GetProperty("displayName").GetString());
         Assert.False(participant.GetProperty("takenAed").GetBoolean());
-        Assert.Equal("ok", participant.GetProperty("signal").GetString());
+        Assert.Equal("gone", participant.GetProperty("signal").GetString());
         var message = Assert.Single(data.GetProperty("messages").EnumerateArray());
         Assert.Equal("status_event", message.GetProperty("kind").GetString());
         Assert.Equal("joined", message.GetProperty("eventType").GetString());
@@ -200,6 +200,32 @@ public sealed class RescueSessionApiTests : AdminApiTestBase
     }
 
     [Fact]
+    public async Task StatusEvents_ConcurrentDuplicate_AppendsExactlyOnce()
+    {
+        SeedStandardCast();
+        SeedHelpRequests(Help("help-1"));
+        UseUserToken(ResponderTokenA);
+        await Client.PostAsync("/api/help/help-1/session/join", null);
+
+        var responses = await Task.WhenAll(
+            Client.PostAsJsonAsync(
+                "/api/help/help-1/session/status-events",
+                new { eventType = "taken_aed", action = "mark" }),
+            Client.PostAsJsonAsync(
+                "/api/help/help-1/session/status-events",
+                new { eventType = "taken_aed", action = "mark" }));
+        var results = await Task.WhenAll(responses.Select(ReadAsync<ApiResponse<JsonElement>>));
+
+        Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+        Assert.Single(results, result => result.Data.GetProperty("appended").GetBoolean());
+        var snapshot = await Client.GetAsync("/api/help/help-1/session");
+        var data = (await ReadAsync<ApiResponse<JsonElement>>(snapshot)).Data;
+        Assert.Single(
+            data.GetProperty("messages").EnumerateArray(),
+            message => message.GetProperty("eventType").GetString() == "taken_aed");
+    }
+
+    [Fact]
     public async Task StatusEvents_RejectsJoinedEventType()
     {
         SeedStandardCast();
@@ -253,6 +279,7 @@ public sealed class RescueSessionApiTests : AdminApiTestBase
 
         UseUserToken(ResponderTokenA);
         var beforeRead = await GetMineAsync();
+        Assert.True(beforeRead.GetProperty("joined").GetBoolean());
         Assert.Equal(1, beforeRead.GetProperty("unreadCount").GetInt32());
 
         await Client.GetAsync("/api/help/help-1/session");
@@ -278,7 +305,26 @@ public sealed class RescueSessionApiTests : AdminApiTestBase
     }
 
     [Fact]
-    public async Task ClosedHelp_RejectsSessionWritesButKeepsRescueView()
+    public async Task Mine_IncludesActiveSessionBeforeResponderJoins()
+    {
+        SeedStandardCast();
+        SeedHelpRequests(Help("help-1"));
+        UseUserToken(ResponderTokenA);
+
+        var beforeJoin = await GetMineAsync();
+        Assert.False(beforeJoin.GetProperty("joined").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, beforeJoin.GetProperty("joinedAt").ValueKind);
+        Assert.Equal(JsonValueKind.Null, beforeJoin.GetProperty("lastActivityAt").ValueKind);
+        Assert.Equal(0, beforeJoin.GetProperty("unreadCount").GetInt32());
+
+        await Client.PostAsync("/api/help/help-1/session/join", null);
+        var afterJoin = await GetMineAsync();
+        Assert.True(afterJoin.GetProperty("joined").GetBoolean());
+        Assert.Equal(JsonValueKind.String, afterJoin.GetProperty("joinedAt").ValueKind);
+    }
+
+    [Fact]
+    public async Task ClosedHelp_RejectsSessionWritesAndRescueView()
     {
         SeedStandardCast();
         SeedHelpRequests(Help("help-1"));
@@ -300,11 +346,7 @@ public sealed class RescueSessionApiTests : AdminApiTestBase
 
         UseUserToken(RequesterToken);
         var view = await Client.GetAsync("/api/help/help-1/rescue-view");
-        var viewData = (await ReadAsync<ApiResponse<JsonElement>>(view)).Data;
-        Assert.Equal(HttpStatusCode.OK, view.StatusCode);
-        Assert.Equal("closed", viewData.GetProperty("helpStatus").GetString());
-        var participant = Assert.Single(viewData.GetProperty("participants").EnumerateArray());
-        Assert.Equal(JsonValueKind.Null, participant.GetProperty("location").ValueKind);
+        await AssertErrorAsync(view, HttpStatusCode.Conflict, ErrorCodes.RescueSessionClosed);
     }
 
     private async Task<JsonElement> PostStatusEventAsync(string eventType, string action)

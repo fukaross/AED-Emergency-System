@@ -6,7 +6,6 @@ namespace AedBackend.Infrastructure.Persistence.Sqlite;
 
 internal sealed class SqliteRescueSessionStore : IRescueSessionStore
 {
-    // 单实例部署：写路径用静态锁串行化，seq 在锁内取 max+1，唯一索引兜底。
     private static readonly SemaphoreSlim WriteLock = new(1, 1);
 
     private readonly IDbContextFactory<AedDbContext> factory;
@@ -17,6 +16,7 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         var entity = await SqliteStoreHelpers.WithRescueGraph(db.RescueSessions.AsNoTracking())
+            .AsSplitQuery()
             .FirstOrDefaultAsync(s => s.HelpRequestId == helpRequestId, ct);
         return entity is null ? null : SqliteMapper.ToRecord(entity);
     }
@@ -27,7 +27,11 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
         {
             await using var db = await factory.CreateDbContextAsync(ct);
             var existing = await LoadAsync(db, helpRequestId, ct);
-            if (existing is not null) return SqliteMapper.ToRecord(existing);
+            if (existing is not null)
+            {
+                SqliteRescueSessionWriteSupport.EnsureOpen(existing);
+                return SqliteMapper.ToRecord(existing);
+            }
             var entity = new RescueSessionEntity { HelpRequestId = helpRequestId, CreatedAt = now };
             db.RescueSessions.Add(entity);
             await db.SaveChangesAsync(ct);
@@ -41,6 +45,7 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
         {
             await using var db = await factory.CreateDbContextAsync(ct);
             var session = await LoadAsync(db, command.HelpRequestId, ct) ?? CreateSession(db, command);
+            SqliteRescueSessionWriteSupport.EnsureOpen(session);
             var participant = session.Participants.FirstOrDefault(p => p.OpenId == command.OpenId);
             if (participant is null)
             {
@@ -58,11 +63,13 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
 
     public async Task<RescueSessionRecord> AppendMessageAsync(RescueSessionAppendCommand command, CancellationToken ct)
     {
+        SqliteRescueSessionWriteSupport.EnsureTextMessage(command);
         return await WithWriteLockAsync(ct, async () =>
         {
             await using var db = await factory.CreateDbContextAsync(ct);
             var session = await LoadAsync(db, command.HelpRequestId, ct);
             if (session is null) throw new KeyNotFoundException("急救会话不存在");
+            SqliteRescueSessionWriteSupport.EnsureOpen(session);
             var sender = session.Participants.FirstOrDefault(p => p.OpenId == command.SenderOpenId);
             if (sender is null) throw new KeyNotFoundException("参与者不在急救会话中");
             sender.LastSeenAt = command.Now;
@@ -84,6 +91,41 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
         });
     }
 
+    public async Task<RescueSessionStatusAppendResult> AppendStatusEventAsync(
+        RescueSessionStatusCommand command,
+        CancellationToken ct)
+    {
+        SqliteRescueSessionWriteSupport.ValidateStatus(command);
+        return await WithWriteLockAsync(ct, async () =>
+        {
+            await using var db = await factory.CreateDbContextAsync(ct);
+            var session = await LoadAsync(db, command.HelpRequestId, ct);
+            if (session is null) throw new KeyNotFoundException("急救会话不存在");
+            SqliteRescueSessionWriteSupport.EnsureOpen(session);
+            var sender = session.Participants.FirstOrDefault(item => item.OpenId == command.SenderOpenId);
+            if (sender is null) throw new KeyNotFoundException("参与者不在急救会话中");
+
+            var latest = session.Messages
+                .Where(item => item.Kind == RescueMessageKinds.StatusEvent
+                    && item.SenderOpenId == command.SenderOpenId
+                    && item.EventType == command.EventType)
+                .MaxBy(item => item.Seq);
+            var current = latest?.Action == RescueEventActions.Mark;
+            var desired = command.Action == RescueEventActions.Mark;
+            if (current == desired)
+                return new RescueSessionStatusAppendResult(SqliteMapper.ToRecord(session), false, null);
+
+            sender.LastSeenAt = command.Now;
+            var message = SqliteRescueSessionWriteSupport.CreateStatusMessage(session, command, NextSeq(session));
+            session.Messages.Add(message);
+            await db.SaveChangesAsync(ct);
+            return new RescueSessionStatusAppendResult(
+                SqliteMapper.ToRecord(session),
+                true,
+                SqliteMapper.ToRecord(message));
+        });
+    }
+
     public async Task<RescueSessionRecord> UpdateLocationAsync(RescueSessionLocationCommand command, CancellationToken ct)
     {
         return await UpdateParticipantAsync(command.HelpRequestId, command.OpenId, participant =>
@@ -99,19 +141,30 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
         string helpRequestId, string openId, long lastReadSeq, CancellationToken ct)
     {
         return await UpdateParticipantAsync(helpRequestId, openId,
-            participant => participant.LastReadSeq = lastReadSeq, ct);
+            participant => participant.LastReadSeq = Math.Max(participant.LastReadSeq, lastReadSeq), ct);
     }
 
     public async Task CloseSessionAsync(string helpRequestId, CancellationToken ct)
     {
+        var closedAt = DateTimeOffset.UtcNow;
         await WithWriteLockAsync(ct, async () =>
         {
             await using var db = await factory.CreateDbContextAsync(ct);
             var session = await db.RescueSessions
                 .Include(s => s.Participants)
                 .FirstOrDefaultAsync(s => s.HelpRequestId == helpRequestId, ct);
-            // 关闭是幂等收尾：会话不存在即无位置可清，静默返回属于合理行为。
-            if (session is null) return;
+            if (session is null)
+            {
+                db.RescueSessions.Add(new RescueSessionEntity
+                {
+                    HelpRequestId = helpRequestId,
+                    CreatedAt = closedAt,
+                    ClosedAt = closedAt
+                });
+                await db.SaveChangesAsync(ct);
+                return;
+            }
+            session.ClosedAt ??= closedAt;
             foreach (var participant in session.Participants)
             {
                 participant.LastLat = null;
@@ -127,6 +180,7 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         var items = await SqliteStoreHelpers.WithRescueGraph(db.RescueSessions.AsNoTracking())
+            .AsSplitQuery()
             .Where(s => s.Participants.Any(p => p.OpenId == openId))
             .ToArrayAsync(ct);
         return items.Select(SqliteMapper.ToRecord).OrderByDescending(s => s.CreatedAt).ToArray();
@@ -135,8 +189,18 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
     public async Task<IReadOnlyList<RescueSessionRecord>> ListAllAsync(CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
-        var items = await SqliteStoreHelpers.WithRescueGraph(db.RescueSessions.AsNoTracking()).ToArrayAsync(ct);
-        return items.Select(SqliteMapper.ToRecord).OrderByDescending(s => s.CreatedAt).ToArray();
+        var items = await SqliteStoreHelpers.WithRescueGraph(db.RescueSessions.AsNoTracking())
+            .AsSplitQuery()
+            .ToArrayAsync(ct);
+        return items.Select(SqliteMapper.ToRecord).OrderByDescending(item => item.CreatedAt).ToArray();
+    }
+
+    public async Task<IReadOnlyList<RescueSessionOverviewRecord>> ListOverviewsAsync(
+        string? viewerOpenId,
+        CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await SqliteRescueSessionOverviewReader.ReadAllAsync(db, viewerOpenId, ct);
     }
 
     private async Task<RescueSessionRecord> UpdateParticipantAsync(
@@ -150,6 +214,7 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
             await using var db = await factory.CreateDbContextAsync(ct);
             var session = await LoadAsync(db, helpRequestId, ct);
             if (session is null) throw new KeyNotFoundException("急救会话不存在");
+            SqliteRescueSessionWriteSupport.EnsureOpen(session);
             var participant = session.Participants.FirstOrDefault(p => p.OpenId == openId);
             if (participant is null) throw new KeyNotFoundException("参与者不在急救会话中");
             update(participant);
@@ -195,6 +260,7 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
         CancellationToken ct)
     {
         return await SqliteStoreHelpers.WithRescueGraph(db.RescueSessions)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(s => s.HelpRequestId == helpRequestId, ct);
     }
 

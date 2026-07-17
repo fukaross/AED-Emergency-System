@@ -57,6 +57,7 @@ public sealed record ReportRescueLocationRequest(double Lat, double Lng);
 public sealed record ReportRescueLocationResponse(DateTimeOffset ReportedAt);
 
 public sealed record RescueViewParticipantDto(
+    string ParticipantId,
     string DisplayName,
     bool TakenAed,
     bool Arrived,
@@ -85,7 +86,8 @@ public sealed record RescueMineItemDto(
     string HelpStatus,
     string Type,
     string Address,
-    DateTimeOffset JoinedAt,
+    bool Joined,
+    DateTimeOffset? JoinedAt,
     int UnreadCount,
     DateTimeOffset? LastActivityAt);
 

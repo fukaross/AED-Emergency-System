@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace AedBackend.Tests.Admin;
 
@@ -21,9 +22,18 @@ internal sealed class AdminTestApplication : WebApplicationFactory<Program>
         this.configureServices = configureServices;
     }
 
+    /** 测试宿主移除 Windows EventLog，避免非管理员环境把真实端点异常遮蔽为日志权限错误。 */
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
-        builder.ConfigureServices(services => configureServices?.Invoke(services));
+        builder.ConfigureServices(services =>
+        {
+            services.AddLogging(logging =>
+            {
+                logging.ClearProviders();
+                logging.AddConsole();
+            });
+            configureServices?.Invoke(services);
+        });
         builder.ConfigureAppConfiguration((_, config) =>
         {
             var values = new Dictionary<string, string?>

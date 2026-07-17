@@ -73,6 +73,18 @@ public sealed class RescueSessionProjectionTests
     }
 
     [Fact]
+    public void SignalOf_WithoutLocationReport_IsGone()
+    {
+        var signal = RescueSessionProjection.SignalOf(
+            null,
+            BaseTime,
+            LostAfterSeconds,
+            GoneAfterSeconds);
+
+        Assert.Equal(RescueSignalStates.Gone, signal);
+    }
+
+    [Fact]
     public void UnreadCount_ExcludesOwnAndAlreadyReadMessages()
     {
         var session = SessionWith(

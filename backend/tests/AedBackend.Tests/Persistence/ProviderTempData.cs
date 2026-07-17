@@ -12,7 +12,7 @@ using AedBackend.Core.Models.WeChat;
 
 namespace AedBackend.Tests.Persistence;
 
-internal sealed class ProviderTempData : IDisposable
+internal sealed partial class ProviderTempData : IDisposable
 {
     public const string AdminSessionKey = "valid-admin-session";
     public const string AdminSessionHashSecret = "test-session-secret-value";
@@ -263,4 +263,5 @@ internal sealed class ProviderTempData : IDisposable
     {
         public List<HelpRequestRecord> Requests { get; init; } = [];
     }
+
 }

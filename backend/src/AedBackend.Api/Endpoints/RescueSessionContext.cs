@@ -63,6 +63,7 @@ internal static class RescueSessionContext
         if (HelpStatuses.IsClosed(help.Status)) return ParticipantContextResult.Failed(SessionClosed());
 
         var session = await services.SessionStore.FindByHelpIdAsync(help.Id, cancellationToken);
+        if (session?.ClosedAt is not null) return ParticipantContextResult.Failed(SessionClosed());
         var participant = session?.Participants.FirstOrDefault(p => p.OpenId == current.User!.OpenId);
         return session is null || participant is null
             ? ParticipantContextResult.Failed(NotParticipant())

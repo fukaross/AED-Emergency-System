@@ -50,18 +50,29 @@ internal static class RescueSessionQueryEndpoints
 
         var help = await services.HelpStore.FindByIdOrRequestNoAsync(id, cancellationToken);
         if (help is null) return RescueSessionContext.NotFound();
-
-        // 求助人本人或认证急救员可见（BackEnd.md §4.5A rescue-view 权限）
-        if (help.UserId != current.User!.OpenId)
-        {
-            var profile = await responderStore.FindByBoundOpenIdAsync(current.User.OpenId, cancellationToken);
-            if (profile?.QualificationStatus != EndpointRescuers.ActiveQualificationStatus)
-            {
-                return EndpointFailures.JsonFailure(ErrorCodes.Forbidden, "仅求助人本人或认证急救员可查看", 403);
-            }
-        }
+        if (HelpStatuses.IsClosed(help.Status)) return RescueSessionContext.SessionClosed();
 
         var session = await services.SessionStore.FindByHelpIdAsync(help.Id, cancellationToken);
+        if (session?.ClosedAt is not null) return RescueSessionContext.SessionClosed();
+        var isRequester = help.UserId == current.User!.OpenId;
+        var isParticipant = session?.Participants.Any(
+            participant => participant.OpenId == current.User.OpenId) == true;
+        if (!isRequester && !isParticipant)
+        {
+            var profile = await responderStore.FindByBoundOpenIdAsync(current.User.OpenId, cancellationToken);
+            if (profile?.QualificationStatus == EndpointRescuers.ActiveQualificationStatus)
+            {
+                return EndpointFailures.JsonFailure(
+                    ErrorCodes.RescueNotParticipant,
+                    "请先加入急救会话",
+                    403);
+            }
+            return EndpointFailures.JsonFailure(
+                ErrorCodes.Forbidden,
+                "仅求助人本人或已加入会话的急救员可查看",
+                403);
+        }
+
         var now = DateTimeOffset.UtcNow;
         return Results.Ok(ApiResponse.Ok(RescueSessionMapper.ToRescueView(help, session, rescueOptions.Value, now)));
     }
@@ -86,30 +97,36 @@ internal static class RescueSessionQueryEndpoints
             cancellationToken);
         if (responder.Failure is not null) return responder.Failure;
 
-        var sessions = await services.SessionStore.ListByParticipantAsync(responder.User!.OpenId, cancellationToken);
-        var helps = (await services.HelpStore.ListAllAsync(cancellationToken)).ToDictionary(h => h.Id);
-        var items = sessions
-            .Where(s => helps.TryGetValue(s.HelpRequestId, out var help) && HelpStatuses.Active.Contains(help.Status))
-            .Select(s => ToMineItem(s, helps[s.HelpRequestId], responder.User.OpenId))
-            .OrderByDescending(item => item.LastActivityAt ?? item.JoinedAt)
+        var sessions = (await services.SessionStore.ListOverviewsAsync(responder.User!.OpenId, cancellationToken))
+            .ToDictionary(session => session.HelpRequestId);
+        var items = (await services.HelpStore.ListAllAsync(cancellationToken))
+            .Where(help => HelpStatuses.Active.Contains(help.Status))
+            .Select(help => new
+            {
+                Item = ToMineItem(sessions.GetValueOrDefault(help.Id), help),
+                help.CreatedAt,
+            })
+            .OrderByDescending(candidate => candidate.Item.UnreadCount > 0)
+            .ThenByDescending(candidate => candidate.Item.LastActivityAt ?? candidate.CreatedAt)
+            .Select(candidate => candidate.Item)
             .ToArray();
         return Results.Ok(ApiResponse.Ok(new RescueMineResponse(items)));
     }
 
     private static RescueMineItemDto ToMineItem(
-        RescueSessionRecord session,
-        HelpRequestRecord help,
-        string openId)
+        RescueSessionOverviewRecord? session,
+        HelpRequestRecord help)
     {
-        var participant = session.Participants.First(p => p.OpenId == openId);
+        var viewer = session?.Viewer;
         return new RescueMineItemDto(
             help.Id,
             help.RequestNo,
             help.Status,
             help.Type,
             help.Address,
-            participant.JoinedAt,
-            RescueSessionProjection.UnreadCount(session, openId, participant.LastReadSeq),
-            session.Messages.Count == 0 ? null : session.Messages.Max(m => m.CreatedAt));
+            viewer is not null,
+            viewer?.JoinedAt,
+            viewer?.UnreadCount ?? 0,
+            session?.LastActivityAt);
     }
 }

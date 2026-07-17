@@ -1,9 +1,12 @@
 using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.DTOs.Help;
+using AedBackend.Core.DTOs.Rescue;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
+using AedBackend.Core.Services.Rescue;
+using AedBackend.Api.WebSockets;
 
 namespace AedBackend.Api.Endpoints;
 
@@ -42,7 +45,9 @@ public static class OpsEndpoints
         string id,
         CloseHelpRequest request,
         IAdminAuthorizationService authorization,
-        IHelpRequestStore store,
+        IHelpRequestStore helpStore,
+        IRescueSessionStore sessionStore,
+        RescueSessionBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
         var authFailure = await ValidateAdminAsync(httpRequest, authorization, cancellationToken);
@@ -55,12 +60,18 @@ public static class OpsEndpoints
 
         try
         {
-            var record = await store.CloseAsync(
+            var record = await helpStore.CloseAsync(
                 id,
                 request.Status,
                 request.Note,
                 DateTimeOffset.UtcNow,
                 cancellationToken);
+            await sessionStore.CloseSessionAsync(record.Id, cancellationToken);
+            await broadcaster.BroadcastAsync(
+                record.Id,
+                "help_status",
+                new RescueHelpStatusDto(record.Status));
+            await broadcaster.CloseAllAsync(record.Id, "help closed");
             return Results.Ok(ApiResponse.Ok(HelpResponseMapper.ToDetail(record)));
         }
         catch (KeyNotFoundException)

@@ -83,7 +83,9 @@ public sealed record HelpDetailResponse(
     IReadOnlyList<HelpResponderResponse> Responders,
     string EstimatedArrivalTime,
     IReadOnlyList<HelpTimelineEntryResponse> Timeline,
-    IReadOnlyList<HelpReportRecordResponse> Reports);
+    IReadOnlyList<HelpReportRecordResponse> Reports,
+    string? ViewerRole = null,
+    bool CanSubmitReport = false);
 
 public sealed record GuestHelpLookupRequest(string RequestNo, string FollowupCode);
 

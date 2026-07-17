@@ -26,12 +26,14 @@ public static class RescueSessionProjection
     }
 
     public static string SignalOf(
-        DateTimeOffset lastSeenAt,
+        DateTimeOffset? locationReportedAt,
         DateTimeOffset now,
         int lostAfterSeconds,
         int goneAfterSeconds)
     {
-        var elapsed = now - lastSeenAt;
+        if (locationReportedAt is null) return RescueSignalStates.Gone;
+
+        var elapsed = now - locationReportedAt.Value;
         if (elapsed <= TimeSpan.FromSeconds(lostAfterSeconds)) return RescueSignalStates.Ok;
         if (elapsed <= TimeSpan.FromSeconds(goneAfterSeconds)) return RescueSignalStates.Lost;
         return RescueSignalStates.Gone;

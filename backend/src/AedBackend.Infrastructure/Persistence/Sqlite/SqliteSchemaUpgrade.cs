@@ -11,7 +11,7 @@ internal static class SqliteSchemaUpgrade
         await AddResponderColumnsAsync(db, ct);
         await CreateVolunteerApplicationsAsync(db, ct);
         await CreateSchoolIdentityTablesAsync(db, ct);
-        await EnsureRescueTablesAsync(db, ct);
+        await SqliteRescueSchemaUpgrade.EnsureAsync(db, ct);
         await InsertMissingAedDeviceSeedsAsync(db, ct);
     }
 
@@ -35,7 +35,7 @@ internal static class SqliteSchemaUpgrade
             await db.Database.ExecuteSqlRawAsync("ALTER TABLE responder_profiles ADD COLUMN SourceApplicationId INTEGER NULL;", ct);
     }
 
-    private static async Task<bool> ColumnExistsAsync(
+    internal static async Task<bool> ColumnExistsAsync(
         AedDbContext db,
         string table,
         string column,
@@ -144,56 +144,6 @@ internal static class SqliteSchemaUpgrade
         await CreateIdentityIndexesAsync(db, ct);
     }
 
-    private static async Task EnsureRescueTablesAsync(AedDbContext db, CancellationToken ct)
-    {
-        await db.Database.ExecuteSqlRawAsync("""
-            CREATE TABLE IF NOT EXISTS rescue_sessions (
-                HelpRequestId TEXT NOT NULL CONSTRAINT pk_rescue_sessions PRIMARY KEY,
-                CreatedAt TEXT NOT NULL
-            );
-            """, ct);
-        await db.Database.ExecuteSqlRawAsync("""
-            CREATE TABLE IF NOT EXISTS rescue_session_participants (
-                Id INTEGER NOT NULL CONSTRAINT pk_rescue_session_participants PRIMARY KEY AUTOINCREMENT,
-                HelpRequestId TEXT NOT NULL,
-                OpenId TEXT NOT NULL,
-                DisplayName TEXT NOT NULL,
-                JoinedAt TEXT NOT NULL,
-                LastSeenAt TEXT NOT NULL,
-                LastLat REAL NULL,
-                LastLng REAL NULL,
-                LocationReportedAt TEXT NULL,
-                LastReadSeq INTEGER NOT NULL DEFAULT 0,
-                CONSTRAINT fk_rescue_participant_session
-                    FOREIGN KEY (HelpRequestId) REFERENCES rescue_sessions(HelpRequestId)
-                    ON DELETE CASCADE
-            );
-            """, ct);
-        await db.Database.ExecuteSqlRawAsync("""
-            CREATE TABLE IF NOT EXISTS rescue_session_messages (
-                Id TEXT NOT NULL CONSTRAINT pk_rescue_session_messages PRIMARY KEY,
-                HelpRequestId TEXT NOT NULL,
-                Seq INTEGER NOT NULL,
-                Kind TEXT NOT NULL,
-                SenderOpenId TEXT NOT NULL,
-                SenderName TEXT NOT NULL,
-                Text TEXT NULL,
-                EventType TEXT NULL,
-                Action TEXT NULL,
-                CreatedAt TEXT NOT NULL,
-                CONSTRAINT fk_rescue_message_session
-                    FOREIGN KEY (HelpRequestId) REFERENCES rescue_sessions(HelpRequestId)
-                    ON DELETE CASCADE
-            );
-            """, ct);
-        await db.Database.ExecuteSqlRawAsync(
-            "CREATE UNIQUE INDEX IF NOT EXISTS uk_rescue_participant ON rescue_session_participants(HelpRequestId, OpenId);",
-            ct);
-        await db.Database.ExecuteSqlRawAsync(
-            "CREATE UNIQUE INDEX IF NOT EXISTS uk_rescue_message_seq ON rescue_session_messages(HelpRequestId, Seq);",
-            ct);
-    }
-
     private static async Task InsertMissingAedDeviceSeedsAsync(AedDbContext db, CancellationToken ct)
     {
         var existingIds = await db.AedDevices.Select(d => d.Id).ToArrayAsync(ct);
@@ -231,7 +181,7 @@ internal static class SqliteSchemaUpgrade
 
     private static string ValidateTableName(string table)
     {
-        return table is "experience_users" or "responder_profiles"
+        return table is "experience_users" or "responder_profiles" or "rescue_sessions"
             or "school_person_profiles" or "school_binding_applications"
             or "responder_claim_applications"
             ? table

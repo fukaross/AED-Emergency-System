@@ -78,14 +78,22 @@ internal static class RescueSessionMapper
         var states = session is null
             ? new Dictionary<string, RescueParticipantState>()
             : RescueSessionProjection.FoldParticipantStates(session);
+        var participants = session?.Participants
+            .OrderBy(participant => participant.JoinedAt)
+            .ThenBy(participant => participant.OpenId, StringComparer.Ordinal)
+            .Select((participant, index) => ToViewParticipant(
+                $"p-{index + 1}",
+                participant,
+                states[participant.OpenId],
+                options,
+                now))
+            .ToArray() ?? [];
         return new RescueViewDto(
             help.Id,
             help.Status,
             new RescueSosDto(help.Lat, help.Lng, help.Address),
             session?.Participants.Count ?? 0,
-            session?.Participants
-                .Select(p => ToViewParticipant(p, states[p.OpenId], options, now))
-                .ToArray() ?? [],
+            participants,
             session?.Messages
                 .Where(m => m.Kind == RescueMessageKinds.StatusEvent)
                 .Select(m => new RescueViewEventDto(m.Seq, m.EventType!, m.Action!, m.SenderName, m.CreatedAt))
@@ -100,7 +108,7 @@ internal static class RescueSessionMapper
         DateTimeOffset now)
     {
         var signal = RescueSessionProjection.SignalOf(
-            participant.LastSeenAt,
+            participant.LocationReportedAt,
             now,
             options.SignalLostAfterSeconds,
             options.LocationGoneAfterSeconds);
@@ -115,17 +123,19 @@ internal static class RescueSessionMapper
     }
 
     private static RescueViewParticipantDto ToViewParticipant(
+        string participantId,
         RescueSessionParticipantRecord participant,
         RescueParticipantState state,
         RescueOptions options,
         DateTimeOffset now)
     {
         var signal = RescueSessionProjection.SignalOf(
-            participant.LastSeenAt,
+            participant.LocationReportedAt,
             now,
             options.SignalLostAfterSeconds,
             options.LocationGoneAfterSeconds);
         return new RescueViewParticipantDto(
+            participantId,
             participant.DisplayName,
             state.TakenAed,
             state.Arrived,

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
+using AedBackend.Core.Models.Help;
 using AedBackend.Core.Services.WeChat;
 using AedBackend.Infrastructure.WeChat;
 using AedBackend.Tests.Admin;
@@ -61,11 +62,17 @@ public sealed class RescueSessionAccessApiTests : AdminApiTestBase
 
         UseUserToken(RequesterToken);
         var requester = await Client.GetAsync("/api/help/help-1");
+        var requesterData = (await ReadAsync<ApiResponse<JsonElement>>(requester)).Data;
         Assert.Equal(HttpStatusCode.OK, requester.StatusCode);
+        Assert.Equal("requester", requesterData.GetProperty("viewerRole").GetString());
+        Assert.False(requesterData.GetProperty("canSubmitReport").GetBoolean());
 
         UseUserToken(ResponderTokenA);
         var responder = await Client.GetAsync("/api/help/help-1");
+        var responderData = (await ReadAsync<ApiResponse<JsonElement>>(responder)).Data;
         Assert.Equal(HttpStatusCode.OK, responder.StatusCode);
+        Assert.Equal("responder", responderData.GetProperty("viewerRole").GetString());
+        Assert.True(responderData.GetProperty("canSubmitReport").GetBoolean());
     }
 
     [Fact]
@@ -102,6 +109,7 @@ public sealed class RescueSessionAccessApiTests : AdminApiTestBase
         Assert.Equal(1, data.GetProperty("respondersCount").GetInt32());
         var participant = Assert.Single(data.GetProperty("participants").EnumerateArray());
         Assert.False(participant.TryGetProperty("openId", out _));
+        Assert.Equal("p-1", participant.GetProperty("participantId").GetString());
         Assert.Equal("张急救", participant.GetProperty("displayName").GetString());
         Assert.True(participant.GetProperty("takenAed").GetBoolean());
         Assert.Equal(2, data.GetProperty("events").GetArrayLength());
@@ -110,7 +118,7 @@ public sealed class RescueSessionAccessApiTests : AdminApiTestBase
     }
 
     [Fact]
-    public async Task RescueView_RejectsUnrelatedUserButAllowsCertifiedResponder()
+    public async Task RescueView_RequiresRequesterOrJoinedParticipant()
     {
         SeedStandardCast();
         SeedHelpRequests(Help("help-1"));
@@ -120,8 +128,36 @@ public sealed class RescueSessionAccessApiTests : AdminApiTestBase
         await AssertErrorAsync(forbidden, HttpStatusCode.Forbidden, ErrorCodes.Forbidden);
 
         UseUserToken(ResponderTokenA);
+        var unjoined = await Client.GetAsync("/api/help/help-1/rescue-view");
+        await AssertErrorAsync(unjoined, HttpStatusCode.Forbidden, ErrorCodes.RescueNotParticipant);
+
+        await Client.PostAsync("/api/help/help-1/session/join", null);
         var allowed = await Client.GetAsync("/api/help/help-1/rescue-view");
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+    }
+
+    [Fact]
+    public async Task OpsClose_CascadesToSessionAndClearsLocation()
+    {
+        SeedStandardCast();
+        SeedHelpRequests(Help("help-1"));
+        UseUserToken(ResponderTokenA);
+        await Client.PostAsync("/api/help/help-1/session/join", null);
+        await Client.PutAsJsonAsync(
+            "/api/help/help-1/session/location",
+            new { lat = 19.974, lng = 110.517 });
+
+        UseLegacyKey();
+        var closed = await Client.PutAsJsonAsync(
+            "/api/ops/help-requests/help-1/close",
+            new { status = HelpStatuses.Closed, note = "兼容入口关闭" });
+        Assert.Equal(HttpStatusCode.OK, closed.StatusCode);
+
+        UseAdminKey(await BootstrapAndLoginAsync());
+        var detail = await Client.GetAsync("/api/admin/rescue-sessions/help-1");
+        var data = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
+        var participant = Assert.Single(data.GetProperty("participants").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, participant.GetProperty("location").ValueKind);
     }
 
     [Fact]

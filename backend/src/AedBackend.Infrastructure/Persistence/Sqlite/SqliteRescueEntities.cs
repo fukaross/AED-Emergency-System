@@ -4,6 +4,7 @@ internal sealed class RescueSessionEntity
 {
     public string HelpRequestId { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? ClosedAt { get; set; }
     public List<RescueSessionParticipantEntity> Participants { get; set; } = new();
     public List<RescueSessionMessageEntity> Messages { get; set; } = new();
 }

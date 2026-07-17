@@ -24,8 +24,8 @@ public static class HelpEndpoints
 
         group.MapPost("/request", PublishHelpAsync).WithName("PublishHelpRequest");
         group.MapGet("/list", ListHelpAsync).WithName("ListHelpRequests");
-        group.MapPost("/guest/query", GuestQueryHelpAsync).WithName("GuestQueryHelp");
-        group.MapPost("/guest/close", GuestCloseHelpAsync).WithName("GuestCloseHelp");
+        group.MapPost("/guest/query", GuestHelpEndpoints.QueryAsync).WithName("GuestQueryHelp");
+        group.MapPost("/guest/close", GuestHelpEndpoints.CloseAsync).WithName("GuestCloseHelp");
         group.MapGet("/{id}", GetHelpDetailAsync).WithName("GetHelpDetail");
         group.MapPost("/{id}/report", SubmitReportAsync).WithName("SubmitHelpReport");
         group.MapPut("/{id}/close", CloseHelpAsync).WithName("CloseHelp");
@@ -124,6 +124,8 @@ public static class HelpEndpoints
         var record = await helpStore.FindByIdOrRequestNoAsync(id, cancellationToken);
         if (record is null) return NotFound("求助不存在");
 
+        var viewerRole = "requester";
+        var canSubmitReport = false;
         // 详情权限收紧（BackEnd.md §4.5）：仅求助人本人或认证急救员可访问
         if (record.UserId != user.User!.OpenId)
         {
@@ -132,9 +134,15 @@ public static class HelpEndpoints
             {
                 return EndpointFailures.JsonFailure(ErrorCodes.Forbidden, "仅求助人本人或认证急救员可查看", 403);
             }
+
+            viewerRole = "responder";
+            canSubmitReport = HelpStatuses.Active.Contains(record.Status);
         }
 
-        return Results.Ok(ApiResponse.Ok(HelpResponseMapper.ToDetail(record)));
+        return Results.Ok(ApiResponse.Ok(HelpResponseMapper.ToDetail(
+            record,
+            viewerRole,
+            canSubmitReport)));
     }
 
     private static async Task<IResult> SubmitReportAsync(
@@ -189,13 +197,13 @@ public static class HelpEndpoints
                 var updated = await helpStore.AddReportAsync(
                     new HelpReportUpdate(id, report, nextStatus, now),
                     cancellationToken);
-                // 求助状态变化扇出 help_status；误报关闭时级联关闭会话并清空位置（BackEnd.md §4.5A）
-                await broadcaster.BroadcastAsync(updated.Id, "help_status", new RescueHelpStatusDto(updated.Status));
+                // 误报先关闭会话并清空位置，再广播最终状态，避免客户端回读到关闭前坐标。
                 if (request.IsFalseAlarm)
                 {
                     await sessionStore.CloseSessionAsync(updated.Id, cancellationToken);
-                    await broadcaster.CloseAllAsync(updated.Id, "help closed");
                 }
+                await broadcaster.BroadcastAsync(updated.Id, "help_status", new RescueHelpStatusDto(updated.Status));
+                if (request.IsFalseAlarm) await broadcaster.CloseAllAsync(updated.Id, "help closed");
                 return updated;
             },
             record => Results.Ok(ApiResponse.Ok(new HelpReportResponse(report.Id, record.Status, now))));
@@ -247,54 +255,6 @@ public static class HelpEndpoints
             _ => Results.Ok(ApiResponse.Ok<object>(null)));
     }
 
-    private static async Task<IResult> GuestQueryHelpAsync(
-        GuestHelpLookupRequest request,
-        IHelpRequestStore helpStore,
-        CancellationToken cancellationToken)
-    {
-        var record = await helpStore.FindByIdOrRequestNoAsync(request.RequestNo, cancellationToken);
-        if (record?.GuestSession?.FollowupCode != request.FollowupCode)
-        {
-            return EndpointFailures.JsonFailure(ErrorCodes.ResourceNotFound, "求助不存在", 404);
-        }
-
-        return Results.Ok(ApiResponse.Ok(HelpResponseMapper.ToGuestLookup(record)));
-    }
-
-    private static async Task<IResult> GuestCloseHelpAsync(
-        GuestCloseHelpRequest request,
-        IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionBroadcaster broadcaster,
-        CancellationToken cancellationToken)
-    {
-        var record = await helpStore.FindByIdOrRequestNoAsync(request.RequestNo, cancellationToken);
-        if (record?.GuestSession?.CloseToken != request.CloseToken)
-        {
-            return EndpointFailures.JsonFailure(ErrorCodes.ResourceNotFound, "求助不存在", 404);
-        }
-
-        return await UpdateHelpAsync(
-            async () =>
-            {
-                var closed = await helpStore.CloseAsync(
-                    record.Id,
-                    HelpStatuses.FalseAlarm,
-                    request.Note,
-                    DateTimeOffset.UtcNow,
-                    cancellationToken);
-                // 游客关单同样级联关闭急救会话并清空参与者位置
-                await sessionStore.CloseSessionAsync(closed.Id, cancellationToken);
-                await broadcaster.BroadcastAsync(closed.Id, "help_status", new RescueHelpStatusDto(closed.Status));
-                await broadcaster.CloseAllAsync(closed.Id, "help closed");
-                return closed;
-            },
-            updated => Results.Ok(ApiResponse.Ok(new GuestCloseHelpResponse(
-                updated.RequestNo,
-                HelpStatuses.FalseAlarm,
-                updated.ClosedAt!.Value))));
-    }
-
     private static async Task<CurrentUserResult> RequireUserAsync(
         HttpRequest request,
         ISessionTokenService tokenService,
@@ -310,7 +270,7 @@ public static class HelpEndpoints
             cancellationToken);
     }
 
-    private static async Task<IResult> UpdateHelpAsync(
+    internal static async Task<IResult> UpdateHelpAsync(
         Func<Task<HelpRequestRecord>> update,
         Func<HelpRequestRecord, IResult> success)
     {

@@ -20,7 +20,7 @@ internal static class JsonRuntimeDataValidator
         ValidateCourses(snapshot.Courses);
         ValidateHelp(snapshot.HelpRequests);
         ValidateAdmin(snapshot.AdminUsers);
-        ValidateRescue(snapshot.RescueSessions);
+        ValidateRescue(snapshot.RescueSessions, snapshot.HelpRequests.Select(item => item.Id));
     }
 
     private static void ValidateCourses(IEnumerable<Core.Models.Course.CourseRecord> courses)
@@ -54,10 +54,15 @@ internal static class JsonRuntimeDataValidator
         }
     }
 
-    private static void ValidateRescue(IEnumerable<Core.Models.Rescue.RescueSessionRecord> sessions)
+    private static void ValidateRescue(
+        IEnumerable<Core.Models.Rescue.RescueSessionRecord> sessions,
+        IEnumerable<string> helpRequestIds)
     {
+        var helpIds = helpRequestIds.ToHashSet(StringComparer.Ordinal);
         foreach (var session in sessions)
         {
+            if (!helpIds.Contains(session.HelpRequestId))
+                throw new InvalidOperationException($"急救会话缺少关联求助: {session.HelpRequestId}");
             Unique(session.Participants.Select(p => p.OpenId), $"rescue_session_participants.openId:{session.HelpRequestId}");
             Unique(session.Messages.Select(m => m.Id), $"rescue_session_messages.id:{session.HelpRequestId}");
             Unique(session.Messages.Select(m => m.Seq.ToString()), $"rescue_session_messages.seq:{session.HelpRequestId}");

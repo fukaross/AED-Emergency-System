@@ -18,9 +18,9 @@
 引入 WebSocket，但严格限定为**推送扇出通道**：
 
 1. `WS /ws/help/{id}/session` 仅向已进入会话的认证急救员推送三类信封：`message` / `participant` / `help_status`。
-2. **HTTP API 保持读写真源**：加入会话、发消息、发状态事件、上报位置、拉取快照/增量全部走 HTTP；WS 信封不承载权威数据，客户端收到推送后可直接使用信封内数据渲染，但最终一致性以 HTTP 快照为准。
+2. **HTTP API 保持读写真源**：加入会话、发消息、发状态事件、上报位置、拉取快照/增量全部走 HTTP；WS 信封只提示数据已变化，客户端在连接成功、从后台恢复和收到 `message` 信封后通过 HTTP 追平并确认已读；高频 `participant` 信封可直接合并，最终一致性仍以 HTTP 快照为准。
 3. 客户端 → 服务端的 WS 消息一律忽略，通道内不实现任何业务逻辑。
-4. 断线降级：WS 断开时客户端回退到 `GET /api/help/{id}/session?afterSeq=` 轮询，保证弱网/切后台场景功能可用。
+4. 断线降级：WS 建连失败、报错或断开时，客户端显式回退到 `GET /api/help/{id}/session?afterSeq=` 轮询；重新连接成功后立即通过 HTTP 追平，保证弱网与前后台切换场景功能可用。
 5. 分期落地：一期仅小程序会话页使用 WS；求助人只读视图（`GET /api/help/{id}/rescue-view`）与管理端监控页（`/api/admin/rescue-sessions*`）继续轮询，后续期再评估是否铺开。
 6. 实现采用 ASP.NET Core 内置 `System.Net.WebSockets`（`app.UseWebSockets()`），**不引入 SignalR**。
 
@@ -36,6 +36,7 @@
 ## 后果
 
 - 正向：会话内状态与位置同步达到近实时；弱网降级路径明确（回退轮询）；HTTP 契约仍是唯一事实源，测试主接缝不变（HTTP 集成测试 + Store 层测试）。
-- 代价：后端新增长连接生命周期管理（连接注册/注销/扇出）；Nginx 需放行 WS 升级请求（部署时确认 `Upgrade` / `Connection` 头转发）；测试需补 WS 连接/鉴权 smoke。
+- 代价：后端新增长连接生命周期管理（连接注册/注销/扇出）；Nginx 需放行 WS 升级请求（部署时确认 `Upgrade` / `Connection` 头转发）；测试需补 WS 连接/鉴权 smoke。仓库提供 `deploy/nginx/aed-api-websocket.conf.example` 作为上线配置基线。
 - 约束：WS 层不得生长业务逻辑；任何写诉求只能回到 HTTP 端点。若未来铺开求助人视图/管理端，沿用同一信封模型。
-- 鉴权：WS 握手通过 query 携带小程序 opaque token，校验逻辑复用现有 token hash 比对与会话参与者判定，不新增凭证类型。
+- 鉴权：WS 握手使用 `Authorization: Bearer <opaque-token>` 请求头，校验逻辑复用现有 token hash、账号状态与会话参与者判定；禁止将 30 天有效的凭证放入 URL query、代理访问日志或错误页面。
+- 位置 TTL：服务端和客户端均以最新位置的 `reportedAt` 为依据计算 45 秒灰显、90 秒移除；普通互动时间 `lastSeenAt` 不得延长位置有效期。健康 WS 不额外广播计时事件，客户端用本地时钟推进显示状态。
