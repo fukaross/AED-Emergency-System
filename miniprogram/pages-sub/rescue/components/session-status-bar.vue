@@ -1,0 +1,86 @@
+<template>
+  <view class="status-bar">
+    <view
+      class="status-btn"
+      :class="{ 'is-active': me?.takenAed, 'is-disabled': disabled }"
+      @click="handleToggle('taken_aed')"
+    >
+      <text class="status-btn-text">{{ me?.takenAed ? '✓ 已拿取 AED' : '我已拿取 AED' }}</text>
+    </view>
+    <view
+      class="status-btn status-btn--secondary"
+      :class="{ 'is-active': me?.arrived, 'is-disabled': disabled }"
+      @click="handleToggle('arrived')"
+    >
+      <text class="status-btn-text">{{ me?.arrived ? '✓ 已到达现场' : '我已到达现场' }}</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import type { RescueEventType, RescueMe } from '@/types/rescue-session'
+
+const props = defineProps<{
+  me: RescueMe | null
+  disabled: boolean
+}>()
+
+const emit = defineEmits<{
+  toggle: [eventType: RescueEventType]
+}>()
+
+function handleToggle(eventType: RescueEventType): void {
+  if (props.disabled) return
+  emit('toggle', eventType)
+}
+</script>
+
+<style lang="scss" scoped>
+.status-bar {
+  display: flex;
+  gap: $spacing-md;
+  padding: $spacing-md $spacing-md $spacing-sm;
+  background: $background-white;
+}
+
+.status-btn {
+  @include btn-primary;
+  flex: 1;
+}
+
+.status-btn--secondary {
+  @include btn-secondary;
+}
+
+.status-btn.is-active {
+  background-color: $status-online;
+  box-shadow: none;
+}
+
+.status-btn--secondary.is-active {
+  background-color: $status-online;
+  color: $text-white;
+  box-shadow: none;
+}
+
+.status-btn.is-disabled {
+  background-color: $background-card-disabled;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.status-btn-text {
+  color: $text-white;
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+}
+
+.status-btn--secondary .status-btn-text {
+  color: $primary;
+}
+
+.status-btn--secondary.is-active .status-btn-text,
+.status-btn--secondary.is-disabled .status-btn-text {
+  color: $text-white;
+}
+</style>

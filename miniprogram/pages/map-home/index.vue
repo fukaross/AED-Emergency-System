@@ -36,6 +36,13 @@
       @open="openCurrentHelp"
     />
 
+    <RescueSessionCard
+      :item="activeSessionItem"
+      :unread="rescueStore.totalUnread"
+      :stacked="Boolean(helpStore.activeRequest)"
+      @open="openActiveSession"
+    />
+
     <MapStatusOverlay
       :status-message="statusMessage"
       :status-bar-dismissed="statusBarDismissed"
@@ -105,14 +112,18 @@ import {
 import { useAedStore } from '@/store/aed'
 import { useAuthStore } from '@/store/auth'
 import { useHelpStore } from '@/store/help'
+import { useRescueSessionStore } from '@/store/rescue-session'
+import { useUserStore } from '@/store/user'
 import type { AedItem } from '@/types/aed'
 import { WECHAT_ALERT_TEMPLATE_ID } from '@/utils/constants'
+import { RESCUE_MINE_POLL_INTERVAL_MS } from '@/utils/rescue-signal'
 import { USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
 import AedDetailModal from './components/aed-detail-modal.vue'
 import CurrentHelpCard from './components/current-help-card.vue'
 import MapFloatingActions from './components/map-floating-actions.vue'
 import MapStatusOverlay from './components/map-status-overlay.vue'
 import NearbyAedPanel from './components/nearby-aed-panel.vue'
+import RescueSessionCard from './components/rescue-session-card.vue'
 
 interface MarkerTapEvent {
   readonly markerId?: number
@@ -133,6 +144,8 @@ let hasPromptedSubscribeThisSession = false
 const aedStore = useAedStore()
 const authStore = useAuthStore()
 const helpStore = useHelpStore()
+const rescueStore = useRescueSessionStore()
+const userStore = useUserStore()
 const { themeClass } = useTheme()
 const {
   mapCenter,
@@ -163,8 +176,10 @@ let lastMarkerTapAt = 0
 let subscribePromptTimer: ReturnType<typeof setTimeout> | null = null
 let helpPollTimer: ReturnType<typeof setInterval> | null = null
 let aedPollTimer: ReturnType<typeof setInterval> | null = null
+let sessionPollTimer: ReturnType<typeof setInterval> | null = null
 let isHelpPolling = false
 let isAedPolling = false
+let isSessionPolling = false
 
 onMounted(() => {
   createMapCtx(MAP_ID)
@@ -175,6 +190,8 @@ onShow(() => {
   helpStore.loadList().catch(() => {
     console.warn('[MapHome] 求助列表加载失败')
   })
+  void pollMineSessions()
+  startSessionPolling()
   scheduleSubscribePrompt()
   startAedPolling()
   startHelpPolling()
@@ -184,12 +201,14 @@ onHide(() => {
   clearSubscribePromptTimer()
   stopAedPolling()
   stopHelpPolling()
+  stopSessionPolling()
 })
 
 onUnmounted(() => {
   clearSubscribePromptTimer()
   stopAedPolling()
   stopHelpPolling()
+  stopSessionPolling()
 })
 
 const statusMessage = computed(() => {
@@ -240,6 +259,43 @@ function startHelpPolling() {
 function stopHelpPolling() {
   if (helpPollTimer) { clearInterval(helpPollTimer); helpPollTimer = null }
   isHelpPolling = false
+}
+
+/** 进行中会话入口：仅认证急救员可见；身份资料未加载时先静默加载（BackEnd.md §4.5A 主页入口） */
+async function pollMineSessions(): Promise<void> {
+  if (isSessionPolling || !authStore.isLoggedIn) return
+  isSessionPolling = true
+  try {
+    if (!userStore.userInfo) {
+      await userStore.loadProfile()
+    }
+    if (userStore.isCertified) {
+      await rescueStore.loadMineSessions(true)
+    }
+  } catch { /* 静默轮询容错 */ }
+  finally { isSessionPolling = false }
+}
+
+function startSessionPolling() {
+  stopSessionPolling()
+  sessionPollTimer = setInterval(pollMineSessions, RESCUE_MINE_POLL_INTERVAL_MS)
+}
+
+function stopSessionPolling() {
+  if (sessionPollTimer) { clearInterval(sessionPollTimer); sessionPollTimer = null }
+  isSessionPolling = false
+}
+
+const activeSessionItem = computed(() => {
+  return userStore.isCertified && rescueStore.mineItems.length > 0
+    ? rescueStore.mineItems[0]
+    : null
+})
+
+function openActiveSession(): void {
+  const item = activeSessionItem.value
+  if (!item) return
+  uni.navigateTo({ url: `/pages-sub/rescue/session?id=${item.helpId}` })
 }
 
 function openHelpPage(): void {

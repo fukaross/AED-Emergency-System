@@ -51,6 +51,10 @@
           }
         },
         {
+          "path": "rescue/session",
+          "style": { "navigationBarTitleText": "急救会话" }
+        },
+        {
           "path": "knowledge/detail",
           "style": { "navigationBarTitleText": "课程详情" }
         },

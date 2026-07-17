@@ -27,6 +27,8 @@
         @call-requester="callRequester"
         @preview-scene="previewScene"
       />
+
+      <HelpRescueView v-if="rescueView" :view="rescueView" />
     </scroll-view>
 
     <view v-if="detail" class="fixed-footer">
@@ -51,6 +53,7 @@
 import { computed, ref } from 'vue'
 import { onHide, onLoad, onPullDownRefresh, onShow, onUnload } from '@dcloudio/uni-app'
 import { fetchNearbyAed } from '@/api/aed'
+import { fetchRescueView } from '@/api/rescue-session'
 import { useTheme } from '@/composables/useTheme'
 import {
   createRoutePolyline,
@@ -63,9 +66,13 @@ import { useHelpStore } from '@/store/help'
 import type { AedItem } from '@/types/aed'
 import type { GeoPoint } from '@/types/common'
 import type { HelpRequestDetail, SubmitHelpReportPayload } from '@/types/help'
+import type { RescueView } from '@/types/rescue-session'
 import { MAP_CENTER } from '@/utils/constants'
+import { buildViewParticipantMarker } from '@/utils/rescue-markers'
+import { RESCUE_VIEW_POLL_INTERVAL_MS } from '@/utils/rescue-signal'
 import HelpDetailInfo from './components/help-detail-info.vue'
 import HelpReportSheet from './components/help-report-sheet.vue'
+import HelpRescueView from './components/help-rescue-view.vue'
 
 interface MarkerTapEvent {
   readonly markerId?: number
@@ -81,6 +88,7 @@ const { themeClass } = useTheme()
 
 const detail = ref<HelpRequestDetail | null>(null)
 const nearbyAeds = ref<readonly AedItem[]>([])
+const rescueView = ref<RescueView | null>(null)
 const loading = ref(true)
 const errorMessage = ref('')
 const showReportSheet = ref(false)
@@ -88,7 +96,9 @@ const submittingReport = ref(false)
 const userLocation = ref<GeoPoint | null>(null)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
+let rescuePollTimer: ReturnType<typeof setInterval> | null = null
 let isPolling = false
+let isRescuePolling = false
 
 const mapCenter = computed(() => {
   return detail.value
@@ -99,7 +109,11 @@ const mapCenter = computed(() => {
 const markers = computed<MapMarker[]>(() => {
   if (!detail.value) return []
   const helpMarker = buildHelpMarker(detail.value)
-  return [helpMarker, ...nearbyAeds.value.map(buildAedMarker)]
+  const aedMarkers = nearbyAeds.value.map(buildAedMarker)
+  const participantMarkers = (rescueView.value?.participants ?? [])
+    .map((participant, index) => buildViewParticipantMarker(participant, index))
+    .filter((marker): marker is MapMarker => marker !== null)
+  return [helpMarker, ...aedMarkers, ...participantMarkers]
 })
 
 const polylines = computed<MapPolyline[]>(() => {
@@ -158,6 +172,30 @@ function stopPolling() {
   isPolling = false
 }
 
+/** 求助人只读实时视图：8s 轮询参与者位置与状态时间线（BackEnd.md §4.5A rescue-view） */
+async function refreshRescueView(): Promise<void> {
+  if (isRescuePolling || !detail.value?.id) return
+  if (detail.value.status === 'closed' || detail.value.status === 'false_alarm') {
+    stopRescuePolling()
+    return
+  }
+  isRescuePolling = true
+  try {
+    rescueView.value = await fetchRescueView(detail.value.id, { silent: true })
+  } catch { /* 静默轮询容错 */ }
+  finally { isRescuePolling = false }
+}
+
+function startRescuePolling() {
+  stopRescuePolling()
+  rescuePollTimer = setInterval(refreshRescueView, RESCUE_VIEW_POLL_INTERVAL_MS)
+}
+
+function stopRescuePolling() {
+  if (rescuePollTimer) { clearInterval(rescuePollTimer); rescuePollTimer = null }
+  isRescuePolling = false
+}
+
 onLoad((query = {}) => {
   const id = String(query.id || query.requestNo || '')
   void loadDetail(id)
@@ -207,13 +245,15 @@ onShow(() => {
     helpStore.loadDetail(detail.value.id).then(() => {
       detail.value = helpStore.currentRequest
     }).catch(() => {})
+    void refreshRescueView()
   }
   startPolling()
+  startRescuePolling()
 })
 
-onHide(() => { stopPolling() })
+onHide(() => { stopPolling(); stopRescuePolling() })
 
-onUnload(() => { stopPolling() })
+onUnload(() => { stopPolling(); stopRescuePolling() })
 
 onPullDownRefresh(async () => {
   if (!detail.value?.id) {
