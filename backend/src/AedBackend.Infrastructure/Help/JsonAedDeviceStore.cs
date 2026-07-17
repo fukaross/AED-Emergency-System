@@ -6,7 +6,6 @@ using Microsoft.Extensions.Options;
 
 namespace AedBackend.Infrastructure.Help;
 
-// [Transitional: JSON -> MySQL] Static AED seed mirrors Design/README.md §5.
 public sealed class JsonAedDeviceStore : IAedDeviceStore
 {
     private const double EarthRadiusMeters = 6371000;
@@ -59,8 +58,8 @@ public sealed class JsonAedDeviceStore : IAedDeviceStore
         {
             if (!File.Exists(filePath))
             {
-                await WriteDevicesAsync(DefaultDevices, cancellationToken);
-                return DefaultDevices;
+                await WriteDevicesAsync(AedDeviceSeedData.Devices, cancellationToken);
+                return AedDeviceSeedData.Devices;
             }
 
             await using var stream = File.OpenRead(filePath);
@@ -225,7 +224,7 @@ public sealed class JsonAedDeviceStore : IAedDeviceStore
     {
         if (!File.Exists(filePath))
         {
-            return DefaultDevices;
+            return AedDeviceSeedData.Devices;
         }
 
         await using var stream = File.OpenRead(filePath);
@@ -263,53 +262,4 @@ public sealed class JsonAedDeviceStore : IAedDeviceStore
         await JsonSerializer.SerializeAsync(stream, devices, JsonOptions, cancellationToken);
     }
 
-    private static readonly IReadOnlyList<AedDeviceRecord> DefaultDevices =
-    [
-        Create("AED-01", "REDACTED", 19.974447, 110.517041, "online"),
-        Create("AED-02", "REDACTED", 19.975735, 110.517149, "online"),
-        Create("AED-03", "REDACTED", 19.975388, 110.517049, "online"),
-        Create("AED-04", "REDACTED", 19.974972, 110.517038, "online"),
-        Create("AED-05", "REDACTED", 19.974480, 110.517032, "online"),
-        Create("AED-06", "图书馆", 19.973585, 110.516800, "offline"),
-        Create("AED-07", "REDACTED", 19.973603, 110.517880, "online"),
-        Create("AED-08", "REDACTED", 19.973257, 110.517849, "online"),
-        Create("AED-09", "REDACTED", 19.972782, 110.517886, "online"),
-        Create("AED-10", "美术楼", 19.974215, 110.518559, "online"),
-        Create("AED-11", "REDACTED", 19.974997, 110.518831, "offline"),
-        Create("AED-12", "REDACTED", 19.975272, 110.518919, "online"),
-        Create("AED-13", "理科楼", 19.974603, 110.517886, "online"),
-        Create("AED-14", "一号宿舍楼", 19.976578, 110.518246, "online"),
-        Create("AED-15", "二号宿舍楼", 19.976579, 110.517988, "online"),
-        Create("AED-16", "三号宿舍楼", 19.977330, 110.518251, "online"),
-        Create("AED-17", "四号宿舍楼", 19.977328, 110.518030, "online"),
-        Create("AED-18", "五号宿舍楼", 19.977660, 110.518515, "online"),
-        Create("AED-19", "六号宿舍楼", 19.977682, 110.517733, "online"),
-        Create("AED-20", "七号宿舍楼", 19.977712, 110.516753, "online"),
-        Create("AED-21", "八号宿舍楼", 19.977382, 110.516761, "online"),
-        Create("AED-22", "九号宿舍楼", 19.972088, 110.518046, "online"),
-        Create("AED-23", "十号宿舍楼", 19.971530, 110.518043, "online"),
-        Create("AED-24", "十一号宿舍楼", 19.970989, 110.518041, "online")
-    ];
-
-    private static AedDeviceRecord Create(
-        string id,
-        string name,
-        double lat,
-        double lng,
-        string status)
-    {
-        return new AedDeviceRecord
-        {
-            Id = id,
-            Name = name,
-            Lat = lat,
-            Lng = lng,
-            Status = status,
-            StatusNote = status == "offline" ? "历史遗留离线，原因待确认" : null,
-            Address = $"REDACTED{name}（具体位置待标注）",
-            LastMaintenance = status == "offline" ? "2026-01-20" : "2026-03-15",
-            NextMaintenance = status == "offline" ? "2026-07-20" : "2026-09-15",
-            Maintainer = "待分配"
-        };
-    }
 }

@@ -9,6 +9,28 @@ namespace AedBackend.Tests.Help;
 public sealed class JsonAedDeviceStoreTests
 {
     [Fact]
+    public async Task GetAllAsync_ReturnsDefaultDevices_WhenFileMissing()
+    {
+        var path = CreateTempFilePath();
+        var store = CreateStore(path);
+
+        try
+        {
+            var devices = await store.GetAllAsync(CancellationToken.None);
+
+            Assert.Equal(59, devices.Count);
+            Assert.Contains(devices, d => d.Id == "AED-25" && d.Name == "海大AED_1");
+            Assert.Contains(devices, d => d.Id == "AED-59" && d.Name == "海大AED_35");
+            Assert.All(devices.Where(d => d.Id.CompareTo("AED-25", StringComparison.Ordinal) >= 0), device =>
+                Assert.Equal("online", device.Status));
+        }
+        finally
+        {
+            DeleteTempDirectory(path);
+        }
+    }
+
+    [Fact]
     public async Task GetAllAsync_ReturnsAllDevices()
     {
         var path = CreateTempFilePath();
