@@ -4,6 +4,7 @@ vi.mock('@/utils/runtime-env', () => ({
   API_BASE_URL: 'http://localhost:5000',
   IS_PLACEHOLDER_API_BASE_URL: false,
   RESTORE_AUTH_SESSION: false,
+  SESSION_BACKEND_READY: false,
   USER_BACKEND_READY: false,
   USE_MOCK: true,
   CLASSROOM_BACKEND_READY: false,
