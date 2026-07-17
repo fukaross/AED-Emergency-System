@@ -101,6 +101,8 @@ export interface HelpRequestDetail {
   readonly estimatedArrivalTime: string
   readonly timeline: readonly HelpTimelineEntry[]
   readonly reports: readonly HelpReportRecord[]
+  readonly viewerRole: 'requester' | 'responder'
+  readonly canSubmitReport: boolean
 }
 
 export interface HelpTimelineEntry {

@@ -26,18 +26,23 @@ export const useUserStore = defineStore('user', () => {
 
   // ===== Actions =====
   async function loadProfile(): Promise<void> {
-    if (USER_BACKEND_READY) {
+    try {
+      if (USER_BACKEND_READY) {
+        userInfo.value = await fetchUserProfile()
+        return
+      }
+
+      const authProfile = loadAuthUserProfile()
+      if (USE_REAL_WECHAT_FLOW) {
+        userInfo.value = authProfile ?? buildStoredLoginFallbackProfile()
+        return
+      }
+
       userInfo.value = await fetchUserProfile()
-      return
+    } catch (error) {
+      if (isForbidden(error)) userInfo.value = null
+      throw error
     }
-
-    const authProfile = loadAuthUserProfile()
-    if (USE_REAL_WECHAT_FLOW) {
-      userInfo.value = authProfile ?? buildStoredLoginFallbackProfile()
-      return
-    }
-
-    userInfo.value = await fetchUserProfile()
   }
 
   function setLoginProfile(profile: UserProfile): void {
@@ -66,6 +71,12 @@ export const useUserStore = defineStore('user', () => {
     clearUser,
   }
 })
+
+function isForbidden(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && (error as { readonly statusCode?: number }).statusCode === 403
+}
 
 function loadAuthUserProfile(): UserProfile | null {
   const stored = uni.getStorageSync(AUTH_USER_INFO_STORAGE_KEY) as

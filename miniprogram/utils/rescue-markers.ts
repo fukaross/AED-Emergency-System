@@ -10,20 +10,34 @@ import type { MapMarker } from '@/services/map-service'
 
 export interface SessionMapMarker extends MapMarker {
   readonly alpha?: number
+  readonly callout?: {
+    readonly content: string
+    readonly color: string
+    readonly fontSize: number
+    readonly borderRadius: number
+    readonly bgColor: string
+    readonly padding: number
+    readonly display: 'ALWAYS'
+  }
 }
 
 export const SOS_MARKER_ID = 9000
-export const PARTICIPANT_MARKER_OFFSET = 2000
-export const VIEW_PARTICIPANT_MARKER_OFFSET = 3000
+export const PARTICIPANT_MARKER_OFFSET = 10_000
+export const VIEW_PARTICIPANT_MARKER_OFFSET = 1_010_000
 
 const SOS_ICON = '/static/images/emergency-call.png'
 const PARTICIPANT_ICON = '/static/images/avatar-default.png'
-const TAKEN_AED_ICON = '/static/images/aed-marker-online.png'
 const MARKER_CENTER_ANCHOR = { x: 0.5, y: 0.5 } as const
 const LOST_SIGNAL_ALPHA = 0.5
 const FULL_ALPHA = 1
+const MARKER_ID_RANGE = 1_000_000
+const NORMAL_MARKER_SIZE = 34
+const AED_CARRIER_MARKER_SIZE = 42
+const CALLOUT_TEXT_COLOR = '#1F2937'
+const CALLOUT_BACKGROUND = '#FFFFFF'
 
 interface ParticipantMarkerSource {
+  readonly displayName: string
   readonly takenAed: boolean
   readonly signal: RescueSignal
   readonly location: { readonly lat: number; readonly lng: number } | null
@@ -45,17 +59,20 @@ export function buildSosMarker(sos: RescueSos): SessionMapMarker {
 /** 拿 AED 者高亮为 AED 图标；lost 半透明；gone 或无位置返回 null（地图移除） */
 export function buildParticipantMarker(
   participant: RescueParticipant,
-  index: number,
+  _index: number,
 ): SessionMapMarker | null {
-  return buildMarker(participant, PARTICIPANT_MARKER_OFFSET + index)
+  return buildMarker(participant, stableMarkerId(participant.openId, PARTICIPANT_MARKER_OFFSET))
 }
 
 /** 求助人只读视图的参与者 marker（无 openId，独立 id 段避免与求助点/AED marker 冲突） */
 export function buildViewParticipantMarker(
   participant: RescueViewParticipant,
-  index: number,
+  _index: number,
 ): SessionMapMarker | null {
-  return buildMarker(participant, VIEW_PARTICIPANT_MARKER_OFFSET + index)
+  return buildMarker(
+    participant,
+    stableMarkerId(participant.participantId, VIEW_PARTICIPANT_MARKER_OFFSET),
+  )
 }
 
 function buildMarker(
@@ -69,11 +86,35 @@ function buildMarker(
     id,
     latitude: participant.location.lat,
     longitude: participant.location.lng,
-    iconPath: highlighted ? TAKEN_AED_ICON : PARTICIPANT_ICON,
-    width: highlighted ? 42 : 34,
-    height: highlighted ? 42 : 34,
+    iconPath: PARTICIPANT_ICON,
+    width: highlighted ? AED_CARRIER_MARKER_SIZE : NORMAL_MARKER_SIZE,
+    height: highlighted ? AED_CARRIER_MARKER_SIZE : NORMAL_MARKER_SIZE,
     anchor: MARKER_CENTER_ANCHOR,
     alpha: participant.signal === 'lost' ? LOST_SIGNAL_ALPHA : FULL_ALPHA,
+    callout: buildParticipantCallout(participant.displayName, highlighted),
+  }
+}
+
+function stableMarkerId(identity: string, offset: number): number {
+  let hash = 0
+  for (const character of identity) {
+    hash = (hash * 31 + character.charCodeAt(0)) % MARKER_ID_RANGE
+  }
+  return offset + hash
+}
+
+function buildParticipantCallout(
+  displayName: string,
+  takenAed: boolean,
+): NonNullable<SessionMapMarker['callout']> {
+  return {
+    content: takenAed ? `${displayName} · 携带 AED` : displayName,
+    color: CALLOUT_TEXT_COLOR,
+    fontSize: 11,
+    borderRadius: 4,
+    bgColor: CALLOUT_BACKGROUND,
+    padding: 4,
+    display: 'ALWAYS',
   }
 }
 
@@ -83,5 +124,35 @@ export function interpolateGeo(from: GeoPoint, to: GeoPoint, t: number): GeoPoin
   return {
     lat: from.lat + (to.lat - from.lat) * clamped,
     lng: from.lng + (to.lng - from.lng) * clamped,
+  }
+}
+
+/** 使用匿名 participantId 对齐前后帧，避免同名参与者串位。 */
+export function interpolateViewParticipants(
+  current: readonly RescueViewParticipant[],
+  target: readonly RescueViewParticipant[],
+  progress: number,
+): RescueViewParticipant[] {
+  const currentById = new Map(current.map((participant) => [
+    participant.participantId,
+    participant,
+  ]))
+  return target.map((participant) => interpolateViewParticipant(
+    currentById.get(participant.participantId),
+    participant,
+    progress,
+  ))
+}
+
+function interpolateViewParticipant(
+  current: RescueViewParticipant | undefined,
+  target: RescueViewParticipant,
+  progress: number,
+): RescueViewParticipant {
+  if (!current?.location || !target.location) return target
+  const point = interpolateGeo(current.location, target.location, progress)
+  return {
+    ...target,
+    location: { ...target.location, ...point },
   }
 }

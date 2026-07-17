@@ -45,14 +45,25 @@ interface ResponseContext<T> {
 }
 
 // ===== 日志 =====
-function logRequest(method: string, url: string, data?: unknown): void {
-  if (!IS_DEV) return
-  console.log(`[Request] ${method} ${url}`, data ?? '')
+function sanitizeLogPath(url: string): string {
+  return url.split('?')[0]
 }
 
-function logResponse(url: string, res: unknown): void {
+function logRequest(method: string, url: string): void {
   if (!IS_DEV) return
-  console.log(`[Response] ${url}`, res)
+  console.log(`[Request] ${method} ${sanitizeLogPath(url)}`)
+}
+
+function logResponse(
+  url: string,
+  statusCode: number,
+  apiCode: number | undefined,
+): void {
+  if (!IS_DEV) return
+  const codeText = apiCode === undefined ? 'invalid' : String(apiCode)
+  console.log(
+    `[Response] ${sanitizeLogPath(url)} status=${statusCode} code=${codeText}`,
+  )
 }
 
 function retryAfterRefresh<T>(
@@ -194,18 +205,19 @@ function sendUniRequest<T>(
       header: headers,
       timeout,
       success: (res) => {
-        logResponse(url, res.data)
+        const body = extractApiResponse<T>(res.data)
+        logResponse(url, res.statusCode, body?.code)
 
         handleResponse({
           url,
           statusCode: res.statusCode,
-          body: extractApiResponse<T>(res.data),
+          body,
           options: { ...options, skipErrorHandler, skipAuthRefresh },
           callbacks: { resolve, reject },
         })
       },
       fail: (err) => {
-        console.error(`[Request] fail ${url}`, err)
+        console.error(`[Request] ${method} ${sanitizeLogPath(url)} network-failure`)
         if (!skipErrorHandler) {
           uni.showToast({ title: '网络连接失败，请检查网络', icon: 'none' })
         }
@@ -232,7 +244,7 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
   const token = getToken()
   const headers = buildHeaders(header, token)
 
-  logRequest(method, fullUrl, data)
+  logRequest(method, url)
 
   if (isPlaceholderApiBaseUrl()) {
     return rejectPlaceholderRequest(skipErrorHandler)

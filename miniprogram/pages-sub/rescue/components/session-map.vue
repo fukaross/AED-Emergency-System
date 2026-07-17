@@ -17,9 +17,9 @@ import type { RescueParticipant, RescueSos } from '@/types/rescue-session'
 import {
   buildParticipantMarker,
   buildSosMarker,
-  interpolateGeo,
   type SessionMapMarker,
 } from '@/utils/rescue-markers'
+import { createSessionMarkerAnimation } from './session-marker-animation'
 
 const ANIMATION_DURATION_MS = 900
 const ANIMATION_STEPS = 9
@@ -31,7 +31,13 @@ const props = defineProps<{
 
 /** 已渲染的参与者位置（openId → 当前地图坐标），插值动画的起点 */
 const renderedPositions = ref<Record<string, GeoPoint>>({})
-const animationTimers = new Set<ReturnType<typeof setInterval>>()
+const markerAnimation = createSessionMarkerAnimation({
+  durationMs: ANIMATION_DURATION_MS,
+  steps: ANIMATION_STEPS,
+  onPosition: (openId, point) => {
+    renderedPositions.value = { ...renderedPositions.value, [openId]: point }
+  },
+})
 
 const center = computed(() => ({
   lat: props.sos?.lat ?? 0,
@@ -75,42 +81,37 @@ watch(
 )
 
 function animateToTargets(participants: readonly RescueParticipant[]): void {
+  const activeOpenIds = new Set(participants.map((participant) => participant.openId))
+  for (const openId of Object.keys(renderedPositions.value)) {
+    if (!activeOpenIds.has(openId)) removeRenderedPosition(openId)
+  }
   for (const participant of participants) {
     if (!participant.location) {
-      delete renderedPositions.value[participant.openId]
+      removeRenderedPosition(participant.openId)
       continue
     }
     const from = renderedPositions.value[participant.openId]
     const to: GeoPoint = { lat: participant.location.lat, lng: participant.location.lng }
     if (!from) {
+      markerAnimation.remove(participant.openId)
       renderedPositions.value[participant.openId] = to
       continue
     }
     if (from.lat === to.lat && from.lng === to.lng) continue
-    startInterpolation(participant.openId, from, to)
+    markerAnimation.move(participant.openId, from, to)
   }
 }
 
-/** 平滑过渡：900ms 内分 9 步从 from 插值到 to（契约：marker 移动插值动画） */
-function startInterpolation(openId: string, from: GeoPoint, to: GeoPoint): void {
-  let step = 0
-  const timer = setInterval(() => {
-    step += 1
-    renderedPositions.value = {
-      ...renderedPositions.value,
-      [openId]: interpolateGeo(from, to, step / ANIMATION_STEPS),
-    }
-    if (step >= ANIMATION_STEPS) {
-      clearInterval(timer)
-      animationTimers.delete(timer)
-    }
-  }, ANIMATION_DURATION_MS / ANIMATION_STEPS)
-  animationTimers.add(timer)
+function removeRenderedPosition(openId: string): void {
+  markerAnimation.remove(openId)
+  renderedPositions.value = Object.fromEntries(
+    Object.entries(renderedPositions.value).filter(([key]) => key !== openId),
+  )
 }
 
 onUnmounted(() => {
-  for (const timer of animationTimers) clearInterval(timer)
-  animationTimers.clear()
+  markerAnimation.dispose()
+  renderedPositions.value = {}
 })
 </script>
 

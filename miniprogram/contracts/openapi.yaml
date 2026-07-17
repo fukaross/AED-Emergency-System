@@ -606,7 +606,7 @@ paths:
 
   /api/help/{id}/rescue-view:
     get:
-      summary: 求助人只读实时视图（不含文字消息与参与者 openId）
+      summary: 求助人或已加入会话的认证急救员只读实时视图（不含文字消息与参与者 openId）
       operationId: getRescueView
       security:
         - bearerAuth: []
@@ -627,10 +627,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /api/rescue-sessions/mine:
     get:
-      summary: 我参与的进行中会话（主页「进行中会话」入口，含未读数）
+      summary: 当前认证急救员可发现与已参与的全部进行中会话
       operationId: listMyRescueSessions
       security:
         - bearerAuth: []
@@ -1739,6 +1741,69 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /api/admin/rescue-sessions:
+    get:
+      summary: 管理端只读获取急救会话列表
+      operationId: listAdminRescueSessions
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, history]
+            default: active
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 按求助发布时间倒序的会话分页列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminRescueSessionListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/rescue-sessions/{helpId}:
+    get:
+      summary: 管理端只读获取急救会话详情或历史存档（成功访问写审计）
+      operationId: getAdminRescueSession
+      security:
+        - adminSessionKey: []
+      parameters:
+        - name: helpId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 会话详情；求助存在但尚无会话记录时返回空 participants/messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminRescueSessionDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/admin/users:
     get:
       summary: 管理端获取用户列表
@@ -2468,7 +2533,7 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
+      description: 小程序 opaque token（非 JWT），通过 Authorization Bearer 头传递
     adminSessionKey:
       type: apiKey
       in: header
@@ -2911,6 +2976,8 @@ components:
         - estimatedArrivalTime
         - timeline
         - reports
+        - viewerRole
+        - canSubmitReport
       properties:
         id:
           type: string
@@ -2957,6 +3024,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/HelpReportRecord'
+        viewerRole:
+          type: string
+          enum: [requester, responder]
+        canSubmitReport:
+          type: boolean
 
     SubmitHelpReportPayload:
       type: object
@@ -5103,6 +5175,7 @@ components:
 
     RescueLocation:
       type: object
+      required: [lat, lng, reportedAt]
       properties:
         lat:
           type: number
@@ -5114,6 +5187,7 @@ components:
 
     RescueParticipant:
       type: object
+      required: [openId, displayName, joinedAt, takenAed, arrived, signal, location]
       properties:
         openId:
           type: string
@@ -5130,7 +5204,10 @@ components:
           type: string
           enum: [ok, lost, gone]
         location:
-          $ref: '#/components/schemas/RescueLocation'
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/RescueLocation'
+          nullable: true
 
     RescueMe:
       type: object
@@ -5248,11 +5325,15 @@ components:
 
     RescueStatusEventResult:
       type: object
+      required: [appended, event, me]
       properties:
         appended:
           type: boolean
         event:
-          $ref: '#/components/schemas/RescueMessage'
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/RescueMessage'
+          nullable: true
         me:
           $ref: '#/components/schemas/RescueMyState'
 
@@ -5290,7 +5371,11 @@ components:
 
     RescueViewParticipant:
       type: object
+      required: [participantId, displayName, takenAed, arrived, signal, location]
       properties:
+        participantId:
+          type: string
+          description: 会话内稳定且不可反查 openId 的匿名参与者标识
         displayName:
           type: string
         takenAed:
@@ -5301,7 +5386,10 @@ components:
           type: string
           enum: [ok, lost, gone]
         location:
-          $ref: '#/components/schemas/RescueLocation'
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/RescueLocation'
+          nullable: true
 
     RescueViewEvent:
       type: object
@@ -5353,6 +5441,7 @@ components:
 
     RescueMineItem:
       type: object
+      required: [helpId, requestNo, helpStatus, type, address, joined, joinedAt, unreadCount, lastActivityAt]
       properties:
         helpId:
           type: string
@@ -5364,9 +5453,12 @@ components:
           type: string
         address:
           type: string
+        joined:
+          type: boolean
         joinedAt:
           type: string
           format: date-time
+          nullable: true
         unreadCount:
           type: integer
         lastActivityAt:
@@ -5389,3 +5481,107 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/RescueMineData'
+
+    AdminRescueSessionListItem:
+      type: object
+      required: [helpId, requestNo, helpStatus, type, address, createdAt, participantsCount, messagesCount, lastActivityAt]
+      properties:
+        helpId:
+          type: string
+        requestNo:
+          type: string
+        helpStatus:
+          type: string
+          enum: [published, responding, pending_review, closed, false_alarm]
+        type:
+          type: string
+        address:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        participantsCount:
+          type: integer
+        messagesCount:
+          type: integer
+        lastActivityAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    AdminRescueSessionListData:
+      type: object
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminRescueSessionListItem'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+
+    AdminRescueSessionListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AdminRescueSessionListData'
+
+    AdminRescueSessionRequester:
+      type: object
+      required: [openId, displayName]
+      properties:
+        openId:
+          type: string
+          nullable: true
+        displayName:
+          type: string
+
+    AdminRescueSessionDetail:
+      type: object
+      required: [helpId, requestNo, helpStatus, sos, requester, closedAt, closeNote, participants, messages, serverTime]
+      properties:
+        helpId:
+          type: string
+        requestNo:
+          type: string
+        helpStatus:
+          type: string
+          enum: [published, responding, pending_review, closed, false_alarm]
+        sos:
+          $ref: '#/components/schemas/RescueSos'
+        requester:
+          $ref: '#/components/schemas/AdminRescueSessionRequester'
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+        closeNote:
+          type: string
+          nullable: true
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/RescueParticipant'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/RescueMessage'
+        serverTime:
+          type: string
+          format: date-time
+
+    AdminRescueSessionDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AdminRescueSessionDetail'

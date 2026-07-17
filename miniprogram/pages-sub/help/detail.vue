@@ -8,7 +8,7 @@
       :markers="markers"
       :polyline="polylines"
       :include-points="includePoints"
-      :show-location="hasUserLocation"
+      :show-location="Boolean(userLocation)"
       @markertap="handleMarkerTap"
     />
 
@@ -31,12 +31,8 @@
       <HelpRescueView v-if="rescueView" :view="rescueView" />
     </scroll-view>
 
-    <view v-if="detail" class="fixed-footer">
-      <view
-        class="finish-btn"
-        :class="{ 'is-disabled': !canSubmitReport }"
-        @click="openReport"
-      >
+    <view v-if="canShowReportAction(detail)" class="fixed-footer">
+      <view class="finish-btn" @click="openReport">
         <text class="finish-text">本次援助已完成</text>
       </view>
     </view>
@@ -53,7 +49,6 @@
 import { computed, ref } from 'vue'
 import { onHide, onLoad, onPullDownRefresh, onShow, onUnload } from '@dcloudio/uni-app'
 import { fetchNearbyAed } from '@/api/aed'
-import { fetchRescueView } from '@/api/rescue-session'
 import { useTheme } from '@/composables/useTheme'
 import {
   createRoutePolyline,
@@ -66,10 +61,21 @@ import { useHelpStore } from '@/store/help'
 import type { AedItem } from '@/types/aed'
 import type { GeoPoint } from '@/types/common'
 import type { HelpRequestDetail, SubmitHelpReportPayload } from '@/types/help'
-import type { RescueView } from '@/types/rescue-session'
 import { MAP_CENTER } from '@/utils/constants'
 import { buildViewParticipantMarker } from '@/utils/rescue-markers'
-import { RESCUE_VIEW_POLL_INTERVAL_MS } from '@/utils/rescue-signal'
+import {
+  canShowReportAction,
+  collectRescueMapPoints,
+  isActiveHelpStatus,
+} from './rescue-view-state'
+import {
+  AED_MARKER_OFFSET,
+  HELP_MARKER_ID,
+  buildAedMarker,
+  buildHelpMarker,
+} from './help-detail-map'
+import { useHelpRescueView } from './useHelpRescueView'
+import { useHelpDetailPolling } from './useHelpDetailPolling'
 import HelpDetailInfo from './components/help-detail-info.vue'
 import HelpReportSheet from './components/help-report-sheet.vue'
 import HelpRescueView from './components/help-rescue-view.vue'
@@ -79,27 +85,33 @@ interface MarkerTapEvent {
   readonly detail?: { readonly markerId?: number }
 }
 
-const HELP_MARKER_ID = 9000
-const AED_MARKER_OFFSET = 100
-const POLL_INTERVAL_MS = 10_000
-
 const helpStore = useHelpStore()
 const { themeClass } = useTheme()
-
 const detail = ref<HelpRequestDetail | null>(null)
 const nearbyAeds = ref<readonly AedItem[]>([])
-const rescueView = ref<RescueView | null>(null)
 const loading = ref(true)
 const errorMessage = ref('')
 const showReportSheet = ref(false)
 const submittingReport = ref(false)
 const userLocation = ref<GeoPoint | null>(null)
-
-let pollTimer: ReturnType<typeof setInterval> | null = null
-let rescuePollTimer: ReturnType<typeof setInterval> | null = null
-let isPolling = false
-let isRescuePolling = false
-
+let isPageVisible = false
+const {
+  rescueView,
+  animatedParticipants,
+  refreshRescueView,
+  startRescuePolling,
+  clearRescueView,
+  suspendRescueView,
+} = useHelpRescueView(detail)
+const {
+  refreshHelpDetail,
+  startHelpPolling,
+  stopHelpPolling,
+} = useHelpDetailPolling({
+  detail,
+  applyDetail: applyHelpDetail,
+  handleAccessEnded: handleDetailAccessEnded,
+})
 const mapCenter = computed(() => {
   return detail.value
     ? { lat: detail.value.lat, lng: detail.value.lng }
@@ -110,7 +122,7 @@ const markers = computed<MapMarker[]>(() => {
   if (!detail.value) return []
   const helpMarker = buildHelpMarker(detail.value)
   const aedMarkers = nearbyAeds.value.map(buildAedMarker)
-  const participantMarkers = (rescueView.value?.participants ?? [])
+  const participantMarkers = animatedParticipants.value
     .map((participant, index) => buildViewParticipantMarker(participant, index))
     .filter((marker): marker is MapMarker => marker !== null)
   return [helpMarker, ...aedMarkers, ...participantMarkers]
@@ -123,79 +135,12 @@ const polylines = computed<MapPolyline[]>(() => {
 })
 
 const includePoints = computed(() => {
-  const points: Array<{ latitude: number; longitude: number }> = []
-  if (userLocation.value) {
-    points.push({
-      latitude: userLocation.value.lat,
-      longitude: userLocation.value.lng,
-    })
-  }
-  if (detail.value) {
-    points.push({
-      latitude: detail.value.lat,
-      longitude: detail.value.lng,
-    })
-  }
-  return points
+  return collectRescueMapPoints({
+    userLocation: userLocation.value,
+    sos: detail.value ? { lat: detail.value.lat, lng: detail.value.lng } : null,
+    participants: animatedParticipants.value,
+  })
 })
-
-const hasUserLocation = computed(() => Boolean(userLocation.value))
-
-const canSubmitReport = computed(() => {
-  return detail.value?.status === 'published' || detail.value?.status === 'responding'
-})
-
-async function refreshDetail(): Promise<void> {
-  if (isPolling || !detail.value?.id) return
-  if (detail.value.status === 'closed' || detail.value.status === 'false_alarm') {
-    stopPolling()
-    return
-  }
-  isPolling = true
-  try {
-    await helpStore.loadDetail(detail.value.id, true)
-    detail.value = helpStore.currentRequest
-    if (detail.value?.status === 'closed' || detail.value?.status === 'false_alarm') {
-      stopPolling()
-    }
-  } catch { /* silently ignore poll errors */ }
-  finally { isPolling = false }
-}
-
-function startPolling() {
-  stopPolling()
-  pollTimer = setInterval(refreshDetail, POLL_INTERVAL_MS)
-}
-
-function stopPolling() {
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
-  isPolling = false
-}
-
-/** 求助人只读实时视图：8s 轮询参与者位置与状态时间线（BackEnd.md §4.5A rescue-view） */
-async function refreshRescueView(): Promise<void> {
-  if (isRescuePolling || !detail.value?.id) return
-  if (detail.value.status === 'closed' || detail.value.status === 'false_alarm') {
-    stopRescuePolling()
-    return
-  }
-  isRescuePolling = true
-  try {
-    rescueView.value = await fetchRescueView(detail.value.id, { silent: true })
-  } catch { /* 静默轮询容错 */ }
-  finally { isRescuePolling = false }
-}
-
-function startRescuePolling() {
-  stopRescuePolling()
-  rescuePollTimer = setInterval(refreshRescueView, RESCUE_VIEW_POLL_INTERVAL_MS)
-}
-
-function stopRescuePolling() {
-  if (rescuePollTimer) { clearInterval(rescuePollTimer); rescuePollTimer = null }
-  isRescuePolling = false
-}
-
 onLoad((query = {}) => {
   const id = String(query.id || query.requestNo || '')
   void loadDetail(id)
@@ -211,8 +156,13 @@ async function loadDetail(id: string): Promise<void> {
   loading.value = true
   try {
     await helpStore.loadDetail(id)
-    detail.value = helpStore.currentRequest
+    applyHelpDetail(helpStore.currentRequest)
     await Promise.all([loadNearbyAeds(), loadUserLocation()])
+    if (isPageVisible && isActiveHelpStatus(detail.value?.status)) {
+      await refreshRescueView()
+      startHelpPolling()
+      startRescuePolling()
+    }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '求助加载失败'
   } finally {
@@ -241,19 +191,13 @@ async function loadUserLocation(): Promise<void> {
 }
 
 onShow(() => {
-  if (detail.value?.id) {
-    helpStore.loadDetail(detail.value.id).then(() => {
-      detail.value = helpStore.currentRequest
-    }).catch(() => {})
-    void refreshRescueView()
-  }
-  startPolling()
-  startRescuePolling()
+  isPageVisible = true
+  void resumePage()
 })
 
-onHide(() => { stopPolling(); stopRescuePolling() })
+onHide(() => { suspendPage() })
 
-onUnload(() => { stopPolling(); stopRescuePolling() })
+onUnload(() => { suspendPage() })
 
 onPullDownRefresh(async () => {
   if (!detail.value?.id) {
@@ -261,38 +205,11 @@ onPullDownRefresh(async () => {
     return
   }
   try {
-    await helpStore.loadDetail(detail.value.id)
-    detail.value = helpStore.currentRequest
+    await refreshHelpDetail()
     await loadNearbyAeds()
   } catch { /* ignore */ }
   finally { uni.stopPullDownRefresh() }
 })
-
-function buildHelpMarker(item: HelpRequestDetail): MapMarker {
-  return {
-    id: HELP_MARKER_ID,
-    latitude: item.lat,
-    longitude: item.lng,
-    iconPath: '/static/images/emergency-call.png',
-    width: 42,
-    height: 42,
-    anchor: { x: 0.5, y: 0.5 },
-  }
-}
-
-function buildAedMarker(aed: AedItem, index: number): MapMarker {
-  return {
-    id: AED_MARKER_OFFSET + index,
-    latitude: aed.lat,
-    longitude: aed.lng,
-    iconPath: aed.status === 'online'
-      ? '/static/images/aed-marker-online.png'
-      : '/static/images/aed-marker-offline.png',
-    width: 36,
-    height: 36,
-    anchor: { x: 0.5, y: 0.5 },
-  }
-}
 
 function handleMarkerTap(event: MarkerTapEvent): void {
   const markerId = event.markerId ?? event.detail?.markerId
@@ -325,7 +242,7 @@ function previewScene(index: number): void {
 }
 
 function openReport(): void {
-  if (!canSubmitReport.value) {
+  if (!canShowReportAction(detail.value)) {
     uni.showToast({ title: '当前不可提交', icon: 'none' })
     return
   }
@@ -337,7 +254,7 @@ async function submitReport(payload: SubmitHelpReportPayload): Promise<void> {
   submittingReport.value = true
   try {
     await helpStore.submitReport(detail.value.id, payload)
-    detail.value = helpStore.currentRequest
+    applyHelpDetail(helpStore.currentRequest)
     showReportSheet.value = false
     uni.showToast({ title: '已提交', icon: 'success' })
   } finally {
@@ -345,61 +262,39 @@ async function submitReport(payload: SubmitHelpReportPayload): Promise<void> {
   }
 }
 
+async function resumePage(): Promise<void> {
+  const helpId = detail.value?.id
+  if (!helpId) return
+  try {
+    await refreshHelpDetail()
+    if (!isPageVisible || detail.value?.id !== helpId) return
+    if (!isActiveHelpStatus(detail.value?.status)) return
+    await refreshRescueView()
+    startHelpPolling()
+    startRescuePolling()
+  } catch { /* 静默恢复，保留已加载内容 */ }
+}
+
+function suspendPage(): void {
+  isPageVisible = false
+  stopHelpPolling()
+  suspendRescueView()
+}
+
+function applyHelpDetail(next: HelpRequestDetail | null): void {
+  detail.value = next
+  if (!isActiveHelpStatus(next?.status)) handleTerminalHelpState()
+}
+
+function handleTerminalHelpState(): void {
+  clearRescueView()
+  stopHelpPolling()
+}
+
+function handleDetailAccessEnded(): void {
+  detail.value = null
+  errorMessage.value = '无法继续查看该求助'
+  handleTerminalHelpState()
+}
 </script>
-
-<style lang="scss" scoped>
-.help-detail {
-  min-height: 100vh;
-  background: $background;
-}
-
-.detail-map {
-  width: 100%;
-  height: 48vh;
-}
-
-.detail-panel {
-  height: calc(52vh - 128rpx - env(safe-area-inset-bottom));
-  background: $background-white;
-}
-
-.state-line {
-  padding: $spacing-xl $spacing-md;
-  text-align: center;
-}
-
-.state-text {
-  color: $text-secondary;
-  font-size: $font-size-base;
-}
-
-.fixed-footer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: $spacing-md;
-  padding-bottom: calc(#{$spacing-md} + env(safe-area-inset-bottom));
-  background: $background-white;
-}
-
-.finish-btn {
-  @include btn-primary;
-}
-
-.finish-btn.is-disabled {
-  background-color: $background-card-disabled;
-  box-shadow: none;
-  pointer-events: none;
-}
-
-.finish-btn.is-disabled .finish-text {
-  color: $text-secondary;
-}
-
-.finish-text {
-  color: $text-white;
-  font-size: $font-size-lg;
-  font-weight: $font-weight-bold;
-}
-</style>
+<style lang="scss" scoped src="./detail.scss" />

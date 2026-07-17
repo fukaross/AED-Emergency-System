@@ -1,0 +1,68 @@
+.session-page {
+  min-height: 100vh;
+  background: $background;
+}
+
+.state-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 30vh;
+  gap: $spacing-lg;
+}
+
+.state-text {
+  color: $text-secondary;
+  font-size: $font-size-base;
+}
+
+.back-btn {
+  @include btn-secondary;
+}
+
+.back-btn-text {
+  color: $primary;
+  font-size: $font-size-base;
+}
+
+.map-wrap {
+  width: 100%;
+  overflow: hidden;
+}
+
+.drag-handle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40rpx;
+  background: $background-white;
+  touch-action: none;
+}
+
+.drag-bar {
+  width: 80rpx;
+  height: 8rpx;
+  border-radius: $radius-pill;
+  background: $divider;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  background: $background-white;
+}
+
+.closed-banner {
+  padding: $spacing-sm $spacing-md;
+  background: $primary-light;
+}
+
+.closed-banner-text {
+  color: $primary-dark;
+  font-size: $font-size-sm;
+}
+
+.messages-wrap {
+  flex: 1;
+  min-height: 0;
+}

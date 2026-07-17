@@ -74,6 +74,7 @@ export interface RescueStatusEventResult {
 }
 
 export interface RescueViewParticipant {
+  readonly participantId: string
   readonly displayName: string
   readonly takenAed: boolean
   readonly arrived: boolean
@@ -105,7 +106,8 @@ export interface RescueMineItem {
   readonly helpStatus: string
   readonly type: string
   readonly address: string
-  readonly joinedAt: string
+  readonly joined: boolean
+  readonly joinedAt: string | null
   readonly unreadCount: number
   readonly lastActivityAt: string | null
 }

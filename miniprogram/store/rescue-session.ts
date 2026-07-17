@@ -20,6 +20,13 @@ import {
   postRescueStatusEvent,
   reportRescueLocation,
 } from '@/api/rescue-session'
+import { computeSignal } from '@/utils/rescue-signal'
+import {
+  computeServerClockOffset,
+  mergeSessionSnapshot,
+} from '@/utils/rescue-session-state'
+
+export { classifyRescueSessionTerminalError } from '@/utils/rescue-session-state'
 
 const CLOSED_STATUSES = ['closed', 'false_alarm']
 
@@ -29,6 +36,14 @@ export const useRescueSessionStore = defineStore('rescueSession', () => {
   const mineLoaded = ref(false)
   const snapshot = ref<RescueSessionSnapshot | null>(null)
   const sessionClosed = ref(false)
+  let activeHelpId = ''
+  let sessionGeneration = 0
+  let latestJoinRequest = 0
+  let latestRefreshRequest = 0
+  let serverClockOffsetMs = 0
+  let mineOwnerId = ''
+  let mineGeneration = 0
+  let latestMineRequest = 0
 
   // ===== Getters =====
   const totalUnread = computed(() =>
@@ -36,67 +51,120 @@ export const useRescueSessionStore = defineStore('rescueSession', () => {
   const hasActiveSession = computed(() => mineItems.value.length > 0)
 
   // ===== Actions =====
-  async function loadMineSessions(silent = false): Promise<void> {
-    mineItems.value = await fetchMineRescueSessions({ silent })
+  async function loadMineSessions(ownerId: string, silent = false): Promise<void> {
+    if (!ownerId) {
+      resetMineSessions()
+      return
+    }
+    bindMineOwner(ownerId)
+    const generation = mineGeneration
+    const request = ++latestMineRequest
+    const items = await fetchMineRescueSessions({ silent })
+    if (mineOwnerId !== ownerId
+      || mineGeneration !== generation
+      || latestMineRequest !== request) return
+    mineItems.value = items
     mineLoaded.value = true
   }
 
-  async function joinSession(helpId: string): Promise<void> {
-    snapshot.value = await joinRescueSession(helpId)
-    sessionClosed.value = isClosed(snapshot.value.helpStatus)
+  function resetMineSessions(): void {
+    mineOwnerId = ''
+    mineGeneration += 1
+    latestMineRequest += 1
+    clearMineState()
   }
 
-  async function refreshSession(helpId: string): Promise<void> {
+  function bindMineOwner(ownerId: string): void {
+    if (mineOwnerId === ownerId) return
+    mineOwnerId = ownerId
+    mineGeneration += 1
+    latestMineRequest += 1
+    clearMineState()
+  }
+
+  function clearMineState(): void {
+    mineItems.value = []
+    mineLoaded.value = false
+  }
+
+  async function joinSession(helpId: string): Promise<boolean> {
+    if (activeHelpId === helpId && sessionClosed.value) return false
+    const generation = activateSession(helpId)
+    const request = ++latestJoinRequest
+    const joined = await joinRescueSession(helpId)
+    if (!isCurrentRequest(helpId, generation) || request !== latestJoinRequest) return false
+    setSnapshot(joined)
+    return true
+  }
+
+  async function refreshSession(helpId: string): Promise<boolean> {
+    if (activeHelpId === helpId && sessionClosed.value) return false
     if (!snapshot.value || snapshot.value.helpId !== helpId) {
-      await joinSession(helpId)
-      return
+      return joinSession(helpId)
     }
 
+    const generation = sessionGeneration
+    const request = ++latestRefreshRequest
     const incremental = await fetchRescueSession(helpId, {
       afterSeq: snapshot.value.latestSeq,
       silent: true,
     })
-    snapshot.value = mergeSnapshot(snapshot.value, incremental)
-    sessionClosed.value = isClosed(incremental.helpStatus)
+    if (!isCurrentRequest(helpId, generation) || request !== latestRefreshRequest) return false
+    setSnapshot(mergeSessionSnapshot(snapshot.value, incremental))
+    return true
   }
 
-  async function sendMessage(text: string): Promise<void> {
-    if (!snapshot.value) return
-    const message = await postRescueMessage(snapshot.value.helpId, text)
+  async function sendMessage(text: string): Promise<boolean> {
+    const context = currentContext()
+    if (!context || sessionClosed.value) return false
+    const message = await postRescueMessage(context.helpId, text)
+    if (!isCurrentRequest(context.helpId, context.generation) || sessionClosed.value) return false
     appendMessage(message)
+    return true
   }
 
-  async function markStatus(eventType: RescueEventType): Promise<void> {
-    await sendStatusEvent(eventType, 'mark')
+  function markStatus(eventType: RescueEventType): Promise<boolean> {
+    return sendStatusEvent(eventType, 'mark')
   }
 
-  async function revokeStatus(eventType: RescueEventType): Promise<void> {
-    await sendStatusEvent(eventType, 'revoke')
+  function revokeStatus(eventType: RescueEventType): Promise<boolean> {
+    return sendStatusEvent(eventType, 'revoke')
   }
 
-  async function reportLocation(point: GeoPoint): Promise<void> {
-    if (!snapshot.value) return
-    await reportRescueLocation(snapshot.value.helpId, point)
+  async function reportLocation(point: GeoPoint): Promise<boolean> {
+    const context = currentContext()
+    if (!context || sessionClosed.value) return false
+    await reportRescueLocation(context.helpId, point)
+    return isCurrentRequest(context.helpId, context.generation) && !sessionClosed.value
   }
 
-  function applySocketEnvelope(envelope: RescueSocketEnvelope): void {
-    if (!snapshot.value) return
+  function applySocketEnvelope(helpId: string, envelope: RescueSocketEnvelope): boolean {
+    if (!snapshot.value || snapshot.value.helpId !== helpId || activeHelpId !== helpId) return false
+    if (sessionClosed.value && envelope.type !== 'help_status') return false
     if (envelope.type === 'message') {
       appendMessage(envelope.data as RescueMessage)
-      return
+      return true
     }
     if (envelope.type === 'participant') {
       replaceParticipant(envelope.data as RescueParticipant)
-      return
+      return true
     }
     if (envelope.type === 'help_status') {
       const status = (envelope.data as RescueHelpStatusPayload).helpStatus
-      snapshot.value = { ...snapshot.value, helpStatus: status }
-      sessionClosed.value = isClosed(status)
+      if (sessionClosed.value && !isClosed(status)) return false
+      setSnapshot({ ...snapshot.value, helpStatus: status })
+      return true
     }
+    return false
   }
 
-  function resetSession(): void {
+  function resetSession(expectedHelpId?: string): void {
+    if (expectedHelpId && activeHelpId !== expectedHelpId) return
+    activeHelpId = ''
+    sessionGeneration += 1
+    latestJoinRequest += 1
+    latestRefreshRequest += 1
+    serverClockOffsetMs = 0
     snapshot.value = null
     sessionClosed.value = false
   }
@@ -104,9 +172,15 @@ export const useRescueSessionStore = defineStore('rescueSession', () => {
   async function sendStatusEvent(
     eventType: RescueEventType,
     action: RescueEventAction,
-  ): Promise<void> {
-    if (!snapshot.value) return
-    const result = await postRescueStatusEvent(snapshot.value.helpId, eventType, action)
+  ): Promise<boolean> {
+    const context = currentContext()
+    if (!context || sessionClosed.value) return false
+    const result = await postRescueStatusEvent(context.helpId, eventType, action)
+    if (
+      !snapshot.value
+      || !isCurrentRequest(context.helpId, context.generation)
+      || sessionClosed.value
+    ) return false
     snapshot.value = {
       ...snapshot.value,
       me: { ...snapshot.value.me, takenAed: result.me.takenAed, arrived: result.me.arrived },
@@ -114,6 +188,7 @@ export const useRescueSessionStore = defineStore('rescueSession', () => {
     if (result.appended && result.event) {
       appendMessage(result.event)
     }
+    return true
   }
 
   function appendMessage(message: RescueMessage): void {
@@ -137,6 +212,61 @@ export const useRescueSessionStore = defineStore('rescueSession', () => {
     snapshot.value = { ...snapshot.value, participants }
   }
 
+  /** 按最后一次位置上报时间推进信号；90 秒后立即丢弃本地精确坐标。 */
+  function refreshParticipantSignals(now = Date.now()): void {
+    if (!snapshot.value || sessionClosed.value) return
+    const calibratedNow = now + serverClockOffsetMs
+    const participants = snapshot.value.participants.map((participant) => {
+      if (!participant.location) return participant
+      const signal = computeSignal(participant.location.reportedAt, calibratedNow)
+      return signal === 'gone'
+        ? { ...participant, signal, location: null }
+        : { ...participant, signal }
+    })
+    snapshot.value = { ...snapshot.value, participants }
+  }
+
+  function clearParticipantLocations(): void {
+    if (!snapshot.value) return
+    const participants = snapshot.value.participants.map((participant) => ({
+      ...participant,
+      signal: 'gone' as const,
+      location: null,
+    }))
+    snapshot.value = { ...snapshot.value, participants }
+  }
+
+  function activateSession(helpId: string): number {
+    if (activeHelpId === helpId) return sessionGeneration
+    activeHelpId = helpId
+    sessionGeneration += 1
+    latestJoinRequest = 0
+    latestRefreshRequest = 0
+    serverClockOffsetMs = 0
+    snapshot.value = null
+    sessionClosed.value = false
+    return sessionGeneration
+  }
+
+  function isCurrentRequest(helpId: string, generation: number): boolean {
+    return activeHelpId === helpId && sessionGeneration === generation
+  }
+
+  function currentContext(): { helpId: string; generation: number } | null {
+    if (!snapshot.value || snapshot.value.helpId !== activeHelpId) return null
+    return { helpId: activeHelpId, generation: sessionGeneration }
+  }
+
+  function setSnapshot(next: RescueSessionSnapshot): void {
+    serverClockOffsetMs = computeServerClockOffset(next.serverTime, Date.now())
+    snapshot.value = next
+    sessionClosed.value = isClosed(next.helpStatus)
+    if (!sessionClosed.value) return
+    latestJoinRequest += 1
+    latestRefreshRequest += 1
+    clearParticipantLocations()
+  }
+
   return {
     mineItems,
     mineLoaded,
@@ -145,6 +275,7 @@ export const useRescueSessionStore = defineStore('rescueSession', () => {
     totalUnread,
     hasActiveSession,
     loadMineSessions,
+    resetMineSessions,
     joinSession,
     refreshSession,
     sendMessage,
@@ -152,22 +283,12 @@ export const useRescueSessionStore = defineStore('rescueSession', () => {
     revokeStatus,
     reportLocation,
     applySocketEnvelope,
+    refreshParticipantSignals,
+    clearParticipantLocations,
     resetSession,
   }
 })
 
 function isClosed(status: string): boolean {
   return CLOSED_STATUSES.includes(status)
-}
-
-function mergeSnapshot(
-  current: RescueSessionSnapshot,
-  incremental: RescueSessionSnapshot,
-): RescueSessionSnapshot {
-  const knownSeqs = new Set(current.messages.map((message) => message.seq))
-  const newMessages = incremental.messages.filter((message) => !knownSeqs.has(message.seq))
-  return {
-    ...incremental,
-    messages: [...current.messages, ...newMessages].sort((a, b) => a.seq - b.seq),
-  }
 }

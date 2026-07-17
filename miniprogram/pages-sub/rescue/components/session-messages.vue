@@ -30,13 +30,17 @@
       <input
         v-model="draft"
         class="message-input"
-        :disabled="disabled"
+        :disabled="disabled || sending"
         :placeholder="disabled ? '会话已结束' : '发送消息给同行急救员'"
         confirm-type="send"
         @confirm="handleSend"
       >
-      <view class="send-btn" :class="{ 'is-disabled': disabled || !draft.trim() }" @click="handleSend">
-        <text class="send-btn-text">发送</text>
+      <view
+        class="send-btn"
+        :class="{ 'is-disabled': disabled || sending || !draft.trim() }"
+        @click="handleSend"
+      >
+        <text class="send-btn-text">{{ sending ? '发送中' : '发送' }}</text>
       </view>
     </view>
   </view>
@@ -52,13 +56,11 @@ const props = defineProps<{
   messages: readonly RescueMessage[]
   myOpenId: string
   disabled: boolean
-}>()
-
-const emit = defineEmits<{
-  send: [text: string]
+  sendMessage: (text: string) => Promise<boolean>
 }>()
 
 const draft = ref('')
+const sending = ref(false)
 const bottomAnchor = 'msg-bottom'
 const lastMessageAnchor = ref('')
 
@@ -71,11 +73,16 @@ watch(
   { immediate: true },
 )
 
-function handleSend(): void {
+async function handleSend(): Promise<void> {
   const text = draft.value.trim()
-  if (props.disabled || !text) return
-  emit('send', text)
-  draft.value = ''
+  if (props.disabled || sending.value || !text) return
+  sending.value = true
+  try {
+    const sent = await props.sendMessage(text)
+    if (sent && draft.value.trim() === text) draft.value = ''
+  } finally {
+    sending.value = false
+  }
 }
 </script>
 

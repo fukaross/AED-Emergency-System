@@ -118,7 +118,7 @@ describe('rescue-session store', () => {
     await store.joinSession('help-1')
 
     await store.sendMessage('我到了')
-    await store.applySocketEnvelope({ type: 'message', data: buildMessage(2) })
+    store.applySocketEnvelope('help-1', { type: 'message', data: buildMessage(2) })
 
     expect(store.snapshot?.messages).toHaveLength(2)
     expect(store.snapshot?.latestSeq).toBe(2)
@@ -151,11 +151,11 @@ describe('rescue-session store', () => {
     await store.joinSession('help-1')
 
     const moved = { ...buildParticipant('openid-a'), takenAed: true }
-    store.applySocketEnvelope({ type: 'participant', data: moved })
+    store.applySocketEnvelope('help-1', { type: 'participant', data: moved })
 
     expect(store.snapshot?.participants[0].takenAed).toBe(true)
 
-    store.applySocketEnvelope({ type: 'participant', data: buildParticipant('openid-c') })
+    store.applySocketEnvelope('help-1', { type: 'participant', data: buildParticipant('openid-c') })
     expect(store.snapshot?.participants).toHaveLength(2)
   })
 
@@ -164,7 +164,10 @@ describe('rescue-session store', () => {
     const store = useRescueSessionStore()
     await store.joinSession('help-1')
 
-    store.applySocketEnvelope({ type: 'help_status', data: { helpStatus: 'closed' } })
+    store.applySocketEnvelope('help-1', {
+      type: 'help_status',
+      data: { helpStatus: 'closed' },
+    })
 
     expect(store.snapshot?.helpStatus).toBe('closed')
     expect(store.sessionClosed).toBe(true)
@@ -177,7 +180,7 @@ describe('rescue-session store', () => {
     ])
     const store = useRescueSessionStore()
 
-    await store.loadMineSessions()
+    await store.loadMineSessions('openid-a')
 
     expect(store.totalUnread).toBe(5)
     expect(store.hasActiveSession).toBe(true)

@@ -8,6 +8,7 @@ import {
   initializeAuthState,
 } from '@/services/auth-service'
 import { useUserStore } from './user'
+import { useRescueSessionStore } from './rescue-session'
 import type { UserProfile } from '@/types/user'
 import { USE_MOCK, USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
 
@@ -18,6 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
   // ===== Actions =====
   async function login(): Promise<void> {
     const result = await wxLogin()
+    resetUserScopedState()
     isLoggedIn.value = true
 
     // 登录成功后加载用户资料
@@ -36,13 +38,20 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuth()
     isLoggedIn.value = false
 
-    const userStore = useUserStore()
-    userStore.clearUser()
+    resetUserScopedState()
   }
 
   function checkAuth(): boolean {
     isLoggedIn.value = isAuthenticated()
+    if (!isLoggedIn.value) resetUserScopedState()
     return isLoggedIn.value
+  }
+
+  function resetUserScopedState(): void {
+    useUserStore().clearUser()
+    const rescueStore = useRescueSessionStore()
+    rescueStore.resetMineSessions()
+    rescueStore.resetSession()
   }
 
   return {

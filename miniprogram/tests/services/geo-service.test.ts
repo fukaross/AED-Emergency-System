@@ -2,6 +2,7 @@ import { afterEach, describe, it, expect, vi } from 'vitest'
 import {
   calculateDistance,
   chooseLocationPoint,
+  getCurrentLocation,
   isWechatDevtoolsPlatform,
   shouldSkipInitialRealLocation,
   shouldUseManualLocationPicker,
@@ -101,6 +102,40 @@ describe('chooseLocationPoint', () => {
       point: { lat: 19.98, lng: 110.52 },
       name: '三号宿舍楼',
     })
+  })
+})
+
+describe('location permission handling', () => {
+  it('shows the settings guide at most once after a persisted denial', async () => {
+    const showModal = vi.fn()
+    const authorize = vi.fn()
+    vi.stubGlobal('uni', {
+      getDeviceInfo: () => ({ platform: 'windows' }),
+      getSetting: vi.fn().mockResolvedValue({ authSetting: { 'scope.userLocation': false } }),
+      authorize,
+      showModal,
+      openSetting: vi.fn(),
+    })
+
+    await getCurrentLocation({ mode: 'interactive' })
+    await getCurrentLocation({ mode: 'interactive' })
+
+    expect(authorize).not.toHaveBeenCalled()
+    expect(showModal).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not log exact coordinates after a successful location request', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    vi.stubGlobal('uni', {
+      getDeviceInfo: () => ({ platform: 'windows' }),
+      getSetting: vi.fn().mockResolvedValue({ authSetting: { 'scope.userLocation': true } }),
+      getLocation: vi.fn().mockResolvedValue({ latitude: 19.97, longitude: 110.51 }),
+    })
+
+    const result = await getCurrentLocation()
+
+    expect(result.success).toBe(true)
+    expect(logSpy).not.toHaveBeenCalled()
   })
 })
 

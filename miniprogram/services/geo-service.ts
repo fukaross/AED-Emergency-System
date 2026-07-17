@@ -8,6 +8,7 @@ const DEVTOOLS_PLATFORM = 'devtools'
 const LOCATION_SCOPE = 'scope.userLocation'
 const LOCATION_TIMEOUT_MS = 10000
 type GetCurrentLocationMode = 'auto' | 'interactive'
+let hasShownLocationPermissionGuide = false
 
 interface DeviceInfoLike {
   readonly platform?: string
@@ -118,12 +119,17 @@ function buildLocationFailureMessage(errMsg: string): string {
   return '定位失败，已使用校园中心点'
 }
 
-async function ensureLocationPermission(): Promise<boolean> {
+async function ensureLocationPermission(mode: GetCurrentLocationMode): Promise<boolean> {
   const setting = (await uni.getSetting()) as AuthSettingResult
   const authorized = setting.authSetting?.[LOCATION_SCOPE]
 
   if (authorized === true) {
     return true
+  }
+
+  if (authorized === false) {
+    showLocationPermissionGuideOnce(mode)
+    return false
   }
 
   try {
@@ -134,7 +140,7 @@ async function ensureLocationPermission(): Promise<boolean> {
     console.warn('[GeoService] authorize failed:', errMsg)
 
     if (errMsg.includes('auth deny') || errMsg.includes('authorize')) {
-      showLocationPermissionGuide()
+      showLocationPermissionGuideOnce(mode)
     }
 
     return false
@@ -168,7 +174,7 @@ async function requestCurrentLocation(
   mode: GetCurrentLocationMode,
   timeoutMs?: number,
 ): Promise<LocationResult> {
-  const hasPermission = await ensureLocationPermission()
+  const hasPermission = await ensureLocationPermission(mode)
   if (!hasPermission) {
     return createDefaultLocation('定位权限被拒绝，已使用校园中心点')
   }
@@ -178,10 +184,6 @@ async function requestCurrentLocation(
       uni.getLocation(buildLocationOptions(mode)),
       timeoutMs ?? LOCATION_TIMEOUT_MS,
       'getLocation',
-    )
-
-    console.log(
-      `[GeoService] 定位成功 lat=${res.latitude} lng=${res.longitude} accuracy=${(res as { accuracy?: number }).accuracy ?? '未知'}m`,
     )
 
     return {
@@ -197,7 +199,7 @@ async function requestCurrentLocation(
     console.warn('[GeoService] getLocation failed:', errMsg)
 
     if (errMsg.includes('auth deny') || errMsg.includes('authorize')) {
-      showLocationPermissionGuide()
+      showLocationPermissionGuideOnce(mode)
     }
 
     return createDefaultLocation(buildLocationFailureMessage(errMsg))
@@ -226,7 +228,7 @@ export async function chooseLocationPoint(
     console.warn('[GeoService] chooseLocation failed:', errMsg)
 
     if (errMsg.includes('auth deny') || errMsg.includes('authorize')) {
-      showLocationPermissionGuide()
+      showLocationPermissionGuideOnce('interactive')
     }
 
     if (errMsg.includes('cancel')) {
@@ -260,10 +262,12 @@ export async function getCurrentLocation(
 }
 
 /** 引导用户开启定位权限 */
-function showLocationPermissionGuide(): void {
+function showLocationPermissionGuideOnce(mode: GetCurrentLocationMode): void {
+  if (mode !== 'interactive' || hasShownLocationPermissionGuide) return
+  hasShownLocationPermissionGuide = true
   uni.showModal({
     title: '需要位置权限',
-    content: '请在系统设置中开启位置权限，以便查找附近 AED 设备',
+    content: '请开启位置权限，用于查找附近 AED 和急救会话位置共享',
     confirmText: '去设置',
     success: (res) => {
       if (res.confirm) {

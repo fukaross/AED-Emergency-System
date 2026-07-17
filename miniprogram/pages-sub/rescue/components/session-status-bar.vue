@@ -2,17 +2,17 @@
   <view class="status-bar">
     <view
       class="status-btn"
-      :class="{ 'is-active': me?.takenAed, 'is-disabled': disabled }"
+      :class="{ 'is-active': me?.takenAed, 'is-disabled': disabled || pending }"
       @click="handleToggle('taken_aed')"
     >
-      <text class="status-btn-text">{{ me?.takenAed ? '✓ 已拿取 AED' : '我已拿取 AED' }}</text>
+      <text class="status-btn-text">{{ statusLabel('taken_aed') }}</text>
     </view>
     <view
       class="status-btn status-btn--secondary"
-      :class="{ 'is-active': me?.arrived, 'is-disabled': disabled }"
+      :class="{ 'is-active': me?.arrived, 'is-disabled': disabled || pending }"
       @click="handleToggle('arrived')"
     >
-      <text class="status-btn-text">{{ me?.arrived ? '✓ 已到达现场' : '我已到达现场' }}</text>
+      <text class="status-btn-text">{{ statusLabel('arrived') }}</text>
     </view>
   </view>
 </template>
@@ -23,6 +23,7 @@ import type { RescueEventType, RescueMe } from '@/types/rescue-session'
 const props = defineProps<{
   me: RescueMe | null
   disabled: boolean
+  pending: boolean
 }>()
 
 const emit = defineEmits<{
@@ -30,8 +31,14 @@ const emit = defineEmits<{
 }>()
 
 function handleToggle(eventType: RescueEventType): void {
-  if (props.disabled) return
+  if (props.disabled || props.pending) return
   emit('toggle', eventType)
+}
+
+function statusLabel(eventType: RescueEventType): string {
+  if (props.pending) return '同步中'
+  if (eventType === 'taken_aed') return props.me?.takenAed ? '✓ 已拿取 AED' : '我已拿取 AED'
+  return props.me?.arrived ? '✓ 已到达现场' : '我已到达现场'
 }
 </script>
 

@@ -7,39 +7,53 @@ import { RESCUE_LOCATION_REPORT_INTERVAL_MS } from '@/utils/rescue-signal'
 const LOCATION_TIMEOUT_MS = 3000
 
 export function useSessionLocationReporter(report: (point: GeoPoint) => Promise<void>) {
-  let timer: ReturnType<typeof setInterval> | null = null
-  let reporting = false
+  let currentRun: ReporterRun | null = null
+  let generation = 0
 
-  async function tick(): Promise<void> {
-    if (reporting) return
-    reporting = true
+  async function tick(run: ReporterRun): Promise<void> {
+    if (!isActive(run) || run.reporting) return
+    run.reporting = true
     try {
       const location = await getCurrentLocation({ timeoutMs: LOCATION_TIMEOUT_MS })
-      if (location.success) {
-        await report(location.point)
-      }
-    } catch {
-      // 上报失败不阻塞下一次节拍（轮询容错惯例，同 detail.vue refreshDetail）
+      if (!isActive(run) || !location.success) return
+      await report(location.point)
+    } catch (error) {
+      if (isActive(run)) console.warn('[SessionLocation] 位置上报失败', error)
     } finally {
-      reporting = false
+      run.reporting = false
     }
   }
 
   function start(): void {
     stop()
-    void tick()
-    timer = setInterval(() => void tick(), RESCUE_LOCATION_REPORT_INTERVAL_MS)
+    const run: ReporterRun = {
+      generation: generation,
+      reporting: false,
+      timer: null,
+    }
+    currentRun = run
+    void tick(run)
+    run.timer = setInterval(() => void tick(run), RESCUE_LOCATION_REPORT_INTERVAL_MS)
   }
 
   function stop(): void {
-    if (timer) {
-      clearInterval(timer)
-      timer = null
-    }
-    reporting = false
+    generation += 1
+    const run = currentRun
+    currentRun = null
+    if (run?.timer) clearInterval(run.timer)
+  }
+
+  function isActive(run: ReporterRun): boolean {
+    return currentRun === run && run.generation === generation
   }
 
   onUnmounted(stop)
 
   return { start, stop }
+}
+
+interface ReporterRun {
+  readonly generation: number
+  reporting: boolean
+  timer: ReturnType<typeof setInterval> | null
 }

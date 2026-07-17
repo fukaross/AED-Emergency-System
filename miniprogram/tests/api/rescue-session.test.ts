@@ -109,6 +109,7 @@ describe('rescue-session api (mock face)', () => {
     const view = await fetchRescueView('test-help-x')
     expect(view.respondersCount).toBe(1)
     expect(view.participants[0]).not.toHaveProperty('openId')
+    expect(view.participants[0].participantId).toBe('mock-participant-1')
     expect(view.events.map((item) => item.eventType)).toEqual(['joined', 'taken_aed'])
   })
 
@@ -122,5 +123,24 @@ describe('rescue-session api (mock face)', () => {
     await fetchRescueSession('mock-help-1')
     const after = await fetchMineRescueSessions()
     expect(after[0].unreadCount).toBe(0)
+  })
+
+  it('lists every active session and distinguishes sessions not yet joined', async () => {
+    const beforeJoin = await fetchMineRescueSessions()
+
+    expect(beforeJoin).toHaveLength(1)
+    expect(beforeJoin[0]).toMatchObject({
+      helpId: 'mock-help-1',
+      joined: false,
+      joinedAt: null,
+      unreadCount: 0,
+    })
+
+    await joinRescueSession('mock-help-1')
+    const afterJoin = await fetchMineRescueSessions()
+
+    expect(afterJoin[0].joined).toBe(true)
+    expect(afterJoin[0].joinedAt).not.toBeNull()
+    expect(afterJoin[0].unreadCount).toBe(2)
   })
 })

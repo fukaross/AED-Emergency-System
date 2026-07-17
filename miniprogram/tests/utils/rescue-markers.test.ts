@@ -5,6 +5,7 @@ import {
   buildSosMarker,
   buildViewParticipantMarker,
   interpolateGeo,
+  interpolateViewParticipants,
   PARTICIPANT_MARKER_OFFSET,
   SOS_MARKER_ID,
 } from '@/utils/rescue-markers'
@@ -30,14 +31,16 @@ describe('rescue-markers', () => {
     expect(marker.alpha).toBe(1)
   })
 
-  it('highlights participants carrying AED with the AED icon and larger size', () => {
+  it('labels participants carrying AED without reusing the static AED icon', () => {
     const normal = buildParticipantMarker(buildParticipant(), 0)
     const highlighted = buildParticipantMarker(buildParticipant({ takenAed: true }), 1)
 
     expect(normal?.iconPath).toBe('/static/images/avatar-default.png')
-    expect(highlighted?.iconPath).toBe('/static/images/aed-marker-online.png')
+    expect(highlighted?.iconPath).toBe('/static/images/avatar-default.png')
+    expect(highlighted?.callout?.content).toContain('携带 AED')
     expect(highlighted?.width).toBeGreaterThan(normal?.width ?? 0)
-    expect(highlighted?.id).toBe(PARTICIPANT_MARKER_OFFSET + 1)
+    expect(highlighted?.id).toBeGreaterThanOrEqual(PARTICIPANT_MARKER_OFFSET)
+    expect(buildParticipantMarker(buildParticipant(), 99)?.id).toBe(normal?.id)
   })
 
   it('dims lost signal participants and removes gone or unlocated ones', () => {
@@ -48,11 +51,14 @@ describe('rescue-markers', () => {
 
   it('builds view participant markers in the dedicated id range', () => {
     const marker = buildViewParticipantMarker(
-      { displayName: '李急救', takenAed: true, arrived: false, signal: 'ok', location: { lat: 1, lng: 2, reportedAt: '' } },
+      { participantId: 'participant-1', displayName: '李急救', takenAed: true, arrived: false, signal: 'ok', location: { lat: 1, lng: 2, reportedAt: '' } },
       3,
     )
-    expect(marker?.id).toBe(3003)
-    expect(marker?.iconPath).toBe('/static/images/aed-marker-online.png')
+    expect(marker?.id).toBe(buildViewParticipantMarker(
+      { participantId: 'participant-1', displayName: '李急救', takenAed: true, arrived: false, signal: 'ok', location: { lat: 1, lng: 2, reportedAt: '' } },
+      88,
+    )?.id)
+    expect(marker?.iconPath).toBe('/static/images/avatar-default.png')
   })
 
   it('interpolates positions linearly and clamps t', () => {
@@ -63,5 +69,26 @@ describe('rescue-markers', () => {
     expect(interpolateGeo(from, to, 1)).toEqual(to)
     expect(interpolateGeo(from, to, 1.5)).toEqual(to)
     expect(interpolateGeo(from, to, -1)).toEqual(from)
+  })
+
+  it('interpolates rescue-view participants by stable participant id', () => {
+    const current = [{
+      participantId: 'participant-1',
+      displayName: '李急救',
+      takenAed: false,
+      arrived: false,
+      signal: 'ok' as const,
+      location: { lat: 10, lng: 20, reportedAt: 'old' },
+    }]
+    const target = [{
+      ...current[0],
+      takenAed: true,
+      location: { lat: 12, lng: 24, reportedAt: 'new' },
+    }]
+
+    const halfway = interpolateViewParticipants(current, target, 0.5)
+
+    expect(halfway[0].location).toMatchObject({ lat: 11, lng: 22, reportedAt: 'new' })
+    expect(halfway[0].takenAed).toBe(true)
   })
 })

@@ -78,4 +78,17 @@ describe('user store', () => {
       avatarUrl: 'https://cdn.example/saved.png',
     })
   })
+
+  it('clears a cached certification profile when refresh is forbidden', async () => {
+    vi.mocked(fetchUserProfile).mockRejectedValue(
+      Object.assign(new Error('账号已禁用'), { statusCode: 403 }),
+    )
+    const store = useUserStore()
+    store.setLoginProfile({ ...buildProfile('缓存急救员', ''), certified: true })
+
+    await expect(store.loadProfile()).rejects.toMatchObject({ statusCode: 403 })
+
+    expect(store.userInfo).toBeNull()
+    expect(store.isCertified).toBe(false)
+  })
 })

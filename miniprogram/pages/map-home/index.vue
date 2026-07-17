@@ -37,8 +37,7 @@
     />
 
     <RescueSessionCard
-      :item="activeSessionItem"
-      :unread="rescueStore.totalUnread"
+      :items="visibleSessionItems"
       :stacked="Boolean(helpStore.activeRequest)"
       @open="openActiveSession"
     />
@@ -63,33 +62,10 @@
       @preview-image="handlePreviewAedImage"
     />
 
-    <Modal
-      v-model="showSubscribePrompt"
-      title="接收通知"
-      :show-close="false"
-      :show-footer="false"
-    >
-      <view class="subscribe-prompt">
-        <text class="subscribe-prompt__text">有人求助时提醒你</text>
-      </view>
-      <template #footer>
-        <view class="subscribe-prompt__actions">
-          <button
-            class="subscribe-prompt__btn subscribe-prompt__btn--ghost"
-            @tap="closeSubscribePrompt"
-          >
-            稍后
-          </button>
-          <button
-            class="subscribe-prompt__btn subscribe-prompt__btn--primary"
-            :loading="isRequestingSubscribe"
-            @tap="handleEnableSubscribe"
-          >
-            开启
-          </button>
-        </view>
-      </template>
-    </Modal>
+    <SubscribePromptModal
+      :active="pageVisible"
+      :logged-in="authStore.isLoggedIn"
+    />
 
     <AppTabBar current-path="/pages/map-home/index" />
   </view>
@@ -98,9 +74,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { onHide, onShow } from '@dcloudio/uni-app'
-import { requestAlertSubscribe } from '@/api/wechat-subscribe'
 import AppTabBar from '@/components/app-tab-bar/index.vue'
-import Modal from '@/components/modal/index.vue'
 import CustomNavbar from '@/components/custom-navbar/index.vue'
 import { useAedMap } from '@/composables/useAedMap'
 import { useTheme } from '@/composables/useTheme'
@@ -115,15 +89,15 @@ import { useHelpStore } from '@/store/help'
 import { useRescueSessionStore } from '@/store/rescue-session'
 import { useUserStore } from '@/store/user'
 import type { AedItem } from '@/types/aed'
-import { WECHAT_ALERT_TEMPLATE_ID } from '@/utils/constants'
-import { RESCUE_MINE_POLL_INTERVAL_MS } from '@/utils/rescue-signal'
-import { USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
+import { getVisibleRescueSessions } from './rescue-session-entry'
+import { createMapHomePolling } from './useMapHomePolling'
 import AedDetailModal from './components/aed-detail-modal.vue'
 import CurrentHelpCard from './components/current-help-card.vue'
 import MapFloatingActions from './components/map-floating-actions.vue'
 import MapStatusOverlay from './components/map-status-overlay.vue'
 import NearbyAedPanel from './components/nearby-aed-panel.vue'
 import RescueSessionCard from './components/rescue-session-card.vue'
+import SubscribePromptModal from './components/subscribe-prompt-modal.vue'
 
 interface MarkerTapEvent {
   readonly markerId?: number
@@ -135,11 +109,6 @@ interface MarkerTapEvent {
 const MAP_ID = 'aedMap'
 const MARKER_TAP_GUARD_MS = 250
 const MAP_LOAD_ERROR_TEXT = '地图加载失败，请检查网络后重试'
-const SUBSCRIBE_PROMPT_DELAY_MS = 800
-const HELP_POLL_INTERVAL_MS = 30_000
-const AED_POLL_INTERVAL_MS = 60_000
-
-let hasPromptedSubscribeThisSession = false
 
 const aedStore = useAedStore()
 const authStore = useAuthStore()
@@ -168,47 +137,39 @@ const mapErrorMessage = ref('')
 const showNearbyPanel = ref(false)
 const statusBarDismissed = ref(false)
 const showAedModal = ref(false)
-const showSubscribePrompt = ref(false)
-const isRequestingSubscribe = ref(false)
+const pageVisible = ref(false)
 const selectedAed = ref<AedItem | null>(null)
 
 let lastMarkerTapAt = 0
-let subscribePromptTimer: ReturnType<typeof setTimeout> | null = null
-let helpPollTimer: ReturnType<typeof setInterval> | null = null
-let aedPollTimer: ReturnType<typeof setInterval> | null = null
-let sessionPollTimer: ReturnType<typeof setInterval> | null = null
-let isHelpPolling = false
-let isAedPolling = false
-let isSessionPolling = false
+
+const homePolling = createMapHomePolling({
+  refreshAed: refreshCurrentAed,
+  loadHelp: (silent) => helpStore.loadList(1, 20, silent),
+  isLoggedIn: () => authStore.isLoggedIn,
+  refreshProfile: () => userStore.loadProfile(),
+  isCertified: () => userStore.isCertified,
+  loadSessions: () => rescueStore.loadMineSessions(userStore.userInfo?.id ?? '', true),
+  logout: () => authStore.logout(),
+  resetSessions: () => rescueStore.resetMineSessions(),
+})
 
 onMounted(() => {
   createMapCtx(MAP_ID)
 })
 
 onShow(() => {
-  pollAedList()
-  helpStore.loadList().catch(() => {
-    console.warn('[MapHome] 求助列表加载失败')
-  })
-  void pollMineSessions()
-  startSessionPolling()
-  scheduleSubscribePrompt()
-  startAedPolling()
-  startHelpPolling()
+  pageVisible.value = true
+  homePolling.start()
 })
 
 onHide(() => {
-  clearSubscribePromptTimer()
-  stopAedPolling()
-  stopHelpPolling()
-  stopSessionPolling()
+  pageVisible.value = false
+  homePolling.stop()
 })
 
 onUnmounted(() => {
-  clearSubscribePromptTimer()
-  stopAedPolling()
-  stopHelpPolling()
-  stopSessionPolling()
+  pageVisible.value = false
+  homePolling.stop()
 })
 
 const statusMessage = computed(() => {
@@ -218,84 +179,14 @@ const statusMessage = computed(() => {
   return ''
 })
 
-async function pollAedList(): Promise<void> {
-  if (isAedPolling) return
-  isAedPolling = true
-  try {
-    await refreshCurrentAed()
-  } catch {
-    console.warn('[MapHome] AED 列表刷新失败')
-  } finally {
-    isAedPolling = false
-  }
-}
+const visibleSessionItems = computed(() => getVisibleRescueSessions(
+  authStore.isLoggedIn,
+  userStore.isCertified,
+  rescueStore.mineItems,
+))
 
-function startAedPolling(): void {
-  stopAedPolling()
-  aedPollTimer = setInterval(pollAedList, AED_POLL_INTERVAL_MS)
-}
-
-function stopAedPolling(): void {
-  if (aedPollTimer) {
-    clearInterval(aedPollTimer)
-    aedPollTimer = null
-  }
-  isAedPolling = false
-}
-
-async function pollHelpList() {
-  if (isHelpPolling) return
-  isHelpPolling = true
-  try { await helpStore.loadList(1, 20, true) }
-  catch { /* silently ignore poll errors */ }
-  finally { isHelpPolling = false }
-}
-
-function startHelpPolling() {
-  stopHelpPolling()
-  helpPollTimer = setInterval(pollHelpList, HELP_POLL_INTERVAL_MS)
-}
-
-function stopHelpPolling() {
-  if (helpPollTimer) { clearInterval(helpPollTimer); helpPollTimer = null }
-  isHelpPolling = false
-}
-
-/** 进行中会话入口：仅认证急救员可见；身份资料未加载时先静默加载（BackEnd.md §4.5A 主页入口） */
-async function pollMineSessions(): Promise<void> {
-  if (isSessionPolling || !authStore.isLoggedIn) return
-  isSessionPolling = true
-  try {
-    if (!userStore.userInfo) {
-      await userStore.loadProfile()
-    }
-    if (userStore.isCertified) {
-      await rescueStore.loadMineSessions(true)
-    }
-  } catch { /* 静默轮询容错 */ }
-  finally { isSessionPolling = false }
-}
-
-function startSessionPolling() {
-  stopSessionPolling()
-  sessionPollTimer = setInterval(pollMineSessions, RESCUE_MINE_POLL_INTERVAL_MS)
-}
-
-function stopSessionPolling() {
-  if (sessionPollTimer) { clearInterval(sessionPollTimer); sessionPollTimer = null }
-  isSessionPolling = false
-}
-
-const activeSessionItem = computed(() => {
-  return userStore.isCertified && rescueStore.mineItems.length > 0
-    ? rescueStore.mineItems[0]
-    : null
-})
-
-function openActiveSession(): void {
-  const item = activeSessionItem.value
-  if (!item) return
-  uni.navigateTo({ url: `/pages-sub/rescue/session?id=${item.helpId}` })
+function openActiveSession(helpId: string): void {
+  uni.navigateTo({ url: `/pages-sub/rescue/session?id=${helpId}` })
 }
 
 function openHelpPage(): void {
@@ -310,55 +201,6 @@ function openCurrentHelp(): void {
 
 function showActiveHelpTip(): void {
   uni.showToast({ title: '已有进行中的求助', icon: 'none' })
-}
-
-function shouldShowSubscribePrompt(): boolean {
-  return USE_REAL_WECHAT_FLOW
-    && Boolean(WECHAT_ALERT_TEMPLATE_ID)
-    && !hasPromptedSubscribeThisSession
-    && authStore.isLoggedIn
-}
-
-function clearSubscribePromptTimer(): void {
-  if (!subscribePromptTimer) return
-  clearTimeout(subscribePromptTimer)
-  subscribePromptTimer = null
-}
-
-function scheduleSubscribePrompt(): void {
-  clearSubscribePromptTimer()
-  if (!shouldShowSubscribePrompt()) return
-
-  subscribePromptTimer = setTimeout(() => {
-    subscribePromptTimer = null
-    if (!shouldShowSubscribePrompt()) return
-    hasPromptedSubscribeThisSession = true
-    showSubscribePrompt.value = true
-  }, SUBSCRIBE_PROMPT_DELAY_MS)
-}
-
-function closeSubscribePrompt(): void {
-  showSubscribePrompt.value = false
-}
-
-async function handleEnableSubscribe(): Promise<void> {
-  if (isRequestingSubscribe.value) return
-
-  isRequestingSubscribe.value = true
-  try {
-    const status = await requestAlertSubscribe()
-    const accepted = status === 'accept' || status === 'acceptWithAudio'
-    uni.showToast({
-      title: accepted ? '已开启' : '未开启',
-      icon: accepted ? 'success' : 'none',
-    })
-    showSubscribePrompt.value = false
-  } catch (error) {
-    console.warn('[MapHome] 订阅授权失败', error)
-    uni.showToast({ title: '未开启', icon: 'none' })
-  } finally {
-    isRequestingSubscribe.value = false
-  }
 }
 
 function toggleNearbyPanel(): void {
@@ -430,53 +272,4 @@ function handleMapError(event: Event): void {
 }
 </script>
 
-<style lang="scss" scoped>
-.map-home {
-  position: relative;
-  width: 100%;
-  height: 100vh;
-}
-
-.map-canvas {
-  width: 100%;
-  height: 100%;
-}
-
-.subscribe-prompt {
-  padding: $spacing-xs $spacing-md $spacing-sm;
-}
-
-.subscribe-prompt__text {
-  color: $text-secondary;
-  font-size: $font-size-base;
-  line-height: 1.6;
-}
-
-.subscribe-prompt__actions {
-  display: flex;
-  gap: $spacing-sm;
-  width: 100%;
-}
-
-.subscribe-prompt__btn {
-  flex: 1;
-  height: 88rpx;
-  border-radius: $radius-md;
-  font-size: $font-size-base;
-  line-height: 88rpx;
-}
-
-.subscribe-prompt__btn::after {
-  border: 0;
-}
-
-.subscribe-prompt__btn--ghost {
-  background: $background;
-  color: $text-secondary;
-}
-
-.subscribe-prompt__btn--primary {
-  background: $primary;
-  color: $text-white;
-}
-</style>
+<style lang="scss" scoped src="./index.scss" />
