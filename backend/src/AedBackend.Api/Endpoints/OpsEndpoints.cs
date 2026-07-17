@@ -47,6 +47,7 @@ public static class OpsEndpoints
         IAdminAuthorizationService authorization,
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         RescueSessionBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
@@ -57,11 +58,15 @@ public static class OpsEndpoints
         {
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "status 不支持", 400);
         }
+        var existing = await helpStore.FindByIdOrRequestNoAsync(id, cancellationToken);
+        if (existing is null)
+            return EndpointFailures.JsonFailure(ErrorCodes.ResourceNotFound, "求助不存在", 404);
+        using var lifecycleLease = await lifecycle.EnterAsync(existing.Id, cancellationToken);
 
         try
         {
             var record = await helpStore.CloseAsync(
-                id,
+                existing.Id,
                 request.Status,
                 request.Note,
                 DateTimeOffset.UtcNow,

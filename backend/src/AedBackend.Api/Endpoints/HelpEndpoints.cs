@@ -42,6 +42,7 @@ public static class HelpEndpoints
         IUserAccountStatusService accountStatus,
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         IResponderStore responderStore,
         IWeChatSubscribeMessageSender sender,
         CancellationToken cancellationToken)
@@ -73,18 +74,22 @@ public static class HelpEndpoints
         }
 
         var record = HelpPublishFlow.CreateRecord(request, currentUser);
+        using var lifecycleLease = await lifecycle.EnterAsync(record.Id, cancellationToken);
         await helpStore.SaveAsync(record, cancellationToken);
         // 急救会话随求助发布创建（BackEnd.md §4.5A 生命周期约定）
         await sessionStore.GetOrCreateAsync(record.Id, DateTimeOffset.UtcNow, cancellationToken);
-        var recipients = await HelpPublishFlow.SendNotificationsAsync(
-            record,
-            request,
-            currentUser,
-            options.Value,
-            userStore,
-            responderStore,
-            sender,
-            cancellationToken);
+        var recipients = await HelpPublishFlow.SendNotificationsAsync(new HelpNotificationInput
+        {
+            Record = record,
+            Request = request,
+            CurrentUser = currentUser,
+            Options = options.Value,
+            UserStore = userStore,
+            AccountStatus = accountStatus,
+            ResponderStore = responderStore,
+            Sender = sender,
+            CancellationToken = cancellationToken,
+        });
 
         return Results.Ok(ApiResponse.Ok(HelpPublishFlow.ToPublishResponse(record, recipients)));
     }
@@ -157,6 +162,7 @@ public static class HelpEndpoints
         IResponderStore responderStore,
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         RescueSessionBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
@@ -170,43 +176,19 @@ public static class HelpEndpoints
             cancellationToken);
         if (responder.Failure is not null) return responder.Failure;
 
-        var validationError = HelpPublishFlow.ValidateReport(
-            request,
-            options.Value,
-            uploadOptions.Value);
-        if (validationError is not null)
+        return await HelpReportFlow.ExecuteAsync(new HelpReportInput
         {
-            return EndpointFailures.JsonFailure(ErrorCodes.HelpReportMissingFields, validationError, 400);
-        }
-
-        var now = DateTimeOffset.UtcNow;
-        var report = new HelpReportRecord(
-            Guid.NewGuid().ToString("N"),
-            responder.User!.OpenId,
-            request.Images!,
-            request.RecordText.Trim(),
-            request.IsFalseAlarm,
-            now);
-        var nextStatus = request.IsFalseAlarm
-            ? HelpStatuses.FalseAlarm
-            : HelpStatuses.PendingReview;
-
-        return await UpdateHelpAsync(
-            async () =>
-            {
-                var updated = await helpStore.AddReportAsync(
-                    new HelpReportUpdate(id, report, nextStatus, now),
-                    cancellationToken);
-                // 误报先关闭会话并清空位置，再广播最终状态，避免客户端回读到关闭前坐标。
-                if (request.IsFalseAlarm)
-                {
-                    await sessionStore.CloseSessionAsync(updated.Id, cancellationToken);
-                }
-                await broadcaster.BroadcastAsync(updated.Id, "help_status", new RescueHelpStatusDto(updated.Status));
-                if (request.IsFalseAlarm) await broadcaster.CloseAllAsync(updated.Id, "help closed");
-                return updated;
-            },
-            record => Results.Ok(ApiResponse.Ok(new HelpReportResponse(report.Id, record.Status, now))));
+            HelpId = id,
+            Request = request,
+            WeChatOptions = options.Value,
+            UploadOptions = uploadOptions.Value,
+            Responder = responder,
+            HelpStore = helpStore,
+            SessionStore = sessionStore,
+            Lifecycle = lifecycle,
+            Broadcaster = broadcaster,
+            CancellationToken = cancellationToken,
+        });
     }
 
     private static async Task<IResult> CloseHelpAsync(
@@ -218,6 +200,7 @@ public static class HelpEndpoints
         IUserAccountStatusService accountStatus,
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         RescueSessionBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
@@ -236,12 +219,13 @@ public static class HelpEndpoints
         {
             return EndpointFailures.JsonFailure(ErrorCodes.Forbidden, "仅求助发布者本人可关闭", 403);
         }
+        using var lifecycleLease = await lifecycle.EnterAsync(existing.Id, cancellationToken);
 
         return await UpdateHelpAsync(
             async () =>
             {
                 var closed = await helpStore.CloseAsync(
-                    id,
+                    existing.Id,
                     request.Status,
                     request.Note,
                     DateTimeOffset.UtcNow,

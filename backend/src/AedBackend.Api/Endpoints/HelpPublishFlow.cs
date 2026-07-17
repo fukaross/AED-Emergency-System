@@ -3,12 +3,26 @@ using AedBackend.Core.DTOs.Help;
 using AedBackend.Core.DTOs.WeChat;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Models.WeChat;
+using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.WeChat;
 using AedBackend.Infrastructure.Upload;
 using AedBackend.Infrastructure.WeChat;
 
 namespace AedBackend.Api.Endpoints;
+
+internal sealed record HelpNotificationInput
+{
+    public required HelpRequestRecord Record { get; init; }
+    public required PublishHelpRequest Request { get; init; }
+    public required ExperienceUserRecord CurrentUser { get; init; }
+    public required WeChatOptions Options { get; init; }
+    public required IExperienceUserStore UserStore { get; init; }
+    public required IUserAccountStatusService AccountStatus { get; init; }
+    public required IResponderStore ResponderStore { get; init; }
+    public required IWeChatSubscribeMessageSender Sender { get; init; }
+    public required CancellationToken CancellationToken { get; init; }
+}
 
 internal static class HelpPublishFlow
 {
@@ -83,33 +97,36 @@ internal static class HelpPublishFlow
      * 排除求助发布者本人，不做地理过滤；落地页为会话页。
      */
     public static async Task<IReadOnlyList<BroadcastRecipientResult>> SendNotificationsAsync(
-        HelpRequestRecord record,
-        PublishHelpRequest request,
-        ExperienceUserRecord currentUser,
-        WeChatOptions options,
-        IExperienceUserStore userStore,
-        IResponderStore responderStore,
-        IWeChatSubscribeMessageSender sender,
-        CancellationToken cancellationToken)
+        HelpNotificationInput input)
     {
-        var profiles = await responderStore.GetAllAsync(cancellationToken);
+        var profiles = await input.ResponderStore.GetAllAsync(input.CancellationToken);
         var certifiedOpenIds = profiles
             .Where(p => p.QualificationStatus == "active" && !string.IsNullOrWhiteSpace(p.BoundOpenId))
             .Select(p => p.BoundOpenId!)
             .ToHashSet(StringComparer.Ordinal);
 
-        var users = await userStore.ListUsersAsync(cancellationToken);
-        var targets = users.Where(user =>
-            user.OpenId != record.UserId
-            && certifiedOpenIds.Contains(user.OpenId)
-            && IsTemplateAccepted(user, options.SubscribeTemplateId));
-        var data = CreateTemplateData(request, currentUser, record.CreatedAt);
-        var page = $"pages-sub/rescue/session?id={record.Id}";
+        var users = await input.UserStore.ListUsersAsync(input.CancellationToken);
+        var data = CreateTemplateData(input.Request, input.CurrentUser, input.Record.CreatedAt);
+        var page = $"pages-sub/rescue/session?id={input.Record.Id}";
         var results = new List<BroadcastRecipientResult>();
 
-        foreach (var target in targets)
+        foreach (var target in users)
         {
-            results.Add(await SendNotificationAsync(target, options, sender, page, data, cancellationToken));
+            if (target.OpenId == input.Record.UserId
+                || !certifiedOpenIds.Contains(target.OpenId)
+                || !IsTemplateAccepted(target, input.Options.SubscribeTemplateId)
+                || await input.AccountStatus.IsDisabledAsync(target.OpenId, input.CancellationToken))
+            {
+                continue;
+            }
+
+            results.Add(await SendNotificationAsync(
+                target,
+                input.Options,
+                input.Sender,
+                page,
+                data,
+                input.CancellationToken));
         }
 
         return results;

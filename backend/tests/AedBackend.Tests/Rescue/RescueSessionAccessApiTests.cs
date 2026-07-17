@@ -51,6 +51,32 @@ public sealed class RescueSessionAccessApiTests : AdminApiTestBase
     }
 
     [Fact]
+    public async Task Publish_SkipsDisabledCertifiedResponderAccounts()
+    {
+        SeedLoggedInExperienceUsers(
+            SubscribeTemplateId,
+            ("openid-1", RequesterToken),
+            ("openid-2", ResponderTokenA),
+            ("openid-3", "token-disabled"),
+            ("openid-4", PlainToken));
+        SeedBoundResponders(
+            ("rescuer-t0", "openid-1", "active", "求助人"),
+            ("rescuer-t1", "openid-2", "active", "张急救"),
+            ("rescuer-t2", "openid-3", "active", "李禁用"));
+        UseAdminKey(await BootstrapAndLoginAsync());
+        var disabled = await Client.PutAsJsonAsync(
+            "/api/admin/users/openid-3",
+            new { accountStatus = "disabled" });
+        Assert.Equal(HttpStatusCode.OK, disabled.StatusCode);
+
+        var helpId = await PublishHelpAsync(RequesterToken);
+
+        var sent = Assert.Single(Sender.Sent);
+        Assert.Equal("openid-2", sent.OpenId);
+        Assert.Equal($"pages-sub/rescue/session?id={helpId}", sent.Page);
+    }
+
+    [Fact]
     public async Task Detail_TightenedToRequesterOrCertifiedResponder()
     {
         SeedStandardCast();

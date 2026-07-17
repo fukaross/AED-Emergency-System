@@ -25,9 +25,8 @@ internal sealed record RescueSessionJoinState
 {
     public required CertifiedResponderResult Responder { get; init; }
     public required HelpRequestRecord Help { get; init; }
-    public required RescueSessionRecord Session { get; init; }
+    public required RescueSessionJoinResult Join { get; init; }
     public required DateTimeOffset Now { get; init; }
-    public required bool IsNewParticipant { get; init; }
 }
 
 /** Join 用例编排：认证、原子写入、joined 扇出与 published -> responding 派生。 */
@@ -70,44 +69,39 @@ internal static class RescueSessionJoinFlow
         HelpRequestRecord help)
     {
         var now = DateTimeOffset.UtcNow;
-        var existing = await input.Services.SessionStore.FindByHelpIdAsync(help.Id, input.CancellationToken);
-        var isNew = existing?.Participants.Any(item => item.OpenId == responder.User!.OpenId) != true;
         var displayName = EndpointRescuers.ResolveDisplayName(responder.Profile!, responder.User!);
-        var write = await RescueSessionWriteGuard.ExecuteAsync(() =>
-            input.Services.SessionStore.JoinAsync(
-                new RescueSessionJoinCommand(help.Id, responder.User!.OpenId, displayName, now),
-                input.CancellationToken));
+        var write = await RescueSessionWriteGuard.ExecuteActiveAsync(
+            new RescueSessionActiveWrite<RescueSessionJoinResult>
+            {
+                HelpId = help.Id,
+                Services = input.Services,
+                Write = () => input.Services.SessionStore.JoinAsync(
+                    new RescueSessionJoinCommand(help.Id, responder.User!.OpenId, displayName, now),
+                    input.CancellationToken),
+                CancellationToken = input.CancellationToken,
+            });
         return write.Failure is not null
             ? new RescueSessionWriteResult<RescueSessionJoinState>(null, write.Failure)
             : new RescueSessionWriteResult<RescueSessionJoinState>(new RescueSessionJoinState
             {
                 Responder = responder,
                 Help = help,
-                Session = write.Value!,
+                Join = write.Value!,
                 Now = now,
-                IsNewParticipant = isNew,
             }, null);
     }
 
     private static async Task BroadcastJoinedAsync(RescueSessionJoinInput input, RescueSessionJoinState state)
     {
-        if (!state.IsNewParticipant) return;
+        if (!state.Join.IsNewParticipant || state.Join.JoinedEvent is null) return;
 
         var openId = state.Responder.User!.OpenId;
-        var joined = state.Session.Messages
-            .Where(item => item.Kind == RescueMessageKinds.StatusEvent
-                && item.EventType == RescueEventTypes.Joined
-                && item.SenderOpenId == openId)
-            .MaxBy(item => item.Seq);
-        if (joined is not null)
-        {
-            await input.Broadcaster.BroadcastAsync(
-                state.Help.Id,
-                "message",
-                RescueSessionMapper.ToMessage(joined));
-        }
+        await input.Broadcaster.BroadcastAsync(
+            state.Help.Id,
+            "message",
+            RescueSessionMapper.ToMessage(state.Join.JoinedEvent));
 
-        var participant = RescueSessionMapper.ToParticipants(state.Session, input.Options, state.Now)
+        var participant = RescueSessionMapper.ToParticipants(state.Join.Session, input.Options, state.Now)
             .First(item => item.OpenId == openId);
         await input.Broadcaster.BroadcastAsync(state.Help.Id, "participant", participant);
     }
@@ -116,7 +110,12 @@ internal static class RescueSessionJoinFlow
         RescueSessionJoinInput input,
         RescueSessionJoinState state)
     {
-        if (state.Help.Status != HelpStatuses.Published) return state.Help;
+        if (!state.Join.IsNewParticipant
+            || state.Join.Session.Participants.Count != 1
+            || state.Help.Status != HelpStatuses.Published)
+        {
+            return state.Help;
+        }
 
         var help = await input.Services.HelpStore.TransitionToRespondingAsync(
             state.Help.Id,
@@ -135,7 +134,7 @@ internal static class RescueSessionJoinFlow
         HelpRequestRecord help)
     {
         return Results.Ok(ApiResponse.Ok(RescueSessionMapper.ToSnapshot(
-            state.Session,
+            state.Join.Session,
             help,
             state.Responder.User!.OpenId,
             null,

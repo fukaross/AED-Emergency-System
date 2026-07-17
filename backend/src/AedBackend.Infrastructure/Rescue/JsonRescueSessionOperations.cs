@@ -25,15 +25,21 @@ internal static class JsonRescueSessionOperations
         return created;
     }
 
-    public static RescueSessionRecord Join(
+    public static RescueSessionJoinResult Join(
         JsonRescueSessionDatabase database,
         RescueSessionJoinCommand command)
     {
         var session = GetOrCreate(database, command.HelpRequestId, command.Now);
-        var next = FindParticipant(session, command.OpenId) is null
-            ? AddParticipant(session, command)
-            : TouchParticipant(session, command.OpenId, command.Now);
-        return Replace(database, next);
+        if (FindParticipant(session, command.OpenId) is null)
+        {
+            var next = AddParticipant(session, command, out var joined);
+            return new RescueSessionJoinResult(Replace(database, next), true, joined);
+        }
+
+        return new RescueSessionJoinResult(
+            Replace(database, TouchParticipant(session, command.OpenId, command.Now)),
+            false,
+            null);
     }
 
     public static RescueSessionRecord AppendMessage(
@@ -163,7 +169,8 @@ internal static class JsonRescueSessionOperations
 
     private static RescueSessionRecord AddParticipant(
         RescueSessionRecord session,
-        RescueSessionJoinCommand command)
+        RescueSessionJoinCommand command,
+        out RescueSessionMessageRecord joined)
     {
         var participant = new RescueSessionParticipantRecord
         {
@@ -172,7 +179,7 @@ internal static class JsonRescueSessionOperations
             JoinedAt = command.Now,
             LastSeenAt = command.Now
         };
-        var joined = CreateMessage(session, new MessageDraft
+        joined = CreateMessage(session, new MessageDraft
         {
             Kind = RescueMessageKinds.StatusEvent,
             SenderOpenId = command.OpenId,

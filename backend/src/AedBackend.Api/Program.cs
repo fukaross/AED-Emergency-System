@@ -18,6 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddWeChatInfrastructure(builder.Configuration);
+builder.Services.AddSingleton<RescueSessionLifecycleCoordinator>();
 builder.Services.AddSingleton<RescueSessionBroadcaster>();
 
 var app = builder.Build();

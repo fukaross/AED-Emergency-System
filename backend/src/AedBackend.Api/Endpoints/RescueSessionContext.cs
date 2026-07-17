@@ -15,7 +15,8 @@ internal sealed record SessionEndpointServices(
     IExperienceUserStore Users,
     IUserAccountStatusService AccountStatus,
     IHelpRequestStore HelpStore,
-    IRescueSessionStore SessionStore);
+    IRescueSessionStore SessionStore,
+    RescueSessionLifecycleCoordinator Lifecycle);
 
 internal sealed record ParticipantContextResult(
     HelpRequestRecord? Help,

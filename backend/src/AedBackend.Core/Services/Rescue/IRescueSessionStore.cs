@@ -8,7 +8,7 @@ public interface IRescueSessionStore
 
     Task<RescueSessionRecord> GetOrCreateAsync(string helpRequestId, DateTimeOffset now, CancellationToken ct);
 
-    Task<RescueSessionRecord> JoinAsync(RescueSessionJoinCommand command, CancellationToken ct);
+    Task<RescueSessionJoinResult> JoinAsync(RescueSessionJoinCommand command, CancellationToken ct);
 
     Task<RescueSessionRecord> AppendMessageAsync(RescueSessionAppendCommand command, CancellationToken ct);
 
@@ -40,6 +40,11 @@ public sealed record RescueSessionJoinCommand(
     string OpenId,
     string DisplayName,
     DateTimeOffset Now);
+
+public sealed record RescueSessionJoinResult(
+    RescueSessionRecord Session,
+    bool IsNewParticipant,
+    RescueSessionMessageRecord? JoinedEvent);
 
 public sealed record RescueSessionAppendCommand(
     string HelpRequestId,

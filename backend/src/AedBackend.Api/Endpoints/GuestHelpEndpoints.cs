@@ -30,6 +30,7 @@ internal static class GuestHelpEndpoints
         GuestCloseHelpRequest request,
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         RescueSessionBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
@@ -38,6 +39,7 @@ internal static class GuestHelpEndpoints
         {
             return EndpointFailures.JsonFailure(ErrorCodes.ResourceNotFound, "求助不存在", 404);
         }
+        using var lifecycleLease = await lifecycle.EnterAsync(record.Id, cancellationToken);
 
         return await HelpEndpoints.UpdateHelpAsync(
             async () =>

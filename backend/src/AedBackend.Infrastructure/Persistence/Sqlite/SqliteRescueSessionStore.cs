@@ -39,7 +39,7 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
         });
     }
 
-    public async Task<RescueSessionRecord> JoinAsync(RescueSessionJoinCommand command, CancellationToken ct)
+    public async Task<RescueSessionJoinResult> JoinAsync(RescueSessionJoinCommand command, CancellationToken ct)
     {
         return await WithWriteLockAsync(ct, async () =>
         {
@@ -49,15 +49,17 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
             var participant = session.Participants.FirstOrDefault(p => p.OpenId == command.OpenId);
             if (participant is null)
             {
-                AddParticipant(session, command);
-            }
-            else
-            {
-                participant.LastSeenAt = command.Now;
+                var joined = AddParticipant(session, command);
+                await db.SaveChangesAsync(ct);
+                return new RescueSessionJoinResult(
+                    SqliteMapper.ToRecord(session),
+                    true,
+                    SqliteMapper.ToRecord(joined));
             }
 
+            participant.LastSeenAt = command.Now;
             await db.SaveChangesAsync(ct);
-            return SqliteMapper.ToRecord(session);
+            return new RescueSessionJoinResult(SqliteMapper.ToRecord(session), false, null);
         });
     }
 
@@ -230,7 +232,7 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
         return entity;
     }
 
-    private static void AddParticipant(RescueSessionEntity session, RescueSessionJoinCommand command)
+    private static RescueSessionMessageEntity AddParticipant(RescueSessionEntity session, RescueSessionJoinCommand command)
     {
         session.Participants.Add(new RescueSessionParticipantEntity
         {
@@ -240,7 +242,7 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
             JoinedAt = command.Now,
             LastSeenAt = command.Now
         });
-        session.Messages.Add(new RescueSessionMessageEntity
+        var joined = new RescueSessionMessageEntity
         {
             Id = NewMessageId(),
             HelpRequestId = session.HelpRequestId,
@@ -251,9 +253,10 @@ internal sealed class SqliteRescueSessionStore : IRescueSessionStore
             EventType = RescueEventTypes.Joined,
             Action = RescueEventActions.Mark,
             CreatedAt = command.Now
-        });
+        };
+        session.Messages.Add(joined);
+        return joined;
     }
-
     private static async Task<RescueSessionEntity?> LoadAsync(
         AedDbContext db,
         string helpRequestId,

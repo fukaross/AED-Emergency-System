@@ -60,6 +60,7 @@ internal static class AdminHelpEndpoints
         IAdminAuditLogStore auditLogs,
         IHelpRequestStore store,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         RescueSessionBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
@@ -68,11 +69,15 @@ internal static class AdminHelpEndpoints
 
         if (request.Status is not (HelpStatuses.Closed or HelpStatuses.FalseAlarm))
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "status 不支持", 400);
+        var existing = await store.FindByIdOrRequestNoAsync(id, cancellationToken);
+        if (existing is null)
+            return EndpointFailures.JsonFailure(ErrorCodes.ResourceNotFound, "求助不存在", 404);
+        using var lifecycleLease = await lifecycle.EnterAsync(existing.Id, cancellationToken);
 
         try
         {
             var record = await store.CloseAsync(
-                id,
+                existing.Id,
                 request.Status,
                 request.Note,
                 DateTimeOffset.UtcNow,

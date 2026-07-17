@@ -39,10 +39,12 @@ public static class RescueSessionEndpoints
         IResponderStore responderStore,
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         RescueSessionBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
-        var services = new SessionEndpointServices(tokenService, userStore, accountStatus, helpStore, sessionStore);
+        var services = new SessionEndpointServices(
+            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
         return await RescueSessionJoinFlow.ExecuteAsync(new RescueSessionJoinInput
         {
             HttpRequest = httpRequest,
@@ -65,9 +67,11 @@ public static class RescueSessionEndpoints
         IUserAccountStatusService accountStatus,
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         CancellationToken cancellationToken)
     {
-        var services = new SessionEndpointServices(tokenService, userStore, accountStatus, helpStore, sessionStore);
+        var services = new SessionEndpointServices(
+            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
         var context = await RescueSessionContext.RequireParticipantAsync(httpRequest, id, services, cancellationToken);
         if (context.Failure is not null) return context.Failure;
 
@@ -80,12 +84,18 @@ public static class RescueSessionEndpoints
             rescueOptions.Value,
             now);
         // 隐式已读：lastReadSeq 推进到当前 latestSeq，响应中的 me 同步反映新值（BackEnd.md §4.5A）
-        var write = await RescueSessionWriteGuard.ExecuteAsync(() =>
-            services.SessionStore.MarkReadAsync(
-                context.Help!.Id,
-                context.User.OpenId,
-                snapshot.LatestSeq,
-                cancellationToken));
+        var write = await RescueSessionWriteGuard.ExecuteActiveAsync(
+            new RescueSessionActiveWrite<RescueSessionRecord>
+            {
+                HelpId = context.Help!.Id,
+                Services = services,
+                Write = () => services.SessionStore.MarkReadAsync(
+                    context.Help.Id,
+                    context.User.OpenId,
+                    snapshot.LatestSeq,
+                    cancellationToken),
+                CancellationToken = cancellationToken,
+            });
         if (write.Failure is not null) return write.Failure;
         return Results.Ok(ApiResponse.Ok(snapshot with
         {
@@ -102,10 +112,12 @@ public static class RescueSessionEndpoints
         IUserAccountStatusService accountStatus,
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         RescueSessionBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
-        var services = new SessionEndpointServices(tokenService, userStore, accountStatus, helpStore, sessionStore);
+        var services = new SessionEndpointServices(
+            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
         var context = await RescueSessionContext.RequireParticipantAsync(httpRequest, id, services, cancellationToken);
         if (context.Failure is not null) return context.Failure;
 
@@ -115,18 +127,24 @@ public static class RescueSessionEndpoints
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "text 需为 1~500 字符", 400);
         }
 
-        var write = await RescueSessionWriteGuard.ExecuteAsync(() =>
-            services.SessionStore.AppendMessageAsync(
-                new RescueSessionAppendCommand(
-                    context.Help!.Id,
-                    RescueMessageKinds.Text,
-                    context.User!.OpenId,
-                    context.Participant!.DisplayName,
-                    text,
-                    null,
-                    null,
-                    DateTimeOffset.UtcNow),
-                cancellationToken));
+        var write = await RescueSessionWriteGuard.ExecuteActiveAsync(
+            new RescueSessionActiveWrite<RescueSessionRecord>
+            {
+                HelpId = context.Help!.Id,
+                Services = services,
+                Write = () => services.SessionStore.AppendMessageAsync(
+                    new RescueSessionAppendCommand(
+                        context.Help.Id,
+                        RescueMessageKinds.Text,
+                        context.User!.OpenId,
+                        context.Participant!.DisplayName,
+                        text,
+                        null,
+                        null,
+                        DateTimeOffset.UtcNow),
+                    cancellationToken),
+                CancellationToken = cancellationToken,
+            });
         if (write.Failure is not null) return write.Failure;
         var session = write.Value!;
         var message = RescueSessionMapper.ToMessage(LatestMessage(session));
@@ -144,10 +162,12 @@ public static class RescueSessionEndpoints
         IUserAccountStatusService accountStatus,
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         RescueSessionBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
-        var services = new SessionEndpointServices(tokenService, userStore, accountStatus, helpStore, sessionStore);
+        var services = new SessionEndpointServices(
+            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
         return await RescueSessionStatusFlow.ExecuteAsync(new RescueSessionStatusInput
         {
             HttpRequest = httpRequest,
@@ -170,10 +190,12 @@ public static class RescueSessionEndpoints
         IUserAccountStatusService accountStatus,
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         RescueSessionBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
-        var services = new SessionEndpointServices(tokenService, userStore, accountStatus, helpStore, sessionStore);
+        var services = new SessionEndpointServices(
+            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
         var context = await RescueSessionContext.RequireParticipantAsync(httpRequest, id, services, cancellationToken);
         if (context.Failure is not null) return context.Failure;
 
@@ -183,15 +205,21 @@ public static class RescueSessionEndpoints
         }
 
         var now = DateTimeOffset.UtcNow;
-        var write = await RescueSessionWriteGuard.ExecuteAsync(() =>
-            services.SessionStore.UpdateLocationAsync(
-                new RescueSessionLocationCommand(
-                    context.Help!.Id,
-                    context.User!.OpenId,
-                    request.Lat,
-                    request.Lng,
-                    now),
-                cancellationToken));
+        var write = await RescueSessionWriteGuard.ExecuteActiveAsync(
+            new RescueSessionActiveWrite<RescueSessionRecord>
+            {
+                HelpId = context.Help!.Id,
+                Services = services,
+                Write = () => services.SessionStore.UpdateLocationAsync(
+                    new RescueSessionLocationCommand(
+                        context.Help.Id,
+                        context.User!.OpenId,
+                        request.Lat,
+                        request.Lng,
+                        now),
+                    cancellationToken),
+                CancellationToken = cancellationToken,
+            });
         if (write.Failure is not null) return write.Failure;
         var session = write.Value!;
         var participant = RescueSessionMapper.ToParticipants(session, rescueOptions.Value, now)

@@ -46,8 +46,10 @@ public sealed class JsonRescueSessionStoreTests : IDisposable
     {
         var store = CreateRegisteredStore();
 
-        var session = await store.JoinAsync(Join("help-1", "openid-a", "张三", BaseTime), CancellationToken.None);
+        var joined = await store.JoinAsync(Join("help-1", "openid-a", "张三", BaseTime), CancellationToken.None);
+        var session = joined.Session;
 
+        Assert.True(joined.IsNewParticipant);
         var participant = Assert.Single(session.Participants);
         Assert.Equal("openid-a", participant.OpenId);
         Assert.Equal("张三", participant.DisplayName);
@@ -55,6 +57,8 @@ public sealed class JsonRescueSessionStoreTests : IDisposable
         Assert.Equal(BaseTime, participant.LastSeenAt);
         Assert.Equal(0, participant.LastReadSeq);
         var message = Assert.Single(session.Messages);
+        Assert.NotNull(joined.JoinedEvent);
+        Assert.Equal(message.Id, joined.JoinedEvent!.Id);
         Assert.Equal(1, message.Seq);
         Assert.Equal(RescueMessageKinds.StatusEvent, message.Kind);
         Assert.Equal(RescueEventTypes.Joined, message.EventType);
@@ -68,9 +72,12 @@ public sealed class JsonRescueSessionStoreTests : IDisposable
         var store = CreateRegisteredStore();
 
         await store.JoinAsync(Join("help-1", "openid-a", "张三", BaseTime), CancellationToken.None);
-        var session = await store.JoinAsync(
+        var joined = await store.JoinAsync(
             Join("help-1", "openid-a", "张三", BaseTime.AddSeconds(30)), CancellationToken.None);
+        var session = joined.Session;
 
+        Assert.False(joined.IsNewParticipant);
+        Assert.Null(joined.JoinedEvent);
         var participant = Assert.Single(session.Participants);
         Assert.Equal(BaseTime, participant.JoinedAt);
         Assert.Equal(BaseTime.AddSeconds(30), participant.LastSeenAt);

@@ -24,7 +24,7 @@ public sealed class JsonRescueSessionStore : IRescueSessionStore
         CancellationToken ct) =>
         WithUpdateAsync(database => JsonRescueSessionOperations.GetOrCreate(database, helpRequestId, now), ct);
 
-    public Task<RescueSessionRecord> JoinAsync(RescueSessionJoinCommand command, CancellationToken ct) =>
+    public Task<RescueSessionJoinResult> JoinAsync(RescueSessionJoinCommand command, CancellationToken ct) =>
         WithUpdateAsync(database => JsonRescueSessionOperations.Join(database, command), ct);
 
     public Task<RescueSessionRecord> AppendMessageAsync(

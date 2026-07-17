@@ -71,18 +71,24 @@ internal static class RescueSessionStatusFlow
         RescueSessionStatusInput input,
         ParticipantContextResult context)
     {
-        return RescueSessionWriteGuard.ExecuteAsync(() =>
-            input.Services.SessionStore.AppendStatusEventAsync(
-                new RescueSessionStatusCommand
-                {
-                    HelpRequestId = context.Help!.Id,
-                    SenderOpenId = context.User!.OpenId,
-                    SenderName = context.Participant!.DisplayName,
-                    EventType = input.Request.EventType!,
-                    Action = input.Request.Action!,
-                    Now = DateTimeOffset.UtcNow,
-                },
-                input.CancellationToken));
+        return RescueSessionWriteGuard.ExecuteActiveAsync(
+            new RescueSessionActiveWrite<RescueSessionStatusAppendResult>
+            {
+                HelpId = context.Help!.Id,
+                Services = input.Services,
+                Write = () => input.Services.SessionStore.AppendStatusEventAsync(
+                    new RescueSessionStatusCommand
+                    {
+                        HelpRequestId = context.Help.Id,
+                        SenderOpenId = context.User!.OpenId,
+                        SenderName = context.Participant!.DisplayName,
+                        EventType = input.Request.EventType!,
+                        Action = input.Request.Action!,
+                        Now = DateTimeOffset.UtcNow,
+                    },
+                    input.CancellationToken),
+                CancellationToken = input.CancellationToken,
+            });
     }
 
     private static RescueSessionStatusOutput Project(

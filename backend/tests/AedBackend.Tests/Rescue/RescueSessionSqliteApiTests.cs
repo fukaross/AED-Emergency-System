@@ -20,6 +20,28 @@ public sealed class RescueSessionSqliteApiTests
     private static readonly DateTimeOffset BaseTime = new(2026, 7, 17, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task StoreJoin_ConcurrentDuplicate_ReturnsExactlyOneNewParticipant()
+    {
+        using var temp = new ProviderTempData();
+        await temp.WriteValidDataAsync();
+        await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
+        using var app = CreateSqliteApplication(temp);
+        var store = app.Services.GetRequiredService<IRescueSessionStore>();
+        var command = new RescueSessionJoinCommand("help-01", "openid-1", "急救员甲", BaseTime);
+
+        var results = await Task.WhenAll(
+            store.JoinAsync(command, CancellationToken.None),
+            store.JoinAsync(command, CancellationToken.None));
+
+        Assert.Single(results, result => result.IsNewParticipant);
+        Assert.Single(results, result => result.JoinedEvent is not null);
+        var session = await store.FindByHelpIdAsync("help-01", CancellationToken.None);
+        Assert.NotNull(session);
+        Assert.Single(session.Participants);
+        Assert.Single(session.Messages);
+    }
+
+    [Fact]
     public async Task StoreStatusEvents_ConcurrentDuplicate_AppendsOnce()
     {
         using var temp = new ProviderTempData();

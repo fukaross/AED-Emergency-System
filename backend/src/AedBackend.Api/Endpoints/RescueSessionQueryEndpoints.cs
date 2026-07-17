@@ -37,9 +37,11 @@ internal static class RescueSessionQueryEndpoints
         IResponderStore responderStore,
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         CancellationToken cancellationToken)
     {
-        var services = new SessionEndpointServices(tokenService, userStore, accountStatus, helpStore, sessionStore);
+        var services = new SessionEndpointServices(
+            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
         var current = await EndpointUsers.RequireActiveUserAsync(
             httpRequest,
             services.Tokens,
@@ -85,9 +87,11 @@ internal static class RescueSessionQueryEndpoints
         IResponderStore responderStore,
         IHelpRequestStore helpStore,
         IRescueSessionStore sessionStore,
+        RescueSessionLifecycleCoordinator lifecycle,
         CancellationToken cancellationToken)
     {
-        var services = new SessionEndpointServices(tokenService, userStore, accountStatus, helpStore, sessionStore);
+        var services = new SessionEndpointServices(
+            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
         var responder = await EndpointRescuers.RequireCertifiedResponderAsync(
             httpRequest,
             services.Tokens,

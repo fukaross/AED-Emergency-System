@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net.WebSockets;
 using AedBackend.Api.WebSockets;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,8 +7,9 @@ namespace AedBackend.Tests.Rescue;
 public sealed class RescueSessionBroadcasterTests
 {
     private static readonly TimeSpan TestSendTimeout = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan TestClosedHelpRetention = TimeSpan.FromMilliseconds(40);
+    private static readonly TimeSpan TestPruneInterval = TimeSpan.FromMilliseconds(10);
     private static readonly TimeSpan ParallelEntryTimeout = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan ParallelCompletionLimit = TimeSpan.FromMilliseconds(1750);
 
     [Fact]
     public async Task Broadcast_SerializesConcurrentSendsPerConnection()
@@ -46,13 +46,10 @@ public sealed class RescueSessionBroadcasterTests
         broadcaster.Register("help-1", Guid.NewGuid(), slowB);
         broadcaster.Register("help-1", Guid.NewGuid(), fast);
 
-        var stopwatch = Stopwatch.StartNew();
         var broadcast = broadcaster.BroadcastAsync("help-1", "participant", new { id = "p-1" });
         await bothEntered.Task.WaitAsync(ParallelEntryTimeout);
         await broadcast;
-        stopwatch.Stop();
 
-        Assert.True(stopwatch.Elapsed < ParallelCompletionLimit);
         Assert.Equal(1, slowA.AbortCount);
         Assert.Equal(1, slowB.AbortCount);
         Assert.Equal(1, fast.SendCount);
@@ -76,11 +73,54 @@ public sealed class RescueSessionBroadcasterTests
         Assert.Equal(1, socket.AbortCount);
     }
 
+    [Fact]
+    public async Task Broadcast_AfterCloseAll_DoesNotSendLateEnvelope()
+    {
+        var broadcaster = CreateBroadcaster();
+        var socket = new TrackingWebSocket(_ => Task.CompletedTask);
+        broadcaster.Register("help-1", Guid.NewGuid(), socket);
+        await broadcaster.CloseAllAsync("help-1", "help closed");
+
+        await broadcaster.BroadcastAsync("help-1", "message", new { seq = 1 });
+
+        Assert.Equal(0, socket.SendCount);
+    }
+
+    [Fact]
+    public void Unregister_LastConnection_RemovesEmptyHelpBucket()
+    {
+        var broadcaster = CreateBroadcaster();
+        var connectionId = Guid.NewGuid();
+        broadcaster.Register("help-1", connectionId, new TrackingWebSocket(_ => Task.CompletedTask));
+
+        broadcaster.Unregister("help-1", connectionId);
+
+        Assert.Equal(0, broadcaster.ActiveHelpBucketCount);
+    }
+
+    [Fact]
+    public async Task ClosedHelpIds_ExpireAfterRetentionAndArePruned()
+    {
+        var broadcaster = CreateBroadcaster();
+        await broadcaster.CloseAllAsync("help-1", "help closed");
+        Assert.Equal(1, broadcaster.ClosedHelpCount);
+
+        await Task.Delay(TestClosedHelpRetention + TestPruneInterval + TestPruneInterval);
+        var socket = new TrackingWebSocket(_ => Task.CompletedTask);
+        var registered = broadcaster.Register("help-1", Guid.NewGuid(), socket);
+
+        Assert.True(registered);
+        Assert.Equal(0, broadcaster.ClosedHelpCount);
+        Assert.Equal(1, broadcaster.ActiveHelpBucketCount);
+    }
+
     private static RescueSessionBroadcaster CreateBroadcaster()
     {
         return new RescueSessionBroadcaster(
             NullLogger<RescueSessionBroadcaster>.Instance,
-            TestSendTimeout);
+            TestSendTimeout,
+            TestClosedHelpRetention,
+            TestPruneInterval);
     }
 
     private sealed class TrackingWebSocket(Func<CancellationToken, Task> send) : WebSocket

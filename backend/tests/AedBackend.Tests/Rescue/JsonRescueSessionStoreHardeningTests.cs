@@ -40,6 +40,24 @@ public sealed class JsonRescueSessionStoreHardeningTests : IDisposable
     }
 
     [Fact]
+    public async Task JoinAsync_ConcurrentDuplicate_ReturnsExactlyOneNewParticipant()
+    {
+        var store = CreateRegisteredStore();
+        var command = Join("help-1", "openid-a", "张三", BaseTime);
+
+        var results = await Task.WhenAll(
+            store.JoinAsync(command, CancellationToken.None),
+            store.JoinAsync(command, CancellationToken.None));
+
+        Assert.Single(results, result => result.IsNewParticipant);
+        Assert.Single(results, result => result.JoinedEvent is not null);
+        var session = await store.FindByHelpIdAsync("help-1", CancellationToken.None);
+        Assert.NotNull(session);
+        Assert.Single(session.Participants);
+        Assert.Single(session.Messages);
+    }
+
+    [Fact]
     public async Task AppendStatusEventAsync_StatusEventsAreAtomicallyDebouncedInsideStore()
     {
         var store = CreateRegisteredStore();
