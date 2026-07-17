@@ -5,6 +5,7 @@ export interface AmapLngLat {
 
 export interface AmapMarker {
   setPosition(lnglat: AmapLngLat): void
+  setContent(content: string): void
   on(event: string, handler: (...args: unknown[]) => void): void
   remove(): void
 }

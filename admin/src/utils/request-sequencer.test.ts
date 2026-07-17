@@ -19,4 +19,13 @@ describe('request sequencer', () => {
     expect(sequencer.isCurrent(pollTicket)).toBe(false)
     expect(sequencer.isCurrent(manualTicket)).toBe(true)
   })
+
+  it('explicitly invalidates the current ticket when a view is paused', () => {
+    const sequencer = createRequestSequencer()
+    const ticket = sequencer.next()
+
+    sequencer.invalidate()
+
+    expect(sequencer.isCurrent(ticket)).toBe(false)
+  })
 })

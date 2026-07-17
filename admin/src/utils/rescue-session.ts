@@ -17,21 +17,21 @@ const EVENT_LABELS = {
 
 /** 与后端同一 TTL 规则：≤45s ok，≤90s lost，>90s gone（BackEnd.md §4.5A） */
 export function computeSignal(
-  lastSeenAt: string,
+  locationReportedAt: string,
   now: number,
   lostAfterSeconds = RESCUE_SIGNAL_LOST_AFTER_SECONDS,
   goneAfterSeconds = RESCUE_SIGNAL_GONE_AFTER_SECONDS,
 ): RescueSignal {
-  const elapsedSeconds = (now - Date.parse(lastSeenAt)) / MS_PER_SECOND
+  const elapsedSeconds = (now - Date.parse(locationReportedAt)) / MS_PER_SECOND
   if (elapsedSeconds <= lostAfterSeconds) return 'ok'
   if (elapsedSeconds <= goneAfterSeconds) return 'lost'
   return 'gone'
 }
 
-/** 消息 → 监控消息流文案（文字消息原文，状态事件结构化文案） */
+/** 消息 → 监控消息流文案（文字消息带发送者，状态事件使用结构化文案）。 */
 export function formatRescueMessageText(message: AdminRescueMessage): string {
   if (message.kind === 'text') {
-    return message.text ?? ''
+    return `${message.senderName}：${message.text ?? ''}`
   }
   const label = EVENT_LABELS[message.eventType ?? 'joined']
   if (message.action === 'revoke') {
@@ -45,11 +45,17 @@ export interface RescueMarkerMeta {
   readonly label: string
 }
 
-/** 参与者 marker 元信息：拿 AED 绿色高亮，普通参与者蓝色，SOS 红色 */
-export function participantMarkerMeta(participant: { takenAed: boolean }): RescueMarkerMeta {
+/** 参与者 marker 元信息：lost 灰显优先于拿 AED 高亮。 */
+export function participantMarkerMeta(
+  participant: { takenAed: boolean; signal: RescueSignal },
+): RescueMarkerMeta {
+  const label = participant.takenAed ? 'A' : '急'
+  if (participant.signal !== 'ok') {
+    return { color: '#909399', label }
+  }
   return participant.takenAed
-    ? { color: '#4caf50', label: 'A' }
-    : { color: '#2196f3', label: '急' }
+    ? { color: '#4caf50', label }
+    : { color: '#2196f3', label }
 }
 
 export const SOS_MARKER_META: RescueMarkerMeta = { color: '#e53935', label: '救' }

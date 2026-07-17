@@ -1,4 +1,3 @@
-// 急救会话监控地图 —— 高德多 marker 动态增删/更新（只读监控，BackEnd.md §4.12）
 import { ref } from 'vue'
 import type { AMapModule, AmapMap, AmapMarker } from '@/types/amap'
 import type { AdminRescueParticipant, RescueSos } from '@/types/rescue-session'
@@ -7,85 +6,129 @@ import { participantMarkerMeta, SOS_MARKER_META, type RescueMarkerMeta } from '@
 
 const SOS_MARKER_KEY = '__sos__'
 const DEFAULT_CENTER: [number, number] = [110.51346, 19.976547]
+const DEFAULT_ZOOM = 15
 
-export function useRescueMap() {
-  const loading = ref(false)
-  const error = ref('')
+interface MarkerTarget {
+  readonly position: [number, number]
+  readonly meta: RescueMarkerMeta
+}
 
-  let AMapMod: AMapModule | null = null
-  let mapInstance: AmapMap | null = null
-  let fittedOnce = false
-  const markers = new Map<string, AmapMarker>()
+interface RescueMapOptions {
+  readonly loadMap?: () => Promise<AMapModule>
+}
 
-  async function initMap(containerId: string, center?: [number, number]): Promise<void> {
-    loading.value = true
-    error.value = ''
+class RescueMapController {
+  readonly loading = ref(false)
+  readonly error = ref('')
+
+  private AMapMod: AMapModule | null = null
+  private mapInstance: AmapMap | null = null
+  private fittedParticipantsOnce = false
+  private initGeneration = 0
+  private readonly markers = new Map<string, AmapMarker>()
+
+  constructor(private readonly loadMap: () => Promise<AMapModule>) {}
+
+  async initMap(containerId: string, center?: [number, number]): Promise<void> {
+    const generation = ++this.initGeneration
+    this.loading.value = true
+    this.error.value = ''
     try {
-      AMapMod = await loadAmap()
-      mapInstance = new AMapMod.Map(containerId, {
-        zoom: 15,
+      const loadedModule = await this.loadMap()
+      if (generation !== this.initGeneration) return
+      this.AMapMod = loadedModule
+      this.mapInstance = new loadedModule.Map(containerId, {
+        zoom: DEFAULT_ZOOM,
         center: center ?? DEFAULT_CENTER,
         resizeEnable: true,
         viewMode: '2D',
       })
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : '高德地图加载失败'
+    } catch (error: unknown) {
+      if (generation !== this.initGeneration) return
+      this.error.value = error instanceof Error ? error.message : '高德地图加载失败'
     } finally {
-      loading.value = false
+      if (generation === this.initGeneration) this.loading.value = false
     }
   }
 
-  /** 同步 SOS 点与参与者位置：新增添加、移动更新、消失移除，首个有效帧自适应视野 */
-  function syncMarkers(sos: RescueSos, participants: readonly AdminRescueParticipant[]): void {
-    if (!mapInstance || !AMapMod) return
+  /** 每个快照同时同步位置和视觉状态，避免 marker 状态滞后。 */
+  syncMarkers(sos: RescueSos, participants: readonly AdminRescueParticipant[]): void {
+    if (!this.mapInstance || !this.AMapMod) return
+    const targets = this.createTargets(sos, participants)
+    this.removeStaleMarkers(targets)
+    this.upsertMarkers(targets)
+    this.fitFirstParticipants(targets)
+  }
 
-    const wanted = new Map<string, { position: [number, number]; meta: RescueMarkerMeta }>()
-    wanted.set(SOS_MARKER_KEY, { position: [sos.lng, sos.lat], meta: SOS_MARKER_META })
+  destroyMap(): void {
+    this.initGeneration += 1
+    this.loading.value = false
+    this.markers.clear()
+    this.mapInstance?.destroy()
+    this.mapInstance = null
+    this.AMapMod = null
+    this.fittedParticipantsOnce = false
+  }
+
+  private createTargets(
+    sos: RescueSos,
+    participants: readonly AdminRescueParticipant[],
+  ): Map<string, MarkerTarget> {
+    const targets = new Map<string, MarkerTarget>()
+    targets.set(SOS_MARKER_KEY, { position: [sos.lng, sos.lat], meta: SOS_MARKER_META })
     for (const participant of participants) {
-      if (!participant.location) continue
-      wanted.set(participant.openId, {
+      if (!participant.location || participant.signal === 'gone') continue
+      targets.set(participant.openId, {
         position: [participant.location.lng, participant.location.lat],
         meta: participantMarkerMeta(participant),
       })
     }
+    return targets
+  }
 
-    for (const [key, marker] of markers) {
-      if (!wanted.has(key)) {
-        mapInstance.remove(marker)
-        markers.delete(key)
-      }
+  private removeStaleMarkers(targets: ReadonlyMap<string, MarkerTarget>): void {
+    if (!this.mapInstance) return
+    for (const [key, marker] of this.markers) {
+      if (targets.has(key)) continue
+      this.mapInstance.remove(marker)
+      this.markers.delete(key)
     }
+  }
 
-    for (const [key, target] of wanted) {
-      const existing = markers.get(key)
+  private upsertMarkers(targets: ReadonlyMap<string, MarkerTarget>): void {
+    if (!this.mapInstance || !this.AMapMod) return
+    for (const [key, target] of targets) {
+      const existing = this.markers.get(key)
+      const content = buildMarkerContent(target.meta)
       if (existing) {
-        existing.setPosition(new AMapMod.LngLat(target.position[0], target.position[1]))
+        existing.setPosition(new this.AMapMod.LngLat(target.position[0], target.position[1]))
+        existing.setContent(content)
         continue
       }
-      const marker = new AMapMod.Marker({
-        position: target.position,
-        content: buildMarkerContent(target.meta),
-      })
-      mapInstance.add(marker)
-      markers.set(key, marker)
-    }
-
-    if (!fittedOnce && wanted.size > 0) {
-      mapInstance.setFitView()
-      fittedOnce = true
+      const marker = new this.AMapMod.Marker({ position: target.position, content })
+      this.mapInstance.add(marker)
+      this.markers.set(key, marker)
     }
   }
 
-  function buildMarkerContent(meta: RescueMarkerMeta): string {
-    return `<div style="width:28px;height:28px;border-radius:50%;background:${meta.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)">${meta.label}</div>`
+  private fitFirstParticipants(targets: ReadonlyMap<string, MarkerTarget>): void {
+    if (this.fittedParticipantsOnce || targets.size <= 1) return
+    this.mapInstance?.setFitView()
+    this.fittedParticipantsOnce = true
   }
+}
 
-  function destroyMap(): void {
-    markers.clear()
-    mapInstance?.destroy()
-    mapInstance = null
-    fittedOnce = false
+function buildMarkerContent(meta: RescueMarkerMeta): string {
+  return `<div style="width:28px;height:28px;border-radius:50%;background:${meta.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)">${meta.label}</div>`
+}
+
+export function useRescueMap(options: RescueMapOptions = {}) {
+  const controller = new RescueMapController(options.loadMap ?? loadAmap)
+  return {
+    loading: controller.loading,
+    error: controller.error,
+    initMap: controller.initMap.bind(controller),
+    syncMarkers: controller.syncMarkers.bind(controller),
+    destroyMap: controller.destroyMap.bind(controller),
   }
-
-  return { loading, error, initMap, syncMarkers, destroyMap }
 }

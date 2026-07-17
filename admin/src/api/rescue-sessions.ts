@@ -16,6 +16,6 @@ export function getRescueSessions(params: RescueSessionListParams = {}) {
   return client.get<ApiResponse<AdminRescueSessionListResponse>>('/rescue-sessions', { params })
 }
 
-export function getRescueSessionDetail(helpId: string) {
-  return client.get<ApiResponse<AdminRescueSessionDetail>>(`/rescue-sessions/${helpId}`)
+export function getRescueSessionDetail(helpId: string, signal?: AbortSignal) {
+  return client.get<ApiResponse<AdminRescueSessionDetail>>(`/rescue-sessions/${helpId}`, { signal })
 }

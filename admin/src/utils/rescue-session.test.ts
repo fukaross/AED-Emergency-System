@@ -25,19 +25,19 @@ function buildMessage(overrides: Partial<AdminRescueMessage>): AdminRescueMessag
 
 describe('computeSignal', () => {
   const now = Date.parse('2026-07-17T10:00:00.000Z')
-  const at = (secondsAgo: number) => new Date(now - secondsAgo * 1000).toISOString()
+  const reportedAt = (secondsAgo: number) => new Date(now - secondsAgo * 1000).toISOString()
 
-  it('follows the 45s / 90s thresholds with inclusive boundaries', () => {
-    expect(computeSignal(at(45), now)).toBe('ok')
-    expect(computeSignal(at(46), now)).toBe('lost')
-    expect(computeSignal(at(90), now)).toBe('lost')
-    expect(computeSignal(at(91), now)).toBe('gone')
+  it('uses location reported time for the inclusive 45s / 90s thresholds', () => {
+    expect(computeSignal(reportedAt(45), now)).toBe('ok')
+    expect(computeSignal(reportedAt(46), now)).toBe('lost')
+    expect(computeSignal(reportedAt(90), now)).toBe('lost')
+    expect(computeSignal(reportedAt(91), now)).toBe('gone')
   })
 })
 
 describe('formatRescueMessageText', () => {
-  it('returns raw text for text messages', () => {
-    expect(formatRescueMessageText(buildMessage({ kind: 'text', text: '我到了' }))).toBe('我到了')
+  it('attributes text messages to their sender', () => {
+    expect(formatRescueMessageText(buildMessage({ kind: 'text', text: '我到了' }))).toBe('张急救：我到了')
   })
 
   it('formats status events including revocations', () => {
@@ -48,9 +48,10 @@ describe('formatRescueMessageText', () => {
 })
 
 describe('participantMarkerMeta', () => {
-  it('highlights AED carriers green and others blue', () => {
-    expect(participantMarkerMeta({ takenAed: true }).color).toBe('#4caf50')
-    expect(participantMarkerMeta({ takenAed: false }).color).toBe('#2196f3')
+  it('highlights AED carriers and greys out lost participants', () => {
+    expect(participantMarkerMeta({ takenAed: true, signal: 'ok' }).color).toBe('#4caf50')
+    expect(participantMarkerMeta({ takenAed: false, signal: 'ok' }).color).toBe('#2196f3')
+    expect(participantMarkerMeta({ takenAed: true, signal: 'lost' }).color).toBe('#909399')
     expect(SOS_MARKER_META.color).toBe('#e53935')
   })
 })

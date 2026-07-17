@@ -8,6 +8,7 @@
       <div v-else-if="errorMessage" class="admin-card state-card">
         <el-result icon="error" :title="errorMessage">
           <template #extra>
+            <el-button type="primary" @click="retry">重新加载</el-button>
             <el-button type="primary" @click="goBack">返回列表</el-button>
           </template>
         </el-result>
@@ -73,28 +74,31 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import adminLayout from '@/components/admin-layout.vue'
 import statusTag from '@/components/status-tag.vue'
 import rescueMap from '@/components/rescue-map.vue'
-import { getRescueSessionDetail } from '@/api/rescue-sessions'
-import { getApiErrorMessage } from '@/api/client'
+import { useRescueSessionDetail } from '@/composables/use-rescue-session-detail'
 import { formatRescueMessageText, signalText } from '@/utils/rescue-session'
-import type { AdminRescueSessionDetail } from '@/types/rescue-session'
-
-const POLL_INTERVAL_MS = 10_000
-const CLOSED_STATUSES = ['closed', 'false_alarm']
 
 const route = useRoute()
 const router = useRouter()
+const initialHelpId = String(route.params.helpId || '')
 
-const detail = ref<AdminRescueSessionDetail | null>(null)
-const loading = ref(false)
-const errorMessage = ref('')
-
-let pollTimer: ReturnType<typeof setInterval> | null = null
-let isPolling = false
+const {
+  detail,
+  loading,
+  errorMessage,
+  loadData,
+  startPolling,
+  setVisible,
+  setHelpId,
+  destroy,
+} = useRescueSessionDetail({
+  helpId: initialHelpId,
+  initiallyVisible: !document.hidden,
+})
 
 function formatTime(dateStr: string): string {
   const date = new Date(dateStr)
@@ -106,80 +110,36 @@ function formatTime(dateStr: string): string {
   return `${mm}-${dd} ${hh}:${min}`
 }
 
-function helpId(): string {
-  return String(route.params.helpId || '')
-}
-
-async function refresh(showError: boolean): Promise<void> {
-  try {
-    const res = await getRescueSessionDetail(helpId())
-    detail.value = res.data.data
-    if (CLOSED_STATUSES.includes(res.data.data.helpStatus)) {
-      stopPolling()
-    }
-  } catch (error: unknown) {
-    if (!showError) return
-    console.error(error)
-    errorMessage.value = getApiErrorMessage(error, '加载急救会话失败')
-  }
-}
-
-async function loadData(): Promise<void> {
-  loading.value = true
-  try {
-    await refresh(true)
-  } finally {
-    loading.value = false
-  }
-}
-
-async function pollData(): Promise<void> {
-  if (isPolling) return
-  isPolling = true
-  try {
-    await refresh(false)
-  } finally {
-    isPolling = false
-  }
-}
-
-function startPolling(): void {
-  stopPolling()
-  pollTimer = setInterval(pollData, POLL_INTERVAL_MS)
-}
-
-function stopPolling(): void {
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
-  isPolling = false
-}
-
 function handleVisibilityChange(): void {
-  if (document.hidden) {
-    stopPolling()
-  } else if (detail.value && !CLOSED_STATUSES.includes(detail.value.helpStatus)) {
-    pollData()
-    startPolling()
-  }
+  void setVisible(!document.hidden)
 }
 
 function goBack(): void {
   router.push('/rescue-sessions')
 }
 
+async function retry(): Promise<void> {
+  await loadData()
+  if (detail.value) startPolling()
+}
+
+watch(
+  () => String(route.params.helpId || ''),
+  (helpId) => { void setHelpId(helpId) },
+)
+
 onMounted(async () => {
-  if (!helpId()) {
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  if (!initialHelpId) {
     errorMessage.value = '缺少求助编号'
     return
   }
   await loadData()
-  if (detail.value && !CLOSED_STATUSES.includes(detail.value.helpStatus)) {
-    startPolling()
-  }
-  document.addEventListener('visibilitychange', handleVisibilityChange)
+  if (detail.value) startPolling()
 })
 
 onUnmounted(() => {
-  stopPolling()
+  destroy()
   document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
