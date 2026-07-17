@@ -26,6 +26,9 @@ internal sealed class AedDbContext : DbContext
     public DbSet<QuickActionEntity> QuickActions => Set<QuickActionEntity>();
     public DbSet<HelpRequestEntity> HelpRequests => Set<HelpRequestEntity>();
     public DbSet<HelpReportEntity> HelpReports => Set<HelpReportEntity>();
+    public DbSet<RescueSessionEntity> RescueSessions => Set<RescueSessionEntity>();
+    public DbSet<RescueSessionParticipantEntity> RescueSessionParticipants => Set<RescueSessionParticipantEntity>();
+    public DbSet<RescueSessionMessageEntity> RescueSessionMessages => Set<RescueSessionMessageEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -34,6 +37,7 @@ internal sealed class AedDbContext : DbContext
         ConfigureCoreData(modelBuilder);
         ConfigureClassroom(modelBuilder);
         ConfigureHelp(modelBuilder);
+        ConfigureRescue(modelBuilder);
     }
 
     private static void ConfigureWeChat(ModelBuilder modelBuilder)
@@ -207,5 +211,30 @@ internal sealed class AedDbContext : DbContext
             e.HasMany(x => x.Images).WithOne().HasForeignKey(x => x.HelpReportId).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<HelpReportImageEntity>().ToTable("help_report_images").HasKey(x => x.Id);
+    }
+
+    private static void ConfigureRescue(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<RescueSessionEntity>(e =>
+        {
+            e.ToTable("rescue_sessions");
+            e.HasKey(x => x.HelpRequestId);
+            e.HasMany(x => x.Participants).WithOne().HasForeignKey(x => x.HelpRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Messages).WithOne().HasForeignKey(x => x.HelpRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<RescueSessionParticipantEntity>(e =>
+        {
+            e.ToTable("rescue_session_participants");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.HelpRequestId, x.OpenId }).IsUnique();
+        });
+        modelBuilder.Entity<RescueSessionMessageEntity>(e =>
+        {
+            e.ToTable("rescue_session_messages");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.HelpRequestId, x.Seq }).IsUnique();
+        });
     }
 }

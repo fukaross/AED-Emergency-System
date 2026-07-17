@@ -14,6 +14,7 @@ public sealed class HelpReportOssUrlTests
         using var temp = new ProviderTempData();
         await temp.WriteValidDataAsync();
         await temp.WriteUserJsonAsync("openid-1", "REDACTED", "token-1");
+        await temp.WriteBoundResponderJsonAsync("openid-1");
         using var app = new AdminTestApplication(temp.Root, new Dictionary<string, string?>
         {
             ["Upload:Oss:PublicBaseUrl"] = "REDACTED"

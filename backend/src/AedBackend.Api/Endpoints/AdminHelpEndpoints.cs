@@ -1,9 +1,12 @@
 using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.DTOs.Help;
+using AedBackend.Core.DTOs.Rescue;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
+using AedBackend.Core.Services.Rescue;
+using AedBackend.Api.WebSockets;
 
 namespace AedBackend.Api.Endpoints;
 
@@ -56,6 +59,8 @@ internal static class AdminHelpEndpoints
         IAdminAuthorizationService authorization,
         IAdminAuditLogStore auditLogs,
         IHelpRequestStore store,
+        IRescueSessionStore sessionStore,
+        RescueSessionBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
         var auth = await RequireAdminAsync(context, authorization, cancellationToken);
@@ -72,6 +77,10 @@ internal static class AdminHelpEndpoints
                 request.Note,
                 DateTimeOffset.UtcNow,
                 cancellationToken);
+            // 求助关闭级联关闭急救会话并清空参与者位置（BackEnd.md §4.5A 生命周期约定）
+            await sessionStore.CloseSessionAsync(record.Id, cancellationToken);
+            await broadcaster.BroadcastAsync(record.Id, "help_status", new RescueHelpStatusDto(record.Status));
+            await broadcaster.CloseAllAsync(record.Id, "help closed");
             await auditLogs.AppendAsync(CreateCloseAudit(context, auth.Principal, record), cancellationToken);
             return Results.Ok(ApiResponse.Ok(AdminEndpointHelpers.ToAdminHelpDetail(record)));
         }

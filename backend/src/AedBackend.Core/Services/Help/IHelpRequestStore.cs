@@ -30,4 +30,9 @@ public interface IHelpRequestStore
         string? note,
         DateTimeOffset closedAt,
         CancellationToken cancellationToken);
+
+    Task<HelpRequestRecord> TransitionToRespondingAsync(
+        string id,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
 }

@@ -19,6 +19,7 @@ public sealed class WeChatOptions
     public string KnowledgeSummaryFilePath { get; set; } = "data/knowledge-summary.json";
     public string CoursesFilePath { get; set; } = "data/courses.json";
     public string QuickActionsFilePath { get; set; } = "data/quick-actions.json";
+    public string RescueSessionsFilePath { get; set; } = "data/rescue-sessions.json";
     public string PublicBaseUrl { get; set; } = "REDACTED";
 
     public void ApplyEnvironmentAliases(IConfiguration configuration)

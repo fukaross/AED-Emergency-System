@@ -63,6 +63,11 @@ internal sealed class SqliteHelpRequestStore : IHelpRequestStore
         return await ReplaceAsync(id, item => CloseRequest(item, status, note, closedAt), ct);
     }
 
+    public async Task<HelpRequestRecord> TransitionToRespondingAsync(string id, DateTimeOffset now, CancellationToken ct)
+    {
+        return await ReplaceAsync(id, item => ToResponding(item, now), ct);
+    }
+
     private async Task<HelpRequestRecord> ReplaceAsync(
         string id,
         Func<HelpRequestRecord, HelpRequestRecord> update,
@@ -108,6 +113,18 @@ internal sealed class SqliteHelpRequestStore : IHelpRequestStore
             CloseNote = note,
             Timeline = AppendTimeline(item, status, closedAt, note)
         };
+    }
+
+    /** 首个急救员进入会话时 published → responding；其余状态原样返回（BackEnd.md §4.5A 状态机约定）。 */
+    private static HelpRequestRecord ToResponding(HelpRequestRecord item, DateTimeOffset now)
+    {
+        return item.Status == HelpStatuses.Published
+            ? item with
+            {
+                Status = HelpStatuses.Responding,
+                Timeline = AppendTimeline(item, HelpStatuses.Responding, now, null)
+            }
+            : item;
     }
 
     private static void EnsureOpen(HelpRequestRecord item)

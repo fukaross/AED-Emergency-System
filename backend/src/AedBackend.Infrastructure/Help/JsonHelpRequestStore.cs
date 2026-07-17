@@ -94,6 +94,16 @@ public sealed class JsonHelpRequestStore : IHelpRequestStore
             cancellationToken);
     }
 
+    public async Task<HelpRequestRecord> TransitionToRespondingAsync(
+        string id,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        return await WithUpdateAsync(
+            database => ReplaceRequest(database, id, item => ToResponding(item, now)),
+            cancellationToken);
+    }
+
     private static HelpRequestRecord? FindRequest(HelpRequestDatabase database, string id)
     {
         return database.Requests.FirstOrDefault(item =>
@@ -129,6 +139,18 @@ public sealed class JsonHelpRequestStore : IHelpRequestStore
             CloseNote = note,
             Timeline = AppendTimeline(item, status, closedAt, note)
         };
+    }
+
+    /** 首个急救员进入会话时 published → responding；其余状态原样返回（BackEnd.md §4.5A 状态机约定）。 */
+    private static HelpRequestRecord ToResponding(HelpRequestRecord item, DateTimeOffset now)
+    {
+        return item.Status == HelpStatuses.Published
+            ? item with
+            {
+                Status = HelpStatuses.Responding,
+                Timeline = AppendTimeline(item, HelpStatuses.Responding, now, null)
+            }
+            : item;
     }
 
     private static void EnsureOpen(HelpRequestRecord item)

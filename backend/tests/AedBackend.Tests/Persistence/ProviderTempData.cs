@@ -78,6 +78,22 @@ internal sealed class ProviderTempData : IDisposable
         await WriteAsync("wechat-experience-users.json", new ExperienceUsersDb { Users = [user] });
     }
 
+    public async Task WriteUsersJsonAsync(params (string OpenId, string Token)[] users)
+    {
+        var records = users.Select(u => new ExperienceUserRecord(
+            u.OpenId,
+            null,
+            "REDACTED",
+            null,
+            null,
+            null,
+            HashToken(u.Token),
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            new Dictionary<string, SubscriptionRecord>()));
+        await WriteAsync("wechat-experience-users.json", new ExperienceUsersDb { Users = [.. records] });
+    }
+
     public async Task WriteBoundResponderJsonAsync(string openId)
     {
         var responder = SampleResponder();

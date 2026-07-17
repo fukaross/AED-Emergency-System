@@ -8,6 +8,8 @@ public interface IResponderStore
 
     Task<ResponderProfileRecord?> FindByIdAsync(string id, CancellationToken cancellationToken);
 
+    Task<ResponderProfileRecord?> FindByBoundOpenIdAsync(string openId, CancellationToken cancellationToken);
+
     Task<ResponderProfileRecord?> UpdateAsync(
         string id,
         ResponderProfileRecord updated,

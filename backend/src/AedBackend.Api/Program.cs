@@ -1,5 +1,6 @@
 using AedBackend.Api;
 using AedBackend.Api.Endpoints;
+using AedBackend.Api.WebSockets;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Infrastructure.Extensions;
 using AedBackend.Infrastructure.Persistence;
@@ -17,6 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddWeChatInfrastructure(builder.Configuration);
+builder.Services.AddSingleton<RescueSessionBroadcaster>();
 
 var app = builder.Build();
 await RuntimeDataInitializer.EnsureReadyAsync(app.Services, CancellationToken.None);
@@ -53,12 +55,15 @@ if (Directory.Exists(adminStaticRoot))
 
 app.MapGet("/", () => ApiResponse.Ok(new { service = "AedBackend", status = "ok" }));
 app.MapGet("/health", () => ApiResponse.Ok(new { status = "healthy" }));
+app.UseWebSockets();
 app.MapWeChatAuthEndpoints();
 app.MapWeChatSubscriptionEndpoints();
 app.MapWeChatDevEndpoints();
 app.MapUploadEndpoints();
 app.MapAedEndpoints();
 app.MapHelpEndpoints();
+app.MapRescueSessionEndpoints();
+app.MapRescueWebSocketEndpoints();
 app.MapRescuerEndpoints();
 app.MapUserEndpoints();
 app.MapKnowledgeEndpoints();

@@ -19,6 +19,8 @@ public static class ErrorCodes
     public const int VitalAlertCoolingDown = 1013;
     public const int HelpAlreadyClosed = 1014;
     public const int HelpReportMissingFields = 1015;
+    public const int RescueSessionClosed = 1016;
+    public const int RescueNotParticipant = 1017;
 
     public const int AedNotFound = 2001;
     public const int CourseNotFound = 2002;

@@ -54,6 +54,12 @@ public sealed class JsonResponderStore : IResponderStore
             p.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
     }
 
+    public async Task<ResponderProfileRecord?> FindByBoundOpenIdAsync(string openId, CancellationToken ct)
+    {
+        var profiles = await LoadProfilesAsync(ct);
+        return profiles.FirstOrDefault(p => p.BoundOpenId == openId);
+    }
+
     public async Task<ResponderProfileRecord?> UpdateAsync(
         string id,
         ResponderProfileRecord updated,

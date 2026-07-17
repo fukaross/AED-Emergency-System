@@ -134,6 +134,13 @@ internal sealed class SqliteResponderStore : IResponderStore
         return item is null ? null : SqliteMapper.ToRecord(item);
     }
 
+    public async Task<ResponderProfileRecord?> FindByBoundOpenIdAsync(string openId, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var item = await db.ResponderProfiles.AsNoTracking().FirstOrDefaultAsync(p => p.BoundOpenId == openId, ct);
+        return item is null ? null : SqliteMapper.ToRecord(item);
+    }
+
     public async Task<ResponderProfileRecord?> UpdateAsync(string id, ResponderProfileRecord updated, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);

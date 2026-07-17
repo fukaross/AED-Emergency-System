@@ -4,6 +4,7 @@ using AedBackend.Core.Models.Aed;
 using AedBackend.Core.Models.Course;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Models.Knowledge;
+using AedBackend.Core.Models.Rescue;
 using AedBackend.Core.Models.Responder;
 using AedBackend.Core.Models.WeChat;
 
@@ -28,7 +29,8 @@ internal sealed class JsonRuntimeDataReader
             await ReadOptionalAsync<KnowledgeSummary>("knowledge-summary.json", ct),
             await ReadListAsync<CourseRecord>("courses.json", ct),
             await ReadListAsync<QuickActionRecord>("quick-actions.json", ct),
-            await ReadWrappedListAsync<HelpRequestDatabase, HelpRequestRecord>("help-requests.json", db => db.Requests, ct));
+            await ReadWrappedListAsync<HelpRequestDatabase, HelpRequestRecord>("help-requests.json", db => db.Requests, ct),
+            await ReadWrappedListAsync<RescueSessionDatabase, RescueSessionRecord>("rescue-sessions.json", db => db.Sessions, ct));
     }
 
     private async Task<T?> ReadOptionalAsync<T>(string fileName, CancellationToken ct)
@@ -86,5 +88,10 @@ internal sealed class JsonRuntimeDataReader
     private sealed class HelpRequestDatabase
     {
         public List<HelpRequestRecord> Requests { get; init; } = [];
+    }
+
+    private sealed class RescueSessionDatabase
+    {
+        public List<RescueSessionRecord> Sessions { get; init; } = [];
     }
 }

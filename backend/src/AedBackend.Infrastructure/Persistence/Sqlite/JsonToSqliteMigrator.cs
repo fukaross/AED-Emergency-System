@@ -56,6 +56,7 @@ public sealed class JsonToSqliteMigrator
         db.Courses.AddRange(snapshot.Courses.Select(SqliteMapper.ToEntity));
         db.QuickActions.AddRange(snapshot.QuickActions.Select(SqliteMapper.ToEntity));
         db.HelpRequests.AddRange(snapshot.HelpRequests.Select(SqliteMapper.ToEntity));
+        db.RescueSessions.AddRange(snapshot.RescueSessions.Select(SqliteMapper.ToEntity));
     }
 
     private static async Task<IReadOnlyDictionary<string, int>> ReconcileAsync(
@@ -104,7 +105,10 @@ public sealed class JsonToSqliteMigrator
             ["course_videos"] = await db.CourseVideos.CountAsync(ct),
             ["quick_actions"] = await db.QuickActions.CountAsync(ct),
             ["help_requests"] = await db.HelpRequests.CountAsync(ct),
-            ["help_reports"] = await db.HelpReports.CountAsync(ct)
+            ["help_reports"] = await db.HelpReports.CountAsync(ct),
+            ["rescue_sessions"] = await db.RescueSessions.CountAsync(ct),
+            ["rescue_session_participants"] = await db.RescueSessionParticipants.CountAsync(ct),
+            ["rescue_session_messages"] = await db.RescueSessionMessages.CountAsync(ct)
         };
     }
 
@@ -122,6 +126,9 @@ public sealed class JsonToSqliteMigrator
         RequireCount(counts, "quick_actions", snapshot.QuickActions.Count);
         RequireCount(counts, "help_requests", snapshot.HelpRequests.Count);
         RequireCount(counts, "help_reports", snapshot.HelpRequests.Sum(h => h.Reports.Count));
+        RequireCount(counts, "rescue_sessions", snapshot.RescueSessions.Count);
+        RequireCount(counts, "rescue_session_participants", snapshot.RescueSessions.Sum(s => s.Participants.Count));
+        RequireCount(counts, "rescue_session_messages", snapshot.RescueSessions.Sum(s => s.Messages.Count));
     }
 
     private static async Task CheckCriticalFieldsAsync(JsonRuntimeSnapshot snapshot, AedDbContext db, CancellationToken ct)

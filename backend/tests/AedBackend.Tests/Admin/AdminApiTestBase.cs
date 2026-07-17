@@ -6,6 +6,8 @@ using System.Text;
 using System.Text.Json;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.Models.Help;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AedBackend.Tests.Admin;
 
@@ -27,9 +29,18 @@ public abstract class AdminApiTestBase : IAsyncLifetime
     public Task InitializeAsync()
     {
         Directory.CreateDirectory(dataRoot);
-        application = new AdminTestApplication(dataRoot);
+        application = new AdminTestApplication(dataRoot, configureServices: ConfigureServices);
         client = application.CreateClient();
         return Task.CompletedTask;
+    }
+
+    /** 允许测试类替换/追加服务注册（如订阅消息发送器替身），默认不改动。 */
+    protected virtual Action<IServiceCollection>? ConfigureServices => null;
+
+    /** 创建 TestServer 内存 WebSocket 客户端，用于 WS smoke 测试。 */
+    protected WebSocketClient CreateWebSocketClient()
+    {
+        return application!.Server.CreateWebSocketClient();
     }
 
     public Task DisposeAsync()
@@ -143,8 +154,45 @@ public abstract class AdminApiTestBase : IAsyncLifetime
                 $"hash-{user.OpenId}")));
     }
 
-    private void WriteExperienceUsers(IEnumerable<ExperienceUserSeed> users)
+    /** 写入多个带登录 token 的体验用户；subscribeTemplateId 非空时同时为每个用户写入该模板 accept 订阅。 */
+    protected void SeedLoggedInExperienceUsers(string? subscribeTemplateId, params (string OpenId, string Token)[] users)
     {
+        WriteExperienceUsers(
+            users.Select(user => new ExperienceUserSeed(
+                user.OpenId,
+                "REDACTED",
+                null,
+                null,
+                HashToken(user.Token),
+                subscribeTemplateId is not null)),
+            subscribeTemplateId);
+    }
+
+    /** 写入绑定用户与资格状态的急救员档案，用于急救会话准入测试。 */
+    protected void SeedBoundResponders(params (string Id, string? BoundOpenId, string QualificationStatus, string Name)[] responders)
+    {
+        var items = responders.Select(responder => $$"""
+            {
+              "id": "{{responder.Id}}",
+              "recordId": "{{responder.Id}}",
+              "name": "{{responder.Name}}",
+              "phone": "REDACTED",
+              "campus": "guilinyang",
+              "qualificationStatus": "{{responder.QualificationStatus}}",
+              "boundOpenId": {{JsonValue(responder.BoundOpenId)}}
+            }
+        """);
+        WriteDataFile("rescuer-profiles.json", $$"""
+        [
+        {{string.Join(",\n", items)}}
+        ]
+        """);
+    }
+
+    private void WriteExperienceUsers(IEnumerable<ExperienceUserSeed> users, string? subscribeTemplateId = null)
+    {
+        // lastLoginAt 驱动 token 30 天有效期判定，必须使用当前时间，避免固定日期过期导致 401
+        var lastLoginAt = DateTimeOffset.UtcNow.ToString("O");
         var items = users.Select(user => $$"""
                 {
                   "openId": "{{user.OpenId}}",
@@ -155,8 +203,8 @@ public abstract class AdminApiTestBase : IAsyncLifetime
                   "gender": "unknown",
                   "sessionTokenHash": "{{user.TokenHash}}",
                   "createdAt": "2026-05-23T00:00:00+00:00",
-                  "lastLoginAt": "2026-05-23T00:00:00+00:00",
-                  "subscriptions": {}
+                  "lastLoginAt": "{{lastLoginAt}}",
+                  "subscriptions": {{SubscriptionsJson(user, subscribeTemplateId, lastLoginAt)}}
                 }
         """);
         WriteDataFile("wechat-experience-users.json", $$"""
@@ -166,6 +214,12 @@ public abstract class AdminApiTestBase : IAsyncLifetime
           ]
         }
         """);
+    }
+
+    private static string SubscriptionsJson(ExperienceUserSeed user, string? templateId, string updatedAt)
+    {
+        if (!user.Subscribed || templateId is null) return "{}";
+        return $$"""{ "{{templateId}}": { "templateId": "{{templateId}}", "status": "accept", "updatedAt": "{{updatedAt}}" } }""";
     }
 
     private static string HashToken(string token)
@@ -275,7 +329,8 @@ public abstract class AdminApiTestBase : IAsyncLifetime
         string Phone,
         string? Name,
         string? AvatarUrl,
-        string TokenHash);
+        string TokenHash,
+        bool Subscribed = false);
 
     private static string JsonValue(string? value)
     {

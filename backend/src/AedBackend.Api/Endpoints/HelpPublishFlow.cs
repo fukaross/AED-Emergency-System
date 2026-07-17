@@ -3,6 +3,7 @@ using AedBackend.Core.DTOs.Help;
 using AedBackend.Core.DTOs.WeChat;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Models.WeChat;
+using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.WeChat;
 using AedBackend.Infrastructure.Upload;
 using AedBackend.Infrastructure.WeChat;
@@ -77,19 +78,33 @@ internal static class HelpPublishFlow
             new HelpNotificationResult(recipients.Count, recipients));
     }
 
+    /**
+     * 推送收窄（BackEnd.md §4.5A）：仅认证急救员（档案绑定且资格 active）可收到求助推送，
+     * 排除求助发布者本人，不做地理过滤；落地页为会话页。
+     */
     public static async Task<IReadOnlyList<BroadcastRecipientResult>> SendNotificationsAsync(
         HelpRequestRecord record,
         PublishHelpRequest request,
         ExperienceUserRecord currentUser,
         WeChatOptions options,
         IExperienceUserStore userStore,
+        IResponderStore responderStore,
         IWeChatSubscribeMessageSender sender,
         CancellationToken cancellationToken)
     {
+        var profiles = await responderStore.GetAllAsync(cancellationToken);
+        var certifiedOpenIds = profiles
+            .Where(p => p.QualificationStatus == "active" && !string.IsNullOrWhiteSpace(p.BoundOpenId))
+            .Select(p => p.BoundOpenId!)
+            .ToHashSet(StringComparer.Ordinal);
+
         var users = await userStore.ListUsersAsync(cancellationToken);
-        var targets = users.Where(user => IsTemplateAccepted(user, options.SubscribeTemplateId));
+        var targets = users.Where(user =>
+            user.OpenId != record.UserId
+            && certifiedOpenIds.Contains(user.OpenId)
+            && IsTemplateAccepted(user, options.SubscribeTemplateId));
         var data = CreateTemplateData(request, currentUser, record.CreatedAt);
-        var page = $"pages-sub/help/detail?id={record.Id}";
+        var page = $"pages-sub/rescue/session?id={record.Id}";
         var results = new List<BroadcastRecipientResult>();
 
         foreach (var target in targets)

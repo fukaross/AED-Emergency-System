@@ -60,6 +60,53 @@ public sealed class DataProviderStartupTests
     }
 
     [Fact]
+    public async Task SqliteProvider_StartsWithRescueSessionTables()
+    {
+        using var temp = new ProviderTempData();
+        await temp.WriteMinimalJsonAsync();
+        await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
+        await DropRescueTablesAsync(temp.DbPath);
+
+        using var app = new AdminTestApplication(temp.Root, new Dictionary<string, string?>
+        {
+            ["Data:Provider"] = "Sqlite",
+            ["Data:SqlitePath"] = temp.DbPath
+        });
+        using var client = app.CreateClient();
+        var response = await client.GetAsync("/health");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await AssertTableExistsAsync(temp.DbPath, "rescue_sessions");
+        await AssertTableExistsAsync(temp.DbPath, "rescue_session_participants");
+        await AssertTableExistsAsync(temp.DbPath, "rescue_session_messages");
+        await AssertIndexExistsAsync(temp.DbPath, "uk_rescue_participant");
+        await AssertIndexExistsAsync(temp.DbPath, "uk_rescue_message_seq");
+    }
+
+    [Fact]
+    public async Task SqliteProvider_AppendsMissingAedSeedDevicesWithoutOverwritingExistingRows()
+    {
+        using var temp = new ProviderTempData();
+        await temp.WriteValidDataAsync();
+        await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
+
+        using var app = new AdminTestApplication(temp.Root, new Dictionary<string, string?>
+        {
+            ["Data:Provider"] = "Sqlite",
+            ["Data:SqlitePath"] = temp.DbPath
+        });
+        using var client = app.CreateClient();
+        var response = await client.GetAsync("/health");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(59, await ReadAedCountAsync(temp.DbPath));
+        Assert.Equal("addr", await ReadAedFieldAsync(temp.DbPath, "AED-01", "Address"));
+        Assert.Equal("online", await ReadAedFieldAsync(temp.DbPath, "AED-25", "Status"));
+        Assert.Equal("/static/images/aed-placeholder.png", await ReadAedFieldAsync(temp.DbPath, "AED-25", "Image"));
+        Assert.DoesNotContain(" ", await ReadAedFieldAsync(temp.DbPath, "AED-25", "Address"));
+    }
+
+    [Fact]
     public void SqliteProvider_FailsWhenDatabaseIsMissing()
     {
         using var temp = new ProviderTempData();
@@ -130,6 +177,26 @@ public sealed class DataProviderStartupTests
         await ExecuteAsync(connection, "ALTER TABLE responder_profiles DROP COLUMN SourceApplicationId;");
     }
 
+    private static async Task DropRescueTablesAsync(string dbPath)
+    {
+        await using var connection = CreateConnection(dbPath);
+        await connection.OpenAsync();
+        await ExecuteAsync(connection, "DROP TABLE rescue_session_participants;");
+        await ExecuteAsync(connection, "DROP TABLE rescue_session_messages;");
+        await ExecuteAsync(connection, "DROP TABLE rescue_sessions;");
+    }
+
+    private static async Task AssertIndexExistsAsync(string dbPath, string index)
+    {
+        await using var connection = CreateConnection(dbPath);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT name FROM sqlite_master WHERE type='index' AND name=$index;";
+        command.Parameters.AddWithValue("$index", index);
+        var actual = await command.ExecuteScalarAsync();
+        Assert.Equal(index, actual);
+    }
+
     private static async Task AssertColumnExistsAsync(string dbPath, string table, string column)
     {
         await using var connection = CreateConnection(dbPath);
@@ -163,6 +230,32 @@ public sealed class DataProviderStartupTests
         command.CommandText = "SELECT Phone FROM experience_users WHERE OpenId=$openId;";
         command.Parameters.AddWithValue("$openId", openId);
         return (string?)await command.ExecuteScalarAsync();
+    }
+
+    private static async Task<int> ReadAedCountAsync(string dbPath)
+    {
+        await using var connection = CreateConnection(dbPath);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM aed_devices;";
+        return Convert.ToInt32(await command.ExecuteScalarAsync());
+    }
+
+    private static async Task<string> ReadAedFieldAsync(string dbPath, string id, string field)
+    {
+        await using var connection = CreateConnection(dbPath);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT {ValidateAedField(field)} FROM aed_devices WHERE Id=$id;";
+        command.Parameters.AddWithValue("$id", id);
+        return Convert.ToString(await command.ExecuteScalarAsync()) ?? string.Empty;
+    }
+
+    private static string ValidateAedField(string field)
+    {
+        return field is "Address" or "Status" or "Image"
+            ? field
+            : throw new ArgumentOutOfRangeException(nameof(field), field, "不支持的 AED 字段");
     }
 
     private static async Task ExecuteAsync(SqliteConnection connection, string sql)

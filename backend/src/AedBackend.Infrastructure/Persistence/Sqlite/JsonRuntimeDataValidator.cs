@@ -16,9 +16,11 @@ internal static class JsonRuntimeDataValidator
         Unique(snapshot.QuickActions.Select(a => a.Id), "quick_actions.id");
         Unique(snapshot.HelpRequests.Select(h => h.Id), "help_requests.id");
         Unique(snapshot.HelpRequests.Select(h => h.RequestNo), "help_requests.requestNo");
+        Unique(snapshot.RescueSessions.Select(s => s.HelpRequestId), "rescue_sessions.helpRequestId");
         ValidateCourses(snapshot.Courses);
         ValidateHelp(snapshot.HelpRequests);
         ValidateAdmin(snapshot.AdminUsers);
+        ValidateRescue(snapshot.RescueSessions);
     }
 
     private static void ValidateCourses(IEnumerable<Core.Models.Course.CourseRecord> courses)
@@ -49,6 +51,16 @@ internal static class JsonRuntimeDataValidator
             Unique(user.Sessions.Select(s => s.Id), $"admin_sessions.id:{user.Id}");
             if (user.Sessions.Any(s => string.IsNullOrWhiteSpace(s.SessionHash)))
                 throw new InvalidOperationException($"Admin session hash 为空: {user.Id}");
+        }
+    }
+
+    private static void ValidateRescue(IEnumerable<Core.Models.Rescue.RescueSessionRecord> sessions)
+    {
+        foreach (var session in sessions)
+        {
+            Unique(session.Participants.Select(p => p.OpenId), $"rescue_session_participants.openId:{session.HelpRequestId}");
+            Unique(session.Messages.Select(m => m.Id), $"rescue_session_messages.id:{session.HelpRequestId}");
+            Unique(session.Messages.Select(m => m.Seq.ToString()), $"rescue_session_messages.seq:{session.HelpRequestId}");
         }
     }
 

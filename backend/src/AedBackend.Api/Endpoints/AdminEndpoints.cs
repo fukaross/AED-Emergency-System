@@ -9,6 +9,7 @@ public static class AdminEndpoints
         group.MapAdminAuthEndpoints();
         group.MapAdminDashboardEndpoints();
         group.MapAdminHelpEndpoints();
+        group.MapAdminRescueSessionEndpoints();
         group.MapAdminUserEndpoints();
         group.MapAdminAedEndpoints();
         group.MapAdminRescuerEndpoints();

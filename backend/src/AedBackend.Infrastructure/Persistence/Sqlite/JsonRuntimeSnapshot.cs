@@ -3,6 +3,7 @@ using AedBackend.Core.Models.Aed;
 using AedBackend.Core.Models.Course;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Models.Knowledge;
+using AedBackend.Core.Models.Rescue;
 using AedBackend.Core.Models.Responder;
 using AedBackend.Core.Models.WeChat;
 
@@ -18,7 +19,8 @@ public sealed record JsonRuntimeSnapshot(
     KnowledgeSummary? KnowledgeSummary,
     IReadOnlyList<CourseRecord> Courses,
     IReadOnlyList<QuickActionRecord> QuickActions,
-    IReadOnlyList<HelpRequestRecord> HelpRequests);
+    IReadOnlyList<HelpRequestRecord> HelpRequests,
+    IReadOnlyList<RescueSessionRecord> RescueSessions);
 
 public sealed record JsonToSqliteMigrationReport(
     string DataRoot,

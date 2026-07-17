@@ -33,6 +33,13 @@ internal static class SqliteStoreHelpers
             .ThenInclude(r => r.Images);
     }
 
+    public static IQueryable<RescueSessionEntity> WithRescueGraph(IQueryable<RescueSessionEntity> query)
+    {
+        return query
+            .Include(s => s.Participants)
+            .Include(s => s.Messages);
+    }
+
     public static string BuildConnectionString(string path)
     {
         var builder = new SqliteConnectionStringBuilder
