@@ -46,6 +46,7 @@ export interface AmapEvent {
 export interface AmapMap {
   on(event: string, handler: (e: AmapEvent) => void): void
   setCenter(lnglat: [number, number]): void
+  setFitView(): void
   destroy(): void
   add(marker: AmapMarker): void
   remove(marker: AmapMarker): void
@@ -53,7 +54,7 @@ export interface AmapMap {
 
 export interface AMapModule {
   Map: new (container: string, options: { zoom: number; center: [number, number]; resizeEnable?: boolean; viewMode?: string }) => AmapMap
-  Marker: new (options: { position: [number, number]; draggable?: boolean }) => AmapMarker
+  Marker: new (options: { position: [number, number]; draggable?: boolean; content?: string; title?: string }) => AmapMarker
   Geocoder: new () => AmapGeocoder
   AutoComplete: new (options: { city?: string }) => AmapAutoComplete
   PlaceSearch: new (options: { city?: string; pageSize?: number }) => AmapPlaceSearch

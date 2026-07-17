@@ -34,6 +34,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '求助详情', requiresAuth: true },
   },
   {
+    path: '/rescue-sessions',
+    name: 'rescueSessions',
+    component: () => import('@/pages/rescue-sessions/index.vue'),
+    meta: { title: '急救会话', requiresAuth: true },
+  },
+  {
+    path: '/rescue-sessions/:helpId',
+    name: 'rescueSessionDetail',
+    component: () => import('@/pages/rescue-sessions/detail.vue'),
+    meta: { title: '会话监控', requiresAuth: true },
+  },
+  {
     path: '/users',
     name: 'users',
     component: () => import('@/pages/users/index.vue'),

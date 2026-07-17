@@ -6,6 +6,9 @@
         <el-button type="default" size="default" @click="goBack">
           ← 返回列表
         </el-button>
+        <el-button v-if="detail" type="primary" plain size="default" @click="goRescueSession">
+          会话监控
+        </el-button>
       </div>
 
       <div v-loading="loading">
@@ -249,6 +252,12 @@ function getHelpTypeCn(type: string) {
 
 function goBack() {
   router.push('/help-requests')
+}
+
+/** 跳转该求助关联的急救会话监控页（BackEnd.md §4.12 管理端只读监控入口） */
+function goRescueSession() {
+  if (!detail.value) return
+  router.push(`/rescue-sessions/${detail.value.id}`)
 }
 
 // Convert UTC timestamps to local dates

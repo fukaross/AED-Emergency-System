@@ -27,6 +27,10 @@
           <el-icon><Warning /></el-icon>
           <template #title>求助管理</template>
         </el-menu-item>
+        <el-menu-item index="/rescue-sessions">
+          <el-icon><MapLocation /></el-icon>
+          <template #title>急救会话</template>
+        </el-menu-item>
         <el-menu-item index="/users">
           <el-icon><User /></el-icon>
           <template #title>用户管理</template>
@@ -113,6 +117,10 @@
         <el-menu-item index="/help-requests">
           <el-icon><Warning /></el-icon>
           <template #title>求助管理</template>
+        </el-menu-item>
+        <el-menu-item index="/rescue-sessions">
+          <el-icon><MapLocation /></el-icon>
+          <template #title>急救会话</template>
         </el-menu-item>
         <el-menu-item index="/users">
           <el-icon><User /></el-icon>
@@ -216,6 +224,7 @@ import {
   Finished,
   Link,
   Postcard,
+  MapLocation,
 } from '@element-plus/icons-vue'
 
 const BREAKPOINT_TABLET = 1024
@@ -234,6 +243,7 @@ const isCollapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true')
 const activeMenu = computed(() => {
   const path = route.path
   if (path.startsWith('/help-requests')) return '/help-requests'
+  if (path.startsWith('/rescue-sessions')) return '/rescue-sessions'
   if (path.startsWith('/users')) return '/users'
   if (path.startsWith('/devices')) return '/devices'
   if (path.startsWith('/rescuers')) return '/rescuers'
