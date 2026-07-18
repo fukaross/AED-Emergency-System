@@ -106,6 +106,21 @@ describe('chooseLocationPoint', () => {
 })
 
 describe('location permission handling', () => {
+  it('does not claim that every caller applied the campus fallback', async () => {
+    vi.stubGlobal('uni', {
+      getDeviceInfo: () => ({ platform: 'windows' }),
+      getSetting: vi.fn().mockResolvedValue({ authSetting: { 'scope.userLocation': false } }),
+      authorize: vi.fn(),
+      showModal: vi.fn(),
+      openSetting: vi.fn(),
+    })
+
+    const result = await getCurrentLocation()
+
+    expect(result.errorMessage).toBe('定位权限被拒绝，请开启定位权限后重试')
+    expect(result.errorMessage).not.toContain('已使用校园中心点')
+  })
+
   it('shows the settings guide at most once after a persisted denial', async () => {
     const showModal = vi.fn()
     const authorize = vi.fn()

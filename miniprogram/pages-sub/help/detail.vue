@@ -28,7 +28,7 @@
         @preview-scene="previewScene"
       />
 
-      <HelpRescueView v-if="rescueView" :view="rescueView" />
+      <HelpRescueView v-if="rescueView" :view="rescueView" :stale="rescueViewStale" />
     </scroll-view>
 
     <view v-if="canShowReportAction(detail)" class="fixed-footer">
@@ -44,7 +44,6 @@
     />
   </view>
 </template>
-
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onHide, onLoad, onPullDownRefresh, onShow, onUnload } from '@dcloudio/uni-app'
@@ -97,6 +96,7 @@ const userLocation = ref<GeoPoint | null>(null)
 let isPageVisible = false
 const {
   rescueView,
+  rescueViewStale,
   animatedParticipants,
   refreshRescueView,
   startRescuePolling,
@@ -159,9 +159,9 @@ async function loadDetail(id: string): Promise<void> {
     applyHelpDetail(helpStore.currentRequest)
     await Promise.all([loadNearbyAeds(), loadUserLocation()])
     if (isPageVisible && isActiveHelpStatus(detail.value?.status)) {
-      await refreshRescueView()
+      const rescueResult = await refreshRescueView()
       startHelpPolling()
-      startRescuePolling()
+      if (rescueResult !== 'terminal') startRescuePolling()
     }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '求助加载失败'
@@ -269,9 +269,9 @@ async function resumePage(): Promise<void> {
     await refreshHelpDetail()
     if (!isPageVisible || detail.value?.id !== helpId) return
     if (!isActiveHelpStatus(detail.value?.status)) return
-    await refreshRescueView()
+    const rescueResult = await refreshRescueView()
     startHelpPolling()
-    startRescuePolling()
+    if (rescueResult !== 'terminal') startRescuePolling()
   } catch { /* 静默恢复，保留已加载内容 */ }
 }
 

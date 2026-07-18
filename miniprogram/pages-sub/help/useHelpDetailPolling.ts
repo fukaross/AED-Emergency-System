@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 import { fetchHelpDetail } from '@/api/help'
 import type { HelpRequestDetail } from '@/types/help'
+import { ERROR_CODES } from '@/utils/constants'
 import { isActiveHelpStatus } from './rescue-view-state'
 
 const HELP_POLL_INTERVAL_MS = 10_000
@@ -88,8 +89,11 @@ export function useHelpDetailPolling(options: HelpDetailPollingOptions) {
 
 function isAccessEnded(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) return false
-  const statusCode = (error as { readonly statusCode?: number }).statusCode
-  return statusCode === 403 || statusCode === 409
+  const apiError = error as { readonly code?: number; readonly statusCode?: number }
+  return apiError.code === ERROR_CODES.UNAUTHORIZED
+    || apiError.statusCode === 401
+    || apiError.statusCode === 403
+    || apiError.statusCode === 409
 }
 
 function logPollingError(error: unknown): void {

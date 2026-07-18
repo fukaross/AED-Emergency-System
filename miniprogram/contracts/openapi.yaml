@@ -10,7 +10,7 @@ info:
     url: https://www.qtnu.edu.cn
 
 servers:
-  - url: https://api.aed.qtnu.edu.cn
+  - url: REDACTED
     description: 生产环境
 
 paths:
@@ -142,6 +142,10 @@ paths:
                         $ref: '#/components/schemas/RescuerListResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
 
   /api/rescuers/{id}:
     get:
@@ -169,6 +173,10 @@ paths:
                         $ref: '#/components/schemas/RescuerDetail'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
 
   /api/rescuers/me/availability:
     get:
@@ -246,6 +254,10 @@ paths:
                         $ref: '#/components/schemas/PublishHelpResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
+        '409':
+          $ref: '#/components/responses/DuplicateHelpRequest'
 
   /api/help/list:
     get:
@@ -283,6 +295,10 @@ paths:
                         $ref: '#/components/schemas/HelpListPage'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
 
   /api/help/{id}:
     get:
@@ -310,6 +326,10 @@ paths:
                         $ref: '#/components/schemas/HelpRequestDetail'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/SmallProgramForbidden'
 
   /api/help/{id}/report:
     post:
@@ -343,6 +363,10 @@ paths:
                         $ref: '#/components/schemas/SubmitHelpReportResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/SmallProgramForbidden'
 
   /api/help/guest/query:
     post:
@@ -451,6 +475,14 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/SmallProgramForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/HelpAlreadyClosed'
 
   /api/help/{id}/session/join:
     post:
@@ -471,12 +503,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RescueSessionSnapshotResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/SmallProgramForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/responses/RescueSessionClosed'
 
   /api/help/{id}/session:
     get:
@@ -494,6 +528,8 @@ paths:
           in: query
           schema:
             type: integer
+            format: int64
+            minimum: 0
       responses:
         '200':
           description: 会话快照（afterSeq 时仅增量消息）
@@ -501,12 +537,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RescueSessionSnapshotResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/SmallProgramForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/responses/RescueSessionClosed'
 
   /api/help/{id}/session/messages:
     post:
@@ -533,12 +571,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RescueMessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/SmallProgramForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/responses/RescueSessionClosed'
 
   /api/help/{id}/session/status-events:
     post:
@@ -565,12 +607,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RescueStatusEventResultResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/SmallProgramForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/responses/RescueSessionClosed'
 
   /api/help/{id}/session/location:
     put:
@@ -597,12 +643,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReportRescueLocationResultResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/SmallProgramForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/responses/RescueSessionClosed'
 
   /api/help/{id}/rescue-view:
     get:
@@ -623,12 +673,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RescueViewResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/SmallProgramForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/responses/RescueSessionClosed'
 
   /api/rescue-sessions/mine:
     get:
@@ -643,8 +695,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RescueMineResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/SmallProgramForbidden'
 
   /api/courses:
     get:
@@ -775,6 +829,10 @@ paths:
                         $ref: '#/components/schemas/UserProfile'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
     put:
       summary: 更新用户信息
       operationId: updateUserProfile
@@ -795,6 +853,10 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
 
   /api/user/archives:
     get:
@@ -834,6 +896,10 @@ paths:
                         $ref: '#/components/schemas/ArchiveListResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
 
   /api/user/archives/{id}:
     get:
@@ -861,6 +927,10 @@ paths:
                         $ref: '#/components/schemas/RescuerArchiveDetail'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
 
   /api/user/archives/{id}/phone:
     get:
@@ -897,6 +967,10 @@ paths:
                             type: string
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
 
   /api/user/volunteer-applications:
     get:
@@ -932,6 +1006,10 @@ paths:
                         $ref: '#/components/schemas/VolunteerApplicationListResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
         '501':
           $ref: '#/components/responses/FeatureRequiresSqlite'
     post:
@@ -959,6 +1037,10 @@ paths:
                         $ref: '#/components/schemas/VolunteerApplicationResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
         '501':
           $ref: '#/components/responses/FeatureRequiresSqlite'
 
@@ -996,6 +1078,10 @@ paths:
                         $ref: '#/components/schemas/SchoolBindingListResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
         '501':
           $ref: '#/components/responses/FeatureRequiresSqlite'
     post:
@@ -1023,6 +1109,10 @@ paths:
                         $ref: '#/components/schemas/IdentityApplicationResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
         '409':
           $ref: '#/components/responses/Conflict'
         '501':
@@ -1062,6 +1152,10 @@ paths:
                         $ref: '#/components/schemas/ResponderClaimListResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
         '501':
           $ref: '#/components/responses/FeatureRequiresSqlite'
     post:
@@ -1089,6 +1183,10 @@ paths:
                         $ref: '#/components/schemas/IdentityApplicationResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
         '409':
           $ref: '#/components/responses/Conflict'
         '501':
@@ -1166,6 +1264,51 @@ paths:
                         $ref: '#/components/schemas/WeChatLoginResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
+
+  /api/auth/wechat-phone:
+    post:
+      summary: 绑定当前微信用户手机号
+      operationId: bindWechatPhone
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                phone:
+                  type: string
+              description: code 与 phone 二选一；生产使用微信手机号授权 code
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [openId, phone]
+                        properties:
+                          openId:
+                            type: string
+                          phone:
+                            type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
 
   /api/auth/refresh:
     post:
@@ -1189,6 +1332,41 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
+
+  /api/wechat/subscriptions:
+    post:
+      summary: 保存当前微信用户的订阅消息授权结果
+      operationId: saveWechatSubscription
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [templateId, status]
+              properties:
+                templateId:
+                  type: string
+                status:
+                  type: string
+                  enum: [accept, reject, ban]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AccountDisabled'
 
   /api/upload/image:
     post:
@@ -1196,6 +1374,7 @@ paths:
       operationId: uploadImage
       security:
         - bearerAuth: []
+        - adminSessionKey: []
         - {}
       requestBody:
         required: true
@@ -1210,7 +1389,7 @@ paths:
                   format: binary
                 scene:
                   type: string
-                  enum: [avatar, report, help, volunteer]
+                  enum: [avatar, report, help, volunteer, device, rescuer, course, quick-action]
       responses:
         '200':
           description: 成功
@@ -1225,6 +1404,10 @@ paths:
                         $ref: '#/components/schemas/UploadImageResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/SmallProgramForbidden'
 
   /api/upload/video:
     post:
@@ -1260,6 +1443,10 @@ paths:
                         $ref: '#/components/schemas/UploadImageResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/ops/help-requests:
     get:
@@ -1487,6 +1674,8 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/AdminAlreadyInitialized'
 
   /api/admin/auth/login:
     post:
@@ -1758,6 +1947,7 @@ paths:
           in: query
           schema:
             type: integer
+            minimum: 1
             default: 1
         - name: pageSize
           in: query
@@ -1773,6 +1963,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminRescueSessionListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2559,11 +2751,35 @@ components:
           schema:
             $ref: '#/components/schemas/ApiResponse'
     Forbidden:
-      description: 权限不足
+      description: HTTP 403 / code 1003；业务权限不足，或 Admin 域的管理员账号已停用
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiResponse'
+    SmallProgramForbidden:
+      description: HTTP 403；小程序业务权限不足（1003/1017）或当前账号已禁用（1018）
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ApiResponse'
+              - type: object
+                properties:
+                  code:
+                    type: integer
+                    enum: [1003, 1017, 1018]
+    AccountDisabled:
+      description: HTTP 403 / code 1018；当前小程序账号已禁用，客户端必须终止本地认证
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ApiResponse'
+              - type: object
+                properties:
+                  code:
+                    type: integer
+                    enum: [1018]
     NotFound:
       description: 资源不存在
       content:
@@ -2576,12 +2792,42 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiResponse'
+    DuplicateHelpRequest:
+      description: HTTP 409 / code 1009；当前身份已有进行中的求助
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    HelpAlreadyClosed:
+      description: HTTP 409 / code 1014；求助已经关闭，不重复执行关闭副作用
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    RescueSessionClosed:
+      description: HTTP 409 / code 1016；急救会话已关闭，不允许继续读取或写入
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
     AdminSessionLimitReached:
       description: 管理员登录设备数已达到上限
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/AdminSessionLimitReachedResponse'
+    AdminAlreadyInitialized:
+      description: HTTP 409 / code 2019；超级管理员已经初始化
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ApiResponse'
+              - type: object
+                properties:
+                  code:
+                    type: integer
+                    enum: [2019]
     RateLimited:
       description: 操作频率限制
       content:
@@ -2884,8 +3130,12 @@ components:
           format: date-time
         followupCode:
           type: string
+          maxLength: 32
+          description: 游客查询码；Q 前缀 + 128 bit 加密安全随机值的 Base64Url 编码
         closeToken:
           type: string
+          maxLength: 64
+          description: 游客一次性关闭凭证；CLOSE 前缀 + 128 bit 加密安全随机值的 Base64Url 编码
 
     HelpListItem:
       type: object
@@ -3087,6 +3337,7 @@ components:
           type: string
         followupCode:
           type: string
+          maxLength: 32
 
     GuestHelpLookupResult:
       type: object
@@ -3129,6 +3380,7 @@ components:
           type: string
         closeToken:
           type: string
+          maxLength: 64
         note:
           type: string
 
@@ -5165,11 +5417,16 @@ components:
 
     RescueSos:
       type: object
+      required: [lat, lng, address]
       properties:
         lat:
           type: number
+          minimum: -90
+          maximum: 90
         lng:
           type: number
+          minimum: -180
+          maximum: 180
         address:
           type: string
 
@@ -5179,11 +5436,30 @@ components:
       properties:
         lat:
           type: number
+          minimum: -90
+          maximum: 90
         lng:
           type: number
+          minimum: -180
+          maximum: 180
         reportedAt:
           type: string
           format: date-time
+
+    RescueTiming:
+      type: object
+      description: 位置实时性阈值；必须满足 0 < signalLostAfterSeconds < locationGoneAfterSeconds，且 locationReportIntervalSeconds > 0
+      required: [signalLostAfterSeconds, locationGoneAfterSeconds, locationReportIntervalSeconds]
+      properties:
+        signalLostAfterSeconds:
+          type: integer
+          minimum: 1
+        locationGoneAfterSeconds:
+          type: integer
+          minimum: 1
+        locationReportIntervalSeconds:
+          type: integer
+          minimum: 1
 
     RescueParticipant:
       type: object
@@ -5211,6 +5487,7 @@ components:
 
     RescueMe:
       type: object
+      required: [openId, takenAed, arrived, lastReadSeq]
       properties:
         openId:
           type: string
@@ -5220,14 +5497,19 @@ components:
           type: boolean
         lastReadSeq:
           type: integer
+          format: int64
+          minimum: 0
 
     RescueMessage:
       type: object
+      required: [id, seq, kind, senderOpenId, senderName, text, eventType, action, createdAt]
       properties:
         id:
           type: string
         seq:
           type: integer
+          format: int64
+          minimum: 1
         kind:
           type: string
           enum: [text, status_event]
@@ -5252,6 +5534,7 @@ components:
 
     RescueSessionSnapshot:
       type: object
+      required: [helpId, requestNo, helpStatus, sos, me, participants, messages, latestSeq, serverTime, timing]
       properties:
         helpId:
           type: string
@@ -5259,6 +5542,7 @@ components:
           type: string
         helpStatus:
           type: string
+          enum: [published, responding, pending_review, closed, false_alarm]
         sos:
           $ref: '#/components/schemas/RescueSos'
         me:
@@ -5273,14 +5557,19 @@ components:
             $ref: '#/components/schemas/RescueMessage'
         latestSeq:
           type: integer
+          format: int64
+          minimum: 0
         serverTime:
           type: string
           format: date-time
+        timing:
+          $ref: '#/components/schemas/RescueTiming'
 
     RescueSessionSnapshotResponse:
       allOf:
         - $ref: '#/components/schemas/ApiResponse'
         - type: object
+          required: [data]
           properties:
             data:
               $ref: '#/components/schemas/RescueSessionSnapshot'
@@ -5289,6 +5578,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApiResponse'
         - type: object
+          required: [data]
           properties:
             data:
               $ref: '#/components/schemas/RescueMessage'
@@ -5315,6 +5605,7 @@ components:
 
     RescueMyState:
       type: object
+      required: [openId, takenAed, arrived]
       properties:
         openId:
           type: string
@@ -5341,6 +5632,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApiResponse'
         - type: object
+          required: [data]
           properties:
             data:
               $ref: '#/components/schemas/RescueStatusEventResult'
@@ -5351,11 +5643,16 @@ components:
       properties:
         lat:
           type: number
+          minimum: -90
+          maximum: 90
         lng:
           type: number
+          minimum: -180
+          maximum: 180
 
     ReportRescueLocationResult:
       type: object
+      required: [reportedAt]
       properties:
         reportedAt:
           type: string
@@ -5365,6 +5662,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApiResponse'
         - type: object
+          required: [data]
           properties:
             data:
               $ref: '#/components/schemas/ReportRescueLocationResult'
@@ -5393,9 +5691,12 @@ components:
 
     RescueViewEvent:
       type: object
+      required: [seq, eventType, action, actorName, createdAt]
       properties:
         seq:
           type: integer
+          format: int64
+          minimum: 1
         eventType:
           type: string
           enum: [joined, taken_aed, arrived]
@@ -5410,15 +5711,18 @@ components:
 
     RescueView:
       type: object
+      required: [helpId, helpStatus, sos, respondersCount, participants, events, serverTime, timing]
       properties:
         helpId:
           type: string
         helpStatus:
           type: string
+          enum: [published, responding, pending_review, closed, false_alarm]
         sos:
           $ref: '#/components/schemas/RescueSos'
         respondersCount:
           type: integer
+          minimum: 0
         participants:
           type: array
           items:
@@ -5430,11 +5734,14 @@ components:
         serverTime:
           type: string
           format: date-time
+        timing:
+          $ref: '#/components/schemas/RescueTiming'
 
     RescueViewResponse:
       allOf:
         - $ref: '#/components/schemas/ApiResponse'
         - type: object
+          required: [data]
           properties:
             data:
               $ref: '#/components/schemas/RescueView'
@@ -5449,6 +5756,7 @@ components:
           type: string
         helpStatus:
           type: string
+          enum: [published, responding, pending_review, closed, false_alarm]
         type:
           type: string
         address:
@@ -5461,6 +5769,7 @@ components:
           nullable: true
         unreadCount:
           type: integer
+          minimum: 0
         lastActivityAt:
           type: string
           format: date-time
@@ -5468,6 +5777,7 @@ components:
 
     RescueMineData:
       type: object
+      required: [items]
       properties:
         items:
           type: array
@@ -5478,6 +5788,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApiResponse'
         - type: object
+          required: [data]
           properties:
             data:
               $ref: '#/components/schemas/RescueMineData'
@@ -5502,8 +5813,10 @@ components:
           format: date-time
         participantsCount:
           type: integer
+          minimum: 0
         messagesCount:
           type: integer
+          minimum: 0
         lastActivityAt:
           type: string
           format: date-time
@@ -5519,17 +5832,23 @@ components:
             $ref: '#/components/schemas/AdminRescueSessionListItem'
         total:
           type: integer
+          minimum: 0
         page:
           type: integer
+          minimum: 1
         pageSize:
           type: integer
+          minimum: 1
+          maximum: 100
         totalPages:
           type: integer
+          minimum: 0
 
     AdminRescueSessionListResponse:
       allOf:
         - $ref: '#/components/schemas/ApiResponse'
         - type: object
+          required: [data]
           properties:
             data:
               $ref: '#/components/schemas/AdminRescueSessionListData'
@@ -5582,6 +5901,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApiResponse'
         - type: object
+          required: [data]
           properties:
             data:
               $ref: '#/components/schemas/AdminRescueSessionDetail'

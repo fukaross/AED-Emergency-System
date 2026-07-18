@@ -6,9 +6,13 @@
         <text class="back-btn-text">返回</text>
       </view>
     </view>
+    <view v-else-if="joining" class="state-page">
+      <text class="state-text">正在加入会话...</text>
+    </view>
     <template v-else>
       <view class="map-wrap" :style="{ height: `${mapHeightVh}vh` }">
         <SessionMap :sos="snapshot?.sos ?? null" :participants="snapshot?.participants ?? []" />
+        <SessionLocationHealth :health="locationHealth" @open-settings="openLocationSettings" />
       </view>
       <view class="drag-handle" @touchstart="onDragStart" @touchmove="onDragMove">
         <view class="drag-bar" />
@@ -37,49 +41,53 @@
   </view>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import { storeToRefs } from 'pinia'
 import { useTheme } from '@/composables/useTheme'
 import { useSessionLocationReporter } from '@/composables/useSessionLocationReporter'
 import { useSessionRealtime } from '@/composables/useSessionRealtime'
-import {
-  classifyRescueSessionTerminalError,
-  useRescueSessionStore,
-} from '@/store/rescue-session'
+import { classifyRescueSessionTerminalError, useRescueSessionStore } from '@/store/rescue-session'
+import { useAuthStore } from '@/store/auth'
 import type { GeoPoint } from '@/types/common'
-import type { RescueEventType } from '@/types/rescue-session'
+import type { RescueMutableEventType } from '@/types/rescue-session'
 import SessionMap from './components/session-map.vue'
+import SessionLocationHealth from './components/session-location-health.vue'
 import SessionMessages from './components/session-messages.vue'
 import SessionParticipants from './components/session-participants.vue'
 import SessionStatusBar from './components/session-status-bar.vue'
-const DEFAULT_MAP_HEIGHT_VH = 45
-const MIN_MAP_HEIGHT_VH = 25
-const MAX_MAP_HEIGHT_VH = 70
+import { SessionResumeController } from './session-resume-controller'
+import { useSessionMapResize } from './useSessionMapResize'
 const sessionStore = useRescueSessionStore()
-const { snapshot, sessionClosed } = storeToRefs(sessionStore)
+const authStore = useAuthStore()
+const { snapshot, sessionClosed, terminalHinted } = storeToRefs(sessionStore)
+const { isLoggedIn } = storeToRefs(authStore)
 const { themeClass } = useTheme()
 const helpId = ref('')
 const errorMessage = ref('')
-const mapHeightVh = ref(DEFAULT_MAP_HEIGHT_VH)
+const joining = ref(true)
 const statusPending = ref(false)
-let dragStartY = 0
-let dragStartHeight = DEFAULT_MAP_HEIGHT_VH
-let windowHeight = 0
+const { mapHeightVh, onDragStart, onDragMove } = useSessionMapResize()
 let lifecycleEpoch = 0
 let pageVisible = true
 let unloaded = false
 let accessTerminated = false
 let locationReporting = false
 let joinPromise: Promise<boolean> | null = null
-const reporter = useSessionLocationReporter(async (point: GeoPoint) => {
-  if (sessionClosed.value || accessTerminated) return
-  try {
-    await sessionStore.reportLocation(point)
-  } catch (error) {
-    if (!handleTerminalApiError(error, helpId.value)) throw error
-  }
+const reporter = useSessionLocationReporter({
+  report: async (point: GeoPoint) => {
+    if (sessionClosed.value || accessTerminated) return
+    try {
+      await sessionStore.reportLocation(point)
+    } catch (error) {
+      if (!handleTerminalApiError(error, helpId.value)) throw error
+    }
+  },
+  onPermissionDenied: () => {
+    uni.showToast({ title: '请开启定位权限', icon: 'none' })
+  },
 })
+const { health: locationHealth } = reporter
 const realtime = useSessionRealtime({
   getHelpId: () => helpId.value,
   onEnvelope: (envelope, socketHelpId) => {
@@ -98,10 +106,25 @@ const realtime = useSessionRealtime({
   },
   onSignalRefresh: (now) => sessionStore.refreshParticipantSignals(now),
 })
+const resumeController = new SessionResumeController({
+  refreshSignals: (now) => sessionStore.refreshParticipantSignals(now),
+  refreshSession: (id) => sessionStore.refreshSession(id),
+  canResume: (id) => isActivePage(lifecycleEpoch, id) && !accessTerminated,
+  startRuntime: () => startSessionRuntime(),
+  handleTerminalError: (error, id) => handleTerminalApiError(error, id),
+  handleRecoverableError: (error) => {
+    uni.showToast({ title: error instanceof Error ? error.message : '会话同步失败', icon: 'none' })
+  },
+})
+watch(isLoggedIn, (loggedIn) => {
+  if (loggedIn || !helpId.value || unloaded) return
+  terminateSessionAccess(helpId.value, '登录状态已失效，请重新登录')
+}, { flush: 'sync' })
 onLoad((query = {}) => {
   const id = String(query.id || '')
   if (!id) {
     errorMessage.value = '缺少求助编号'
+    joining.value = false
     return
   }
   accessTerminated = false
@@ -109,8 +132,11 @@ onLoad((query = {}) => {
   void joinAndStart(lifecycleEpoch, id)
 })
 async function joinAndStart(epoch: number, id: string): Promise<void> {
+  joining.value = true
   try {
-    joinPromise ??= sessionStore.joinSession(id).finally(() => { joinPromise = null })
+    joinPromise ??= sessionStore.joinSession(id).finally(() => {
+      joinPromise = null
+    })
     const joined = await joinPromise
     if (!joined || !isActivePage(epoch, id)) return
     errorMessage.value = ''
@@ -119,6 +145,8 @@ async function joinAndStart(epoch: number, id: string): Promise<void> {
     if (!isActivePage(epoch, id)) return
     if (handleTerminalApiError(error, id)) return
     errorMessage.value = error instanceof Error ? error.message : '无法进入急救会话'
+  } finally {
+    if (isActivePage(epoch, id)) joining.value = false
   }
 }
 onShow(() => {
@@ -126,32 +154,22 @@ onShow(() => {
   const id = helpId.value
   if (!id || accessTerminated) return
   if (!snapshot.value) void joinAndStart(lifecycleEpoch, id)
-  else void refreshAndResume(lifecycleEpoch, id)
+  else void resumeController.resume(id)
 })
 onHide(() => {
   pageVisible = false
   lifecycleEpoch += 1
+  resumeController.invalidate()
   stopSessionRuntime()
 })
 onUnload(() => {
   unloaded = true
   pageVisible = false
   lifecycleEpoch += 1
+  resumeController.invalidate()
   stopSessionRuntime()
   sessionStore.resetSession(helpId.value)
 })
-async function refreshAndResume(epoch: number, id: string): Promise<void> {
-  try {
-    const refreshed = await sessionStore.refreshSession(id)
-    if (!refreshed || !isActivePage(epoch, id)) return
-    startSessionRuntime()
-  } catch (error) {
-    if (!isActivePage(epoch, id)) return
-    if (handleTerminalApiError(error, id)) return
-    uni.showToast({ title: error instanceof Error ? error.message : '会话同步失败', icon: 'none' })
-    startSessionRuntime()
-  }
-}
 function startSessionRuntime(): void {
   if (accessTerminated) return
   if (sessionClosed.value) {
@@ -159,12 +177,21 @@ function startSessionRuntime(): void {
     return
   }
   realtime.start()
-  startLocationReporting()
+  if (!terminalHinted.value) startLocationReporting()
 }
 function startLocationReporting(): void {
-  if (locationReporting || !pageVisible || sessionClosed.value || accessTerminated) return
+  if (
+    locationReporting ||
+    !pageVisible ||
+    sessionClosed.value ||
+    terminalHinted.value ||
+    accessTerminated
+  )
+    return
+  const intervalSeconds = snapshot.value?.timing.locationReportIntervalSeconds
+  if (!intervalSeconds) return
   locationReporting = true
-  reporter.start()
+  reporter.start(intervalSeconds)
 }
 function stopSessionRuntime(): void {
   realtime.stop()
@@ -172,17 +199,23 @@ function stopSessionRuntime(): void {
   locationReporting = false
 }
 function closeSessionRuntime(): void {
+  resumeController.invalidate()
   stopSessionRuntime()
   sessionStore.clearParticipantLocations()
+}
+function openLocationSettings(): void {
+  uni.openSetting({
+    success: () => reporter.retry(),
+    fail: () => {
+      uni.showToast({ title: '无法打开设置', icon: 'none' })
+    },
+  })
 }
 function handleTerminalApiError(error: unknown, id: string): boolean {
   const terminal = classifyRescueSessionTerminalError(error)
   if (!terminal) return false
   if (terminal === 'closed') {
-    const applied = sessionStore.applySocketEnvelope(id, {
-      type: 'help_status',
-      data: { helpStatus: 'closed' },
-    })
+    const applied = sessionStore.confirmSessionClosed(id)
     closeSessionRuntime()
     if (!applied) terminateSessionAccess(id, '求助已结束，急救会话已关闭')
     return true
@@ -191,8 +224,10 @@ function handleTerminalApiError(error: unknown, id: string): boolean {
   return true
 }
 function terminateSessionAccess(id: string, message: string): void {
+  if (accessTerminated) return
   accessTerminated = true
   lifecycleEpoch += 1
+  resumeController.invalidate()
   stopSessionRuntime()
   sessionStore.resetSession(id)
   errorMessage.value = message
@@ -200,7 +235,7 @@ function terminateSessionAccess(id: string, message: string): void {
 function isActivePage(epoch: number, id: string): boolean {
   return !unloaded && pageVisible && lifecycleEpoch === epoch && helpId.value === id
 }
-async function handleStatusToggle(eventType: RescueEventType): Promise<void> {
+async function handleStatusToggle(eventType: RescueMutableEventType): Promise<void> {
   if (statusPending.value || sessionClosed.value) return
   const me = snapshot.value?.me
   if (!me) return
@@ -224,7 +259,7 @@ async function handleStatusToggle(eventType: RescueEventType): Promise<void> {
     statusPending.value = false
   }
 }
-function confirmRevoke(eventType: RescueEventType): Promise<boolean> {
+function confirmRevoke(eventType: RescueMutableEventType): Promise<boolean> {
   const label = eventType === 'taken_aed' ? '已拿取 AED' : '已到达现场'
   return new Promise((resolve, reject) => {
     uni.showModal({
@@ -248,19 +283,6 @@ async function handleSendMessage(text: string): Promise<boolean> {
     })
     return false
   }
-}
-function onDragStart(event: TouchEvent): void {
-  dragStartY = event.touches[0].clientY
-  dragStartHeight = mapHeightVh.value
-  windowHeight = uni.getWindowInfo().windowHeight
-}
-function onDragMove(event: TouchEvent): void {
-  if (!windowHeight) return
-  const deltaVh = ((event.touches[0].clientY - dragStartY) / windowHeight) * 100
-  mapHeightVh.value = Math.min(
-    MAX_MAP_HEIGHT_VH,
-    Math.max(MIN_MAP_HEIGHT_VH, dragStartHeight + deltaVh),
-  )
 }
 function goBack(): void {
   uni.navigateBack()

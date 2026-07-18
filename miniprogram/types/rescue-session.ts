@@ -6,6 +6,8 @@ export type RescueMessageKind = 'text' | 'status_event'
 
 export type RescueEventType = 'joined' | 'taken_aed' | 'arrived'
 
+export type RescueMutableEventType = Exclude<RescueEventType, 'joined'>
+
 export type RescueEventAction = 'mark' | 'revoke'
 
 export interface RescueSos {
@@ -18,6 +20,12 @@ export interface RescueLocation {
   readonly lat: number
   readonly lng: number
   readonly reportedAt: string
+}
+
+export interface RescueTiming {
+  readonly signalLostAfterSeconds: number
+  readonly locationGoneAfterSeconds: number
+  readonly locationReportIntervalSeconds: number
 }
 
 export interface RescueParticipant {
@@ -59,6 +67,7 @@ export interface RescueSessionSnapshot {
   readonly messages: readonly RescueMessage[]
   readonly latestSeq: number
   readonly serverTime: string
+  readonly timing: RescueTiming
 }
 
 export interface RescueMyState {
@@ -98,6 +107,7 @@ export interface RescueView {
   readonly participants: readonly RescueViewParticipant[]
   readonly events: readonly RescueViewEvent[]
   readonly serverTime: string
+  readonly timing: RescueTiming
 }
 
 export interface RescueMineItem {
@@ -116,14 +126,12 @@ export interface RescueLocationReportResult {
   readonly reportedAt: string
 }
 
-// WS 扇出信封（ADR 0001）：仅作推送提示，权威数据以 HTTP 快照为准
-export type RescueSocketEnvelopeType = 'message' | 'participant' | 'help_status'
-
-export interface RescueSocketEnvelope {
-  readonly type: RescueSocketEnvelopeType
-  readonly data: unknown
-}
-
+// WS 扇出信封（ADR 0001）：非终态只作提示；关闭门后的最终 help_status 控制客户端立即停止实时任务
 export interface RescueHelpStatusPayload {
-  readonly helpStatus: string
+  readonly helpStatus: 'published' | 'responding' | 'pending_review' | 'closed' | 'false_alarm'
 }
+
+export type RescueSocketEnvelope =
+  | { readonly type: 'message'; readonly data: RescueMessage }
+  | { readonly type: 'participant'; readonly data: RescueParticipant }
+  | { readonly type: 'help_status'; readonly data: RescueHelpStatusPayload }

@@ -10,7 +10,6 @@ export interface MapHomePollingDependencies {
   readonly refreshProfile: () => Promise<void>
   readonly isCertified: () => boolean
   readonly loadSessions: () => Promise<void>
-  readonly logout: () => void
   readonly resetSessions: () => void
 }
 
@@ -21,6 +20,7 @@ class MapHomePollingController {
   private isHelpPolling = false
   private isAedPolling = false
   private isSessionPolling = false
+  private generation = 0
 
   constructor(private readonly dependencies: MapHomePollingDependencies) {}
 
@@ -38,6 +38,7 @@ class MapHomePollingController {
   }
 
   stop(): void {
+    this.generation += 1
     this.clearTimers()
     this.isHelpPolling = false
     this.isAedPolling = false
@@ -46,47 +47,63 @@ class MapHomePollingController {
 
   async refreshSessions(): Promise<void> {
     if (this.isSessionPolling || !this.dependencies.isLoggedIn()) return
+    const generation = this.generation
     this.isSessionPolling = true
     try {
-      await this.dependencies.refreshProfile()
-      if (this.dependencies.isCertified()) {
-        await this.dependencies.loadSessions()
-      } else {
-        this.dependencies.resetSessions()
-      }
-    } catch (error) {
-      if (isForbidden(error)) {
-        this.dependencies.logout()
-        this.dependencies.resetSessions()
-      } else {
-        logPollingError('session-discovery', error)
-      }
+      if (!await this.refreshProfile(generation)) return
+      if (!this.isCurrentRun(generation)) return
+      await this.refreshSessionList()
     } finally {
-      this.isSessionPolling = false
+      if (generation === this.generation) this.isSessionPolling = false
+    }
+  }
+
+  private async refreshProfile(generation: number): Promise<boolean> {
+    try {
+      await this.dependencies.refreshProfile()
+      return this.isCurrentRun(generation)
+    } catch (error) {
+      logPollingError('profile', error)
+      return false
+    }
+  }
+
+  private async refreshSessionList(): Promise<void> {
+    if (!this.dependencies.isCertified()) {
+      this.dependencies.resetSessions()
+      return
+    }
+    try {
+      await this.dependencies.loadSessions()
+    } catch (error) {
+      if (isForbidden(error)) this.dependencies.resetSessions()
+      else logPollingError('session-discovery', error)
     }
   }
 
   private async refreshAed(): Promise<void> {
     if (this.isAedPolling) return
+    const generation = this.generation
     this.isAedPolling = true
     try {
       await this.dependencies.refreshAed()
     } catch (error) {
       logPollingError('aed-list', error)
     } finally {
-      this.isAedPolling = false
+      if (generation === this.generation) this.isAedPolling = false
     }
   }
 
   private async refreshHelp(silent: boolean): Promise<void> {
     if (this.isHelpPolling) return
+    const generation = this.generation
     this.isHelpPolling = true
     try {
       await this.dependencies.loadHelp(silent)
     } catch (error) {
       logPollingError('help-list', error)
     } finally {
-      this.isHelpPolling = false
+      if (generation === this.generation) this.isHelpPolling = false
     }
   }
 
@@ -97,6 +114,10 @@ class MapHomePollingController {
     this.helpTimer = null
     this.aedTimer = null
     this.sessionTimer = null
+  }
+
+  private isCurrentRun(generation: number): boolean {
+    return generation === this.generation && this.dependencies.isLoggedIn()
   }
 }
 

@@ -4,7 +4,6 @@ import {
   clearAuthSession,
   getToken as readToken,
   getTokenExpireAt,
-  persistAuthSession,
 } from '@/services/auth-session'
 import { AUTH_LOGIN_PATH } from '@/services/request-config'
 import type { LoginResponse } from '@/types/common'
@@ -48,7 +47,6 @@ export async function wxLogin(): Promise<LoginResponse> {
       },
     }
 
-    persistAuthSession(result)
     console.log('[Mock Auth API] login success')
     return result
   }
@@ -57,8 +55,6 @@ export async function wxLogin(): Promise<LoginResponse> {
   const result = toLoginResponse(
     await post<WeChatLoginResponse>(AUTH_LOGIN_PATH, { code }),
   )
-
-  persistAuthSession(result)
 
   return result
 }

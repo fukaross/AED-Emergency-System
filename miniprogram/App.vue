@@ -2,6 +2,9 @@
 // AED 急救小程序 应用入口
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import { useSettingsStore } from '@/store/settings'
+import { useAuthStore } from '@/store/auth'
+
+useAuthStore()
 
 function setThemeChrome(bg: string, fg: '#ffffff' | '#000000') {
   if (typeof uni.setBackgroundColor === 'function') {

@@ -1,6 +1,6 @@
 <template>
   <view class="messages-area">
-    <scroll-view class="message-list" scroll-y :scroll-into-view="lastMessageAnchor">
+    <scroll-view class="message-list" scroll-y :scroll-into-view="bottomAnchor">
       <view
         v-for="message in messages"
         :id="`msg-${message.seq}`"
@@ -30,11 +30,12 @@
       <input
         v-model="draft"
         class="message-input"
+        :maxlength="MESSAGE_TEXT_MAX_LENGTH"
         :disabled="disabled || sending"
         :placeholder="disabled ? '会话已结束' : '发送消息给同行急救员'"
         confirm-type="send"
         @confirm="handleSend"
-      >
+      />
       <view
         class="send-btn"
         :class="{ 'is-disabled': disabled || sending || !draft.trim() }"
@@ -47,10 +48,12 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import type { RescueMessage } from '@/types/rescue-session'
 import { formatRelativeTime } from '@/utils/format'
 import { formatRescueMessageText } from '@/utils/rescue-format'
+import { MESSAGE_TEXT_MAX_LENGTH } from '@/utils/rescue-session-constants'
+import { getMessageScrollAnchor, prepareMessageDraft } from './session-message-state'
 
 const props = defineProps<{
   messages: readonly RescueMessage[]
@@ -61,20 +64,10 @@ const props = defineProps<{
 
 const draft = ref('')
 const sending = ref(false)
-const bottomAnchor = 'msg-bottom'
-const lastMessageAnchor = ref('')
-
-watch(
-  () => props.messages.length,
-  async () => {
-    await nextTick()
-    lastMessageAnchor.value = bottomAnchor
-  },
-  { immediate: true },
-)
+const bottomAnchor = computed(() => getMessageScrollAnchor(props.messages))
 
 async function handleSend(): Promise<void> {
-  const text = draft.value.trim()
+  const text = prepareMessageDraft(draft.value)
   if (props.disabled || sending.value || !text) return
   sending.value = true
   try {

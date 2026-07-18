@@ -3,10 +3,10 @@ import { get, post, put } from '@/services/request'
 import type { GeoPoint } from '@/types/common'
 import type {
   RescueEventAction,
-  RescueEventType,
   RescueLocationReportResult,
   RescueMessage,
   RescueMineItem,
+  RescueMutableEventType,
   RescueSessionSnapshot,
   RescueStatusEventResult,
   RescueView,
@@ -63,7 +63,7 @@ export function postRescueMessage(helpId: string, text: string): Promise<RescueM
 /** 发送 / 撤销状态事件（taken_aed / arrived；服务端幂等去抖） */
 export function postRescueStatusEvent(
   helpId: string,
-  eventType: RescueEventType,
+  eventType: RescueMutableEventType,
   action: RescueEventAction,
 ): Promise<RescueStatusEventResult> {
   if (USE_SESSION_MOCK) {

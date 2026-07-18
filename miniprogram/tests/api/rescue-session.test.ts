@@ -8,6 +8,7 @@ vi.mock('@/utils/runtime-env', () => ({
   SESSION_BACKEND_READY: false,
   USER_BACKEND_READY: false,
   USE_MOCK: true,
+  USE_REAL_LOCATION: false,
   USE_REAL_WECHAT_FLOW: false,
   shouldWarnPlaceholderApiBaseUrl: () => false,
 }))
@@ -45,6 +46,11 @@ describe('rescue-session api (mock face)', () => {
     expect(snapshot.participants).toHaveLength(1)
     expect(snapshot.messages).toHaveLength(1)
     expect(snapshot.messages[0].eventType).toBe('joined')
+    expect(snapshot.timing).toEqual({
+      signalLostAfterSeconds: 45,
+      locationGoneAfterSeconds: 90,
+      locationReportIntervalSeconds: 5,
+    })
   })
 
   it('keeps join idempotent without duplicate joined events', async () => {
@@ -87,11 +93,6 @@ describe('rescue-session api (mock face)', () => {
     expect(revoked.me.takenAed).toBe(false)
   })
 
-  it('rejects joined as a manual status event type', async () => {
-    await joinRescueSession('test-help-x')
-    expect(() => postRescueStatusEvent('test-help-x', 'joined', 'mark')).toThrow()
-  })
-
   it('reports the latest location and exposes it in the snapshot', async () => {
     await joinRescueSession('test-help-x')
     await reportRescueLocation('test-help-x', { lat: 19.9745, lng: 110.5175 })
@@ -111,6 +112,11 @@ describe('rescue-session api (mock face)', () => {
     expect(view.participants[0]).not.toHaveProperty('openId')
     expect(view.participants[0].participantId).toBe('mock-participant-1')
     expect(view.events.map((item) => item.eventType)).toEqual(['joined', 'taken_aed'])
+    expect(view.timing).toEqual({
+      signalLostAfterSeconds: 45,
+      locationGoneAfterSeconds: 90,
+      locationReportIntervalSeconds: 5,
+    })
   })
 
   it('tracks unread counts in mine list and clears them after a full fetch', async () => {

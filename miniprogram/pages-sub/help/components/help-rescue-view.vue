@@ -1,14 +1,16 @@
 <template>
   <view class="rescue-view">
     <view class="view-header">
-      <view class="live-dot" />
-      <text class="view-title">实时救援 · 已有 {{ view.respondersCount }} 人响应</text>
+      <view class="live-dot" :class="{ 'is-stale': stale }" />
+      <text class="view-title">
+        {{ stale ? '救援动态更新延迟' : '实时救援' }} · 已有 {{ view.respondersCount }} 人响应
+      </text>
     </view>
 
     <view v-if="view.participants.length" class="participant-row">
       <view
-        v-for="(participant, index) in view.participants"
-        :key="index"
+        v-for="participant in view.participants"
+        :key="participant.participantId"
         class="participant-chip"
         :class="{ 'is-lost': participant.signal !== 'ok' }"
       >
@@ -16,6 +18,7 @@
         <text v-if="participant.takenAed" class="badge badge--aed">拿了AED</text>
         <text v-if="participant.arrived" class="badge badge--arrived">已到达</text>
         <text v-if="participant.signal === 'lost'" class="badge badge--lost">信号丢失</text>
+        <text v-if="participant.signal === 'gone'" class="badge badge--lost">位置已移除</text>
       </view>
     </view>
 
@@ -36,6 +39,7 @@ import { formatRescueViewEventText } from '@/utils/rescue-format'
 
 defineProps<{
   view: RescueView
+  stale: boolean
 }>()
 </script>
 
@@ -61,6 +65,11 @@ defineProps<{
   border-radius: $radius-full;
   background: $primary;
   animation: pulse $duration-cycle infinite;
+}
+
+.live-dot.is-stale {
+  background: $status-offline;
+  animation: none;
 }
 
 .view-title {

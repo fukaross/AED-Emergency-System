@@ -9,13 +9,12 @@ function buildDependencies() {
     refreshProfile: vi.fn().mockResolvedValue(undefined),
     isCertified: vi.fn(() => true),
     loadSessions: vi.fn().mockResolvedValue(undefined),
-    logout: vi.fn(),
     resetSessions: vi.fn(),
   }
 }
 
 describe('map home polling', () => {
-  it('logs out and clears cached sessions when discovery is forbidden', async () => {
+  it('only clears cached sessions when mine discovery is forbidden', async () => {
     const dependencies = buildDependencies()
     dependencies.loadSessions.mockRejectedValueOnce(
       Object.assign(new Error('forbidden'), { statusCode: 403 }),
@@ -24,8 +23,19 @@ describe('map home polling', () => {
 
     await polling.refreshSessions()
 
-    expect(dependencies.logout).toHaveBeenCalledTimes(1)
     expect(dependencies.resetSessions).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not continue discovery when profile refresh is forbidden', async () => {
+    const dependencies = buildDependencies()
+    dependencies.refreshProfile.mockRejectedValueOnce(
+      Object.assign(new Error('forbidden'), { statusCode: 403 }),
+    )
+    const polling = createMapHomePolling(dependencies)
+
+    await polling.refreshSessions()
+
+    expect(dependencies.loadSessions).not.toHaveBeenCalled()
   })
 
   it('clears cached sessions after a refreshed profile loses certification', async () => {
@@ -37,5 +47,21 @@ describe('map home polling', () => {
 
     expect(dependencies.loadSessions).not.toHaveBeenCalled()
     expect(dependencies.resetSessions).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not continue an old refresh after polling stops', async () => {
+    let finishProfile: (() => void) | undefined
+    const dependencies = buildDependencies()
+    dependencies.refreshProfile.mockReturnValueOnce(new Promise<void>((resolve) => {
+      finishProfile = resolve
+    }))
+    const polling = createMapHomePolling(dependencies)
+
+    const pending = polling.refreshSessions()
+    polling.stop()
+    finishProfile?.()
+    await pending
+
+    expect(dependencies.loadSessions).not.toHaveBeenCalled()
   })
 })

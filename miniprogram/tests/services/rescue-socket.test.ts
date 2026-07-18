@@ -5,7 +5,10 @@ const authMocks = vi.hoisted(() => ({ getToken: vi.fn() }))
 vi.mock('@/services/auth-session', () => authMocks)
 vi.mock('@/services/request-config', () => ({ BASE_URL: 'https://api.example.test' }))
 
-import { connectRescueSocket } from '@/services/rescue-socket'
+import {
+  closeAllRescueSockets,
+  connectRescueSocket,
+} from '@/services/rescue-socket'
 
 interface SocketCallbacks {
   open?: () => void
@@ -38,6 +41,7 @@ describe('connectRescueSocket', () => {
   })
 
   afterEach(() => {
+    closeAllRescueSockets()
     vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -70,20 +74,37 @@ describe('connectRescueSocket', () => {
     expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain('secret-token')
   })
 
-  it('logs invalid frames without exposing their raw contents', () => {
+  it('reports invalid frames for HTTP catch-up without exposing raw contents', () => {
     const { callbacks } = installSocket()
-    connectRescueSocket('help-1', { onEnvelope: vi.fn() })
+    const onEnvelope = vi.fn()
+    const onInvalidFrame = vi.fn()
+    connectRescueSocket('help-1', { onEnvelope, onInvalidFrame })
 
     callbacks.message?.({ data: 'private rescue payload' })
 
-    expect(console.warn).toHaveBeenCalledWith('[RescueSocket] 推送帧解析失败', {
-      event: 'frame_parse_failed',
+    expect(onEnvelope).not.toHaveBeenCalled()
+    expect(onInvalidFrame).toHaveBeenCalledWith('malformed_json')
+    expect(console.warn).toHaveBeenCalledWith('[RescueSocket] 推送帧校验失败', {
+      event: 'frame_validation_failed',
+      reason: 'malformed_json',
       dataType: 'string',
       dataLength: 22,
     })
     expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain(
       'private rescue payload',
     )
+  })
+
+  it('rejects a parseable frame whose payload is incomplete', () => {
+    const { callbacks } = installSocket()
+    const onEnvelope = vi.fn()
+    const onInvalidFrame = vi.fn()
+    connectRescueSocket('help-1', { onEnvelope, onInvalidFrame })
+
+    callbacks.message?.({ data: JSON.stringify({ type: 'participant', data: {} }) })
+
+    expect(onEnvelope).not.toHaveBeenCalled()
+    expect(onInvalidFrame).toHaveBeenCalledWith('invalid_envelope')
   })
 
   it('times out a handshake that never opens', () => {
@@ -106,5 +127,19 @@ describe('connectRescueSocket', () => {
     callbacks.close?.()
 
     expect(onUnavailable).not.toHaveBeenCalled()
+  })
+
+  it('closes every healthy connection when authentication ends', () => {
+    const first = installSocket()
+    connectRescueSocket('help-1', { onEnvelope: vi.fn() })
+    first.callbacks.open?.()
+    const second = installSocket()
+    connectRescueSocket('help-2', { onEnvelope: vi.fn() })
+    second.callbacks.open?.()
+
+    closeAllRescueSockets()
+
+    expect(first.task.close).toHaveBeenCalledTimes(1)
+    expect(second.task.close).toHaveBeenCalledTimes(1)
   })
 })

@@ -1,6 +1,8 @@
 import type { GeoPoint } from '@/types/common'
 import type { HelpStatus } from '@/types/help'
-import type { RescueViewParticipant } from '@/types/rescue-session'
+import type { RescueTiming, RescueViewParticipant } from '@/types/rescue-session'
+import { ERROR_CODES } from '@/utils/constants'
+import { computeSignal } from '@/utils/rescue-signal'
 
 const ACTIVE_HELP_STATUSES: readonly HelpStatus[] = [
   'published',
@@ -20,6 +22,13 @@ interface RescueMapPointSources {
   readonly userLocation: GeoPoint | null
   readonly sos: GeoPoint | null
   readonly participants: readonly RescueViewParticipant[]
+}
+
+interface RescueViewProjectionContext {
+  readonly participants: readonly RescueViewParticipant[]
+  readonly timing: RescueTiming
+  readonly serverClockOffsetMs: number
+  readonly localNow: number
 }
 
 export function isActiveHelpStatus(status: string | undefined): status is HelpStatus {
@@ -44,9 +53,31 @@ export function shouldClearRescueViewForError(error: unknown): boolean {
     readonly code?: number
     readonly statusCode?: number
   }
-  return apiError.code === 1017
+  return apiError.code === ERROR_CODES.RESCUE_NOT_PARTICIPANT
+    || apiError.code === ERROR_CODES.UNAUTHORIZED
+    || apiError.code === ERROR_CODES.ACCOUNT_DISABLED
+    || apiError.statusCode === 401
     || apiError.statusCode === 403
     || apiError.statusCode === 409
+}
+
+/** 使用服务端校准时钟推进只读视图信号，并在 gone 时立即清除精确坐标。 */
+export function projectRescueViewParticipants(
+  context: RescueViewProjectionContext,
+): RescueViewParticipant[] {
+  const calibratedNow = context.localNow + context.serverClockOffsetMs
+  return context.participants.map((participant) => {
+    if (!participant.location) return participant
+    const signal = computeSignal(
+      participant.location.reportedAt,
+      calibratedNow,
+      context.timing.signalLostAfterSeconds,
+      context.timing.locationGoneAfterSeconds,
+    )
+    return signal === 'gone'
+      ? { ...participant, signal, location: null }
+      : { ...participant, signal }
+  })
 }
 
 export function collectRescueMapPoints(

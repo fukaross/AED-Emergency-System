@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RescueSocketHandlers, RescueSocketHandle } from '@/services/rescue-socket'
+import type { RescueMessage, RescueParticipant } from '@/types/rescue-session'
 
 const socketMocks = vi.hoisted(() => ({ connectRescueSocket: vi.fn() }))
 
@@ -13,6 +14,32 @@ import { useSessionRealtime } from '@/composables/useSessionRealtime'
 
 async function flushPromises(): Promise<void> {
   for (let index = 0; index < 5; index += 1) await Promise.resolve()
+}
+
+function message(seq = 2): RescueMessage {
+  return {
+    id: `message-${seq}`,
+    seq,
+    kind: 'text',
+    senderOpenId: 'rescuer-a',
+    senderName: '急救员 A',
+    text: '正在前往',
+    eventType: null,
+    action: null,
+    createdAt: '2026-07-18T10:00:00.000Z',
+  }
+}
+
+function participant(): RescueParticipant {
+  return {
+    openId: 'rescuer-a',
+    displayName: '急救员 A',
+    joinedAt: '2026-07-18T09:59:00.000Z',
+    takenAed: false,
+    arrived: false,
+    signal: 'gone',
+    location: null,
+  }
 }
 
 function installSocketHandle(): { handle: RescueSocketHandle; handlers: () => RescueSocketHandlers } {
@@ -101,7 +128,7 @@ describe('useSessionRealtime', () => {
     expect(realtime.usingSocket.value).toBe(true)
   })
 
-  it('acks visible socket messages with a coalesced HTTP refresh', async () => {
+  it('treats every valid socket envelope as a coalesced HTTP catch-up hint', async () => {
     const socket = installSocketHandle()
     const refresh = vi.fn().mockResolvedValue(undefined)
     const realtime = useSessionRealtime({
@@ -115,8 +142,29 @@ describe('useSessionRealtime', () => {
     await flushPromises()
     refresh.mockClear()
 
-    socket.handlers().onEnvelope({ type: 'message', data: {} })
-    socket.handlers().onEnvelope({ type: 'message', data: {} })
+    socket.handlers().onEnvelope({ type: 'message', data: message() })
+    socket.handlers().onEnvelope({ type: 'participant', data: participant() })
+    socket.handlers().onEnvelope({ type: 'help_status', data: { helpStatus: 'responding' } })
+    await flushPromises()
+
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('catches up over HTTP when the socket rejects a malformed frame', async () => {
+    const socket = installSocketHandle()
+    const refresh = vi.fn().mockResolvedValue(undefined)
+    const realtime = useSessionRealtime({
+      getHelpId: () => 'help-1',
+      onEnvelope: vi.fn(),
+      onPollRefresh: refresh,
+      onSignalRefresh: vi.fn(),
+    })
+    realtime.start()
+    socket.handlers().onOpen?.()
+    await flushPromises()
+    refresh.mockClear()
+
+    socket.handlers().onInvalidFrame?.('invalid_envelope')
     await flushPromises()
 
     expect(refresh).toHaveBeenCalledTimes(1)
@@ -152,7 +200,7 @@ describe('useSessionRealtime', () => {
 
     realtime.start()
     realtime.stop()
-    socket.handlers().onEnvelope({ type: 'message', data: {} })
+    socket.handlers().onEnvelope({ type: 'message', data: message() })
 
     expect(onEnvelope).not.toHaveBeenCalled()
   })

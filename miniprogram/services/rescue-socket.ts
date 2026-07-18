@@ -1,10 +1,15 @@
 // 急救会话 WS 推送通道（ADR 0001：仅扇出，权威数据以 HTTP 为准；断线由页面降级轮询）
 import { getToken } from '@/services/auth-session'
 import { BASE_URL } from '@/services/request-config'
+import {
+  parseRescueSocketFrame,
+  type RescueSocketFrameFailure,
+} from '@/services/rescue-socket-frame'
 import type { RescueSocketEnvelope } from '@/types/rescue-session'
 
 export interface RescueSocketHandlers {
   readonly onEnvelope: (envelope: RescueSocketEnvelope) => void
+  readonly onInvalidFrame?: (reason: RescueSocketFrameFailure) => void
   readonly onOpen?: () => void
   readonly onUnavailable?: (reason?: unknown) => void
 }
@@ -19,6 +24,7 @@ function toWebSocketBaseUrl(baseUrl: string): string {
 }
 
 const SOCKET_OPEN_TIMEOUT_MS = 8000
+const activeConnections = new Set<RescueSocketConnection>()
 
 /** 建立会话推送连接；token 缺失时直接抛错（不静默降级，由调用方决定回退轮询） */
 export function connectRescueSocket(
@@ -27,7 +33,14 @@ export function connectRescueSocket(
 ): RescueSocketHandle {
   const token = getToken()
   if (!token) throw new Error('缺少登录凭证，无法建立会话推送通道')
-  return new RescueSocketConnection(helpId, token, handlers)
+  const connection = new RescueSocketConnection(helpId, token, handlers)
+  activeConnections.add(connection)
+  return connection
+}
+
+/** Closes authenticated sockets before an account is discarded or replaced. */
+export function closeAllRescueSockets(): void {
+  for (const connection of [...activeConnections]) connection.close()
 }
 
 class RescueSocketConnection implements RescueSocketHandle {
@@ -61,6 +74,7 @@ class RescueSocketConnection implements RescueSocketHandle {
     this.closedByClient = true
     this.connected = false
     clearTimeout(this.openTimer)
+    activeConnections.delete(this)
     this.closeTask()
   }
 
@@ -74,6 +88,7 @@ class RescueSocketConnection implements RescueSocketHandle {
     this.task.onClose(() => {
       this.taskClosed = true
       this.connected = false
+      activeConnections.delete(this)
       this.notifyUnavailable()
     })
     this.task.onError((error) => {
@@ -93,16 +108,18 @@ class RescueSocketConnection implements RescueSocketHandle {
   }
 
   private handleMessage(data: string | ArrayBuffer): void {
-    if (typeof data !== 'string' || !data) return
-    try {
-      this.handlers.onEnvelope(JSON.parse(data) as RescueSocketEnvelope)
-    } catch {
-      console.warn('[RescueSocket] 推送帧解析失败', {
-        event: 'frame_parse_failed',
-        dataType: typeof data,
-        dataLength: data.length,
-      })
+    const result = parseRescueSocketFrame(data)
+    if (result.ok) {
+      this.handlers.onEnvelope(result.envelope)
+      return
     }
+    console.warn('[RescueSocket] 推送帧校验失败', {
+      event: 'frame_validation_failed',
+      reason: result.reason,
+      dataType: typeof data,
+      dataLength: typeof data === 'string' ? data.length : data.byteLength,
+    })
+    this.handlers.onInvalidFrame?.(result.reason)
   }
 
   private notifyUnavailable(reason?: unknown): void {
@@ -110,6 +127,7 @@ class RescueSocketConnection implements RescueSocketHandle {
     this.unavailableNotified = true
     this.connected = false
     clearTimeout(this.openTimer)
+    activeConnections.delete(this)
     this.closeTask()
     this.handlers.onUnavailable?.(reason)
   }

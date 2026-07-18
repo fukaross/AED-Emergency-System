@@ -149,7 +149,6 @@ const homePolling = createMapHomePolling({
   refreshProfile: () => userStore.loadProfile(),
   isCertified: () => userStore.isCertified,
   loadSessions: () => rescueStore.loadMineSessions(userStore.userInfo?.id ?? '', true),
-  logout: () => authStore.logout(),
   resetSessions: () => rescueStore.resetMineSessions(),
 })
 

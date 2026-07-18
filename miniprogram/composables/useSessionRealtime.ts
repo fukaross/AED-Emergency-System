@@ -85,6 +85,7 @@ class SessionRealtimeController {
     try {
       run.socket = connectRescueSocket(run.helpId, {
         onEnvelope: (envelope) => this.handleEnvelope(run, envelope),
+        onInvalidFrame: () => this.requestRefresh(run),
         onOpen: () => this.handleOpen(run),
         onUnavailable: () => this.fallbackToPolling(run),
       })
@@ -105,7 +106,7 @@ class SessionRealtimeController {
   private handleEnvelope(run: RealtimeRun, envelope: RescueSocketEnvelope): void {
     if (!this.isActive(run)) return
     this.options.onEnvelope(envelope, run.helpId)
-    if (this.isActive(run) && envelope.type === 'message') this.requestRefresh(run)
+    if (this.isActive(run)) this.requestRefresh(run)
   }
 
   private fallbackToPolling(run: RealtimeRun): void {

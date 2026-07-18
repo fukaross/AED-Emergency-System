@@ -58,6 +58,11 @@ function buildSnapshot(overrides: Partial<RescueSessionSnapshot> = {}): RescueSe
     messages: [buildMessage(1)],
     latestSeq: 1,
     serverTime: '2026-07-17T10:00:00.000Z',
+    timing: {
+      signalLostAfterSeconds: 45,
+      locationGoneAfterSeconds: 90,
+      locationReportIntervalSeconds: 5,
+    },
     ...overrides,
   }
 }
@@ -145,21 +150,66 @@ describe('rescue-session store', () => {
     expect(store.snapshot?.messages).toHaveLength(2)
   })
 
-  it('applies participant envelopes by replacing the matching member', async () => {
+  it('treats message and participant envelopes only as catch-up hints', async () => {
     apiMocks.joinRescueSession.mockResolvedValueOnce(buildSnapshot())
     const store = useRescueSessionStore()
     await store.joinSession('help-1')
 
     const moved = { ...buildParticipant('openid-a'), takenAed: true }
     store.applySocketEnvelope('help-1', { type: 'participant', data: moved })
-
-    expect(store.snapshot?.participants[0].takenAed).toBe(true)
-
+    store.applySocketEnvelope('help-1', { type: 'message', data: buildMessage(3) })
     store.applySocketEnvelope('help-1', { type: 'participant', data: buildParticipant('openid-c') })
-    expect(store.snapshot?.participants).toHaveLength(2)
+
+    expect(store.snapshot?.participants).toHaveLength(1)
+    expect(store.snapshot?.participants[0].takenAed).toBe(false)
+    expect(store.snapshot?.messages.map((message) => message.seq)).toEqual([1])
+    expect(store.snapshot?.latestSeq).toBe(1)
   })
 
-  it('applies help_status envelopes and closes the session', async () => {
+  it('keeps the HTTP cursor behind an out-of-order websocket message', async () => {
+    apiMocks.joinRescueSession.mockResolvedValueOnce(buildSnapshot())
+    apiMocks.fetchRescueSession.mockResolvedValueOnce(
+      buildSnapshot({
+        messages: [buildMessage(2), buildMessage(3)],
+        latestSeq: 3,
+      }),
+    )
+    const store = useRescueSessionStore()
+    await store.joinSession('help-1')
+
+    store.applySocketEnvelope('help-1', { type: 'message', data: buildMessage(3) })
+    await store.refreshSession('help-1')
+
+    expect(apiMocks.fetchRescueSession).toHaveBeenCalledWith('help-1', {
+      afterSeq: 1,
+      silent: true,
+    })
+    expect(store.snapshot?.messages.map((message) => message.seq)).toEqual([1, 2, 3])
+  })
+
+  it('does not advance the confirmed cursor from a message POST response', async () => {
+    apiMocks.joinRescueSession.mockResolvedValueOnce(buildSnapshot())
+    apiMocks.postRescueMessage.mockResolvedValueOnce(buildMessage(3))
+    apiMocks.fetchRescueSession.mockResolvedValueOnce(
+      buildSnapshot({
+        messages: [buildMessage(2), buildMessage(3)],
+        latestSeq: 3,
+      }),
+    )
+    const store = useRescueSessionStore()
+    await store.joinSession('help-1')
+
+    await store.sendMessage('第三条')
+    await store.refreshSession('help-1')
+
+    expect(apiMocks.fetchRescueSession).toHaveBeenCalledWith('help-1', {
+      afterSeq: 1,
+      silent: true,
+    })
+    expect(store.snapshot?.messages.map((message) => message.seq)).toEqual([1, 2, 3])
+  })
+
+  it('commits the final socket terminal frame immediately', async () => {
     apiMocks.joinRescueSession.mockResolvedValueOnce(buildSnapshot())
     const store = useRescueSessionStore()
     await store.joinSession('help-1')
@@ -171,6 +221,7 @@ describe('rescue-session store', () => {
 
     expect(store.snapshot?.helpStatus).toBe('closed')
     expect(store.sessionClosed).toBe(true)
+    expect(store.terminalHinted).toBe(true)
   })
 
   it('sums unread counts across mine items', async () => {

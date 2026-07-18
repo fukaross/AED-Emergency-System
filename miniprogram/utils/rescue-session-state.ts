@@ -10,8 +10,11 @@ export function classifyRescueSessionTerminalError(
   const apiError = error as ApiError
   if (apiError?.code === ERROR_CODES.RESCUE_SESSION_CLOSED) return 'closed'
   if (
-    apiError?.statusCode === 403
+    apiError?.statusCode === 401
+    || apiError?.statusCode === 403
+    || apiError?.code === ERROR_CODES.UNAUTHORIZED
     || apiError?.code === ERROR_CODES.FORBIDDEN
+    || apiError?.code === ERROR_CODES.ACCOUNT_DISABLED
     || apiError?.code === ERROR_CODES.RESCUE_NOT_PARTICIPANT
   ) return 'revoked'
   return null
@@ -31,5 +34,6 @@ export function mergeSessionSnapshot(
   return {
     ...incremental,
     messages: [...current.messages, ...newMessages].sort((a, b) => a.seq - b.seq),
+    latestSeq: Math.max(current.latestSeq, incremental.latestSeq),
   }
 }

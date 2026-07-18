@@ -9,7 +9,11 @@ vi.mock('@/services/request-config', () => ({
 }))
 
 vi.mock('@/services/auth-session', () => ({
+  captureAuthSession: () => ({ epoch: 1, token: 'secret-token-value', userId: 'user-1' }),
+  createAuthSessionChangedError: () => new Error('登录账号已变更，请重试'),
   getToken: () => 'secret-token-value',
+  isAuthEpochCurrent: () => true,
+  isAuthSessionCurrent: () => true,
 }))
 
 vi.mock('@/services/auth-refresh', () => ({

@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import type { RescueEventType, RescueMe } from '@/types/rescue-session'
+import type { RescueMe, RescueMutableEventType } from '@/types/rescue-session'
 
 const props = defineProps<{
   me: RescueMe | null
@@ -27,15 +27,15 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  toggle: [eventType: RescueEventType]
+  toggle: [eventType: RescueMutableEventType]
 }>()
 
-function handleToggle(eventType: RescueEventType): void {
+function handleToggle(eventType: RescueMutableEventType): void {
   if (props.disabled || props.pending) return
   emit('toggle', eventType)
 }
 
-function statusLabel(eventType: RescueEventType): string {
+function statusLabel(eventType: RescueMutableEventType): string {
   if (props.pending) return '同步中'
   if (eventType === 'taken_aed') return props.me?.takenAed ? '✓ 已拿取 AED' : '我已拿取 AED'
   return props.me?.arrived ? '✓ 已到达现场' : '我已到达现场'

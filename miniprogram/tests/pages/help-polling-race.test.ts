@@ -37,8 +37,17 @@ function buildView(id: string): RescueView {
   return {
     helpId: id,
     helpStatus: 'responding',
+    sos: { lat: 19.97, lng: 110.51, address: '测试点' },
+    respondersCount: 0,
     participants: [],
-  } as unknown as RescueView
+    events: [],
+    serverTime: '2026-07-17T10:00:00.000Z',
+    timing: {
+      signalLostAfterSeconds: 45,
+      locationGoneAfterSeconds: 90,
+      locationReportIntervalSeconds: 5,
+    },
+  }
 }
 
 describe('help polling request ownership', () => {
@@ -119,6 +128,23 @@ describe('help polling request ownership', () => {
       '[HelpDetailPolling] GET /api/help/{id} status=network code=none',
     )
     expect(JSON.stringify(warn.mock.calls)).not.toContain('private network detail')
+  })
+
+  it.each([
+    { statusCode: 401 },
+    { code: 1002 },
+  ])('ends detail polling when authentication terminates with %o', async (error) => {
+    const accessEnded = vi.fn()
+    apiMocks.fetchHelpDetail.mockRejectedValueOnce(error)
+    const polling = useHelpDetailPolling({
+      detail: ref<HelpRequestDetail | null>(buildDetail('help-1')),
+      applyDetail: vi.fn(),
+      handleAccessEnded: accessEnded,
+    })
+
+    await polling.refreshHelpDetail()
+
+    expect(accessEnded).toHaveBeenCalledTimes(1)
   })
 
   it('logs rescue-view network failures without response bodies', async () => {

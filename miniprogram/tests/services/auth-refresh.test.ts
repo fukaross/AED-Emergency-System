@@ -24,6 +24,8 @@ vi.stubGlobal('uni', {
 })
 
 import { refreshAuthSession } from '@/services/auth-refresh'
+import { persistAuthSession } from '@/services/auth-session'
+import type { LoginResponse } from '@/types/common'
 import {
   AUTH_USER_INFO_STORAGE_KEY,
   CURRENT_USER_ID_STORAGE_KEY,
@@ -47,6 +49,19 @@ function mockRefreshFailure(statusCode: number, code: number, message: string) {
     statusCode,
     data: { code, message },
   })
+}
+
+function buildLogin(token: string, id: string): LoginResponse {
+  return {
+    token,
+    expiresIn: 2592000,
+    userInfo: {
+      id,
+      name: id,
+      avatarUrl: '',
+      isNewUser: false,
+    },
+  }
 }
 
 describe('auth refresh', () => {
@@ -106,5 +121,39 @@ describe('auth refresh', () => {
 
   it('rejects when token is missing from storage', async () => {
     await expect(refreshAuthSession(10000)).rejects.toThrow('缺少刷新 Token 所需的登录态')
+  })
+
+  it('shares one refresh request across concurrent 401 recoveries', async () => {
+    persistAuthSession(buildLogin('old-token', 'user-a'))
+
+    const first = refreshAuthSession(10000)
+    const second = refreshAuthSession(10000)
+
+    // eslint-disable-next-line no-restricted-properties
+    expect(uni.request).toHaveBeenCalledTimes(1)
+    mockRefreshSuccess({
+      token: 'new-token',
+      openId: 'user-a',
+      isNewUser: false,
+    })
+    await Promise.all([first, second])
+
+    expect(storage.get(TOKEN_STORAGE_KEY)).toBe('new-token')
+  })
+
+  it('does not let a late refresh from account A overwrite account B', async () => {
+    persistAuthSession(buildLogin('token-a', 'user-a'))
+    const pending = refreshAuthSession(10000)
+
+    persistAuthSession(buildLogin('token-b', 'user-b'))
+    mockRefreshSuccess({
+      token: 'late-token-a',
+      openId: 'user-a',
+      isNewUser: false,
+    })
+
+    await expect(pending).rejects.toThrow('登录账号已变更')
+    expect(storage.get(TOKEN_STORAGE_KEY)).toBe('token-b')
+    expect(storage.get(CURRENT_USER_ID_STORAGE_KEY)).toBe('user-b')
   })
 })

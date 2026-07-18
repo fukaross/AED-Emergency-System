@@ -3,7 +3,8 @@ import type { GeoPoint } from '@/types/common'
 import { MAP_CENTER } from '@/utils/constants'
 import { APP_ENV, USE_MOCK, USE_REAL_LOCATION } from '@/utils/runtime-env'
 
-const EARTH_RADIUS_M = 6371000
+export { calculateDistance, findNearestOnlineAed } from '@/services/geo-distance'
+
 const DEVTOOLS_PLATFORM = 'devtools'
 const LOCATION_SCOPE = 'scope.userLocation'
 const LOCATION_TIMEOUT_MS = 10000
@@ -51,46 +52,36 @@ export function shouldUseManualLocationPicker(
   return isWechatDevtoolsPlatform(platform) && mode === 'interactive'
 }
 
-const SHOULD_USE_DEFAULT_LOCATION = shouldUseDefaultLocation(
-  APP_ENV,
-  USE_MOCK,
-  USE_REAL_LOCATION,
-)
-
-/** Haversine 公式计算两点间球面距离 (米) */
-export function calculateDistance(a: GeoPoint, b: GeoPoint): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180
-  const dLat = toRad(b.lat - a.lat)
-  const dLng = toRad(b.lng - a.lng)
-  const sinLat = Math.sin(dLat / 2)
-  const sinLng = Math.sin(dLng / 2)
-  const h =
-    sinLat * sinLat +
-    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * sinLng * sinLng
-  return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(h))
-}
+const SHOULD_USE_DEFAULT_LOCATION = shouldUseDefaultLocation(APP_ENV, USE_MOCK, USE_REAL_LOCATION)
 
 export interface LocationResult {
   readonly success: boolean
   readonly point: GeoPoint
   readonly isDefault: boolean
   readonly showSystemLocation: boolean
+  readonly failureReason?: LocationFailureReason
   readonly address?: string
   readonly name?: string
   readonly errorMessage?: string
 }
+
+export type LocationFailureReason = 'permission_denied' | 'unavailable' | 'cancelled'
 
 interface GetCurrentLocationOptions {
   readonly mode?: GetCurrentLocationMode
   readonly timeoutMs?: number
 }
 
-function createDefaultLocation(errorMessage: string): LocationResult {
+function createDefaultLocation(
+  errorMessage: string,
+  failureReason: LocationFailureReason = 'unavailable',
+): LocationResult {
   return {
     success: false,
     point: { lat: MAP_CENTER.latitude, lng: MAP_CENTER.longitude },
     isDefault: true,
     showSystemLocation: false,
+    failureReason,
     errorMessage,
   }
 }
@@ -101,22 +92,21 @@ function getRuntimePlatform(): string {
     readonly getSystemInfoSync?: () => DeviceInfoLike
   }
 
-  const platform =
-    runtime.getDeviceInfo?.().platform || runtime.getSystemInfoSync?.().platform
+  const platform = runtime.getDeviceInfo?.().platform || runtime.getSystemInfoSync?.().platform
 
   return platform || ''
 }
 
 function buildLocationFailureMessage(errMsg: string): string {
-  if (errMsg.includes('auth deny')) {
-    return '定位权限被拒绝，已使用校园中心点'
+  if (errMsg.includes('auth deny') || errMsg.includes('authorize')) {
+    return '定位权限被拒绝，请开启定位权限后重试'
   }
 
   if (errMsg.includes('timeout')) {
-    return '定位超时，已使用校园中心点'
+    return '定位超时，请重试'
   }
 
-  return '定位失败，已使用校园中心点'
+  return '定位失败，请重试'
 }
 
 async function ensureLocationPermission(mode: GetCurrentLocationMode): Promise<boolean> {
@@ -147,9 +137,7 @@ async function ensureLocationPermission(mode: GetCurrentLocationMode): Promise<b
   }
 }
 
-function buildLocationOptions(
-  mode: GetCurrentLocationMode,
-): GetLocationWithAccuracyOptions {
+function buildLocationOptions(mode: GetCurrentLocationMode): GetLocationWithAccuracyOptions {
   if (mode === 'interactive') {
     return {
       type: 'gcj02',
@@ -164,9 +152,7 @@ function buildLocationOptions(
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label}: timeout`)), ms),
-    ),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${label}: timeout`)), ms)),
   ])
 }
 
@@ -176,7 +162,7 @@ async function requestCurrentLocation(
 ): Promise<LocationResult> {
   const hasPermission = await ensureLocationPermission(mode)
   if (!hasPermission) {
-    return createDefaultLocation('定位权限被拒绝，已使用校园中心点')
+    return createDefaultLocation('定位权限被拒绝，请开启定位权限后重试', 'permission_denied')
   }
 
   try {
@@ -193,22 +179,22 @@ async function requestCurrentLocation(
       showSystemLocation: true,
     }
   } catch (err) {
-    const errMsg = (err as { errMsg?: string })?.errMsg
-      || (err as Error)?.message
-      || ''
+    const errMsg = (err as { errMsg?: string })?.errMsg || (err as Error)?.message || ''
     console.warn('[GeoService] getLocation failed:', errMsg)
 
     if (errMsg.includes('auth deny') || errMsg.includes('authorize')) {
       showLocationPermissionGuideOnce(mode)
     }
 
-    return createDefaultLocation(buildLocationFailureMessage(errMsg))
+    const denied = errMsg.includes('auth deny') || errMsg.includes('authorize')
+    return createDefaultLocation(
+      buildLocationFailureMessage(errMsg),
+      denied ? 'permission_denied' : 'unavailable',
+    )
   }
 }
 
-export async function chooseLocationPoint(
-  center?: GeoPoint,
-): Promise<LocationResult> {
+export async function chooseLocationPoint(center?: GeoPoint): Promise<LocationResult> {
   try {
     const res = await uni.chooseLocation({
       latitude: center?.lat ?? MAP_CENTER.latitude,
@@ -232,18 +218,18 @@ export async function chooseLocationPoint(
     }
 
     if (errMsg.includes('cancel')) {
-      return createDefaultLocation('未选择位置，请重试')
+      return createDefaultLocation('未选择位置，请重试', 'cancelled')
     }
 
     if (errMsg.includes('auth deny')) {
-      return createDefaultLocation('位置选择权限被拒绝，请开启位置权限后重试')
+      return createDefaultLocation('位置选择权限被拒绝，请开启位置权限后重试', 'permission_denied')
     }
 
     return createDefaultLocation('位置选择失败，请重试')
   }
 }
 
-/** 获取当前位置 (GCJ-02)。降级：devtools interactive→手动选点；权限拒绝/超时→校园中心 */
+/** 获取当前位置 (GCJ-02)；失败结果携带校园中心占位坐标，由调用方决定是否使用。 */
 export async function getCurrentLocation(
   options: GetCurrentLocationOptions = {},
 ): Promise<LocationResult> {
@@ -275,23 +261,4 @@ function showLocationPermissionGuideOnce(mode: GetCurrentLocationMode): void {
       }
     },
   })
-}
-
-/** 从 AED 列表中找出距离用户最近的在线 AED */
-export function findNearestOnlineAed<
-  T extends { lat: number; lng: number; status: string },
->(aedList: readonly T[], userPoint: GeoPoint): T | null {
-  let nearest: T | null = null
-  let minDist = Infinity
-
-  for (const aed of aedList) {
-    if (aed.status !== 'online') continue
-    const dist = calculateDistance(userPoint, { lat: aed.lat, lng: aed.lng })
-    if (dist < minDist) {
-      minDist = dist
-      nearest = aed
-    }
-  }
-
-  return nearest
 }

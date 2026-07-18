@@ -19,6 +19,7 @@ export const ERROR_CODES = {
   HELP_REPORT_MISSING_FIELDS: 1015,
   RESCUE_SESSION_CLOSED: 1016,
   RESCUE_NOT_PARTICIPANT: 1017,
+  ACCOUNT_DISABLED: 1018,
   AED_NOT_FOUND: 2001,
   COURSE_NOT_FOUND: 2002,
   ARCHIVE_NOT_FOUND: 2003,
@@ -43,6 +44,7 @@ export const ERROR_MESSAGES: Record<number, string> = {
   [ERROR_CODES.HELP_REPORT_MISSING_FIELDS]: '请补充救助报告信息',
   [ERROR_CODES.RESCUE_SESSION_CLOSED]: '求助已结束，急救会话已关闭',
   [ERROR_CODES.RESCUE_NOT_PARTICIPANT]: '仅会话参与者可执行此操作',
+  [ERROR_CODES.ACCOUNT_DISABLED]: '账号已禁用',
   [ERROR_CODES.REPORT_PROCESSING]: '报修正在处理中',
   [ERROR_CODES.REPORT_CONTACT_REQUIRED]: '请填写联系方式',
   [ERROR_CODES.SUBSCRIBE_NOT_GRANTED]: '订阅消息未授权',
@@ -103,9 +105,6 @@ export const MAX_UPLOAD_SIZE = Number(
 export const ALLOWED_IMAGE_TYPES = ['jpg', 'jpeg', 'png', 'webp'] as const
 export const MAX_HELP_IMAGES = 3
 export const MAX_REPORT_IMAGES = 3
-
-// 业务相关
-export const HELP_RATE_LIMIT_SECONDS = 300
 
 // 校方急救热线
 export const SCHOOL_EMERGENCY_PHONE =
