@@ -4,6 +4,10 @@ namespace AedBackend.Infrastructure.Persistence.Sqlite;
 
 internal sealed class AedDbContext : DbContext
 {
+    private const int GuestFollowupCodeMaxLength = 32;
+    private const int GuestCloseTokenMaxLength = 64;
+    private const int GuestAnonymousIdMaxLength = 100;
+
     public AedDbContext(DbContextOptions<AedDbContext> options) : base(options)
     {
     }
@@ -193,6 +197,10 @@ internal sealed class AedDbContext : DbContext
             e.ToTable("help_requests");
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.RequestNo).IsUnique();
+            e.HasIndex(x => x.UserId)
+                .HasDatabaseName("uk_help_active_user")
+                .HasFilter("Status IN ('published', 'responding', 'pending_review')")
+                .IsUnique();
             e.HasMany(x => x.Images).WithOne().HasForeignKey(x => x.HelpRequestId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Responders).WithOne().HasForeignKey(x => x.HelpRequestId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Timeline).WithOne().HasForeignKey(x => x.HelpRequestId).OnDelete(DeleteBehavior.Cascade);
@@ -201,7 +209,14 @@ internal sealed class AedDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<HelpImageEntity>().ToTable("help_images").HasKey(x => x.Id);
-        modelBuilder.Entity<HelpGuestSessionEntity>().ToTable("help_guest_sessions").HasKey(x => x.HelpRequestId);
+        modelBuilder.Entity<HelpGuestSessionEntity>(e =>
+        {
+            e.ToTable("help_guest_sessions");
+            e.HasKey(x => x.HelpRequestId);
+            e.Property(x => x.FollowupCode).HasMaxLength(GuestFollowupCodeMaxLength);
+            e.Property(x => x.CloseToken).HasMaxLength(GuestCloseTokenMaxLength);
+            e.Property(x => x.AnonymousId).HasMaxLength(GuestAnonymousIdMaxLength);
+        });
         modelBuilder.Entity<HelpResponderEntity>().ToTable("help_responders").HasKey(x => x.Id);
         modelBuilder.Entity<HelpTimelineEntity>().ToTable("help_timeline").HasKey(x => x.Id);
         modelBuilder.Entity<HelpReportEntity>(e =>
@@ -228,13 +243,17 @@ internal sealed class AedDbContext : DbContext
         {
             e.ToTable("rescue_session_participants");
             e.HasKey(x => x.Id);
-            e.HasIndex(x => new { x.HelpRequestId, x.OpenId }).IsUnique();
+            e.HasIndex(x => new { x.HelpRequestId, x.OpenId })
+                .HasDatabaseName("uk_rescue_participant")
+                .IsUnique();
         });
         modelBuilder.Entity<RescueSessionMessageEntity>(e =>
         {
             e.ToTable("rescue_session_messages");
             e.HasKey(x => x.Id);
-            e.HasIndex(x => new { x.HelpRequestId, x.Seq }).IsUnique();
+            e.HasIndex(x => new { x.HelpRequestId, x.Seq })
+                .HasDatabaseName("uk_rescue_message_seq")
+                .IsUnique();
         });
     }
 }

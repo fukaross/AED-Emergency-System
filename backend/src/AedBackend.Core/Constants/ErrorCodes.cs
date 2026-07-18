@@ -21,6 +21,7 @@ public static class ErrorCodes
     public const int HelpReportMissingFields = 1015;
     public const int RescueSessionClosed = 1016;
     public const int RescueNotParticipant = 1017;
+    public const int AccountDisabled = 1018;
 
     public const int AedNotFound = 2001;
     public const int CourseNotFound = 2002;
@@ -40,6 +41,7 @@ public static class ErrorCodes
     public const int ResponderClaimNotFound = 2016;
     public const int ResponderClaimAlreadyProcessed = 2017;
     public const int PendingApplicationExists = 2018;
+    public const int AdminAlreadyInitialized = 2019;
 
     public const int FileTooLarge = 3001;
     public const int FileTypeNotAllowed = 3002;

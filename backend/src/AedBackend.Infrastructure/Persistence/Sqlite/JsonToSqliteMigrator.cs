@@ -1,4 +1,5 @@
 using AedBackend.Core.Models.Course;
+using AedBackend.Core.Models.Help;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,6 +17,7 @@ public sealed class JsonToSqliteMigrator
 
         var snapshot = await new JsonRuntimeDataReader(dataRoot).ReadAsync(ct);
         JsonRuntimeDataValidator.Validate(snapshot);
+        EnsureNoActiveHelpConflicts(snapshot, dataRoot, fullDbPath);
         var tempPath = BuildTempPath(fullDbPath);
 
         try
@@ -197,6 +199,29 @@ public sealed class JsonToSqliteMigrator
     private static string BuildTempPath(string dbPath)
     {
         return $"{dbPath}.tmp-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
+    }
+
+    /** 在创建临时库前报告 JSON 中会撞上活动求助唯一索引的历史数据。 */
+    private static void EnsureNoActiveHelpConflicts(
+        JsonRuntimeSnapshot snapshot,
+        string dataRoot,
+        string databasePath)
+    {
+        var conflicts = snapshot.HelpRequests
+            .Where(help => help.UserId is not null && HelpStatuses.Active.Contains(help.Status))
+            .GroupBy(help => help.UserId, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Count())
+            .ToArray();
+        if (conflicts.Length == 0) return;
+
+        var sourcePath = Path.GetFullPath(Path.Combine(dataRoot, "help-requests.json"));
+        throw new InvalidOperationException($"""
+            JSON→SQLite 迁移已中止：源文件 "{sourcePath}" 中检测到 {conflicts.Length} 个身份共有 {conflicts.Sum()} 条冲突的活动求助。
+            目标数据库 "{databasePath}" 尚未创建；迁移不会自动删除、合并或改写任何 JSON 记录。
+            请保持服务停止并完整备份数据目录，再以只读方式检查 help-requests.json 中同一非空 UserId 下 status 为 published、responding 或 pending_review 的记录。
+            由运维与业务负责人逐条确认真实状态并明确处理冲突；每个身份最多保留 1 条活动求助后方可重新迁移。
+            """);
     }
 
     private static void DeleteSqliteFiles(string path)

@@ -44,7 +44,9 @@ public static class RescuerEndpoints
         CancellationToken ct)
     {
         var currentUser = await EndpointUsers.RequireActiveUserAsync(
-            httpRequest, tokenService, userStore, accountStatus, ct);
+            httpRequest,
+            new ActiveUserDependencies(tokenService, userStore, accountStatus),
+            ct);
         if (currentUser.Failure is not null) return currentUser.Failure;
 
         var viewerPoint = ParseViewerPoint(lat, lng);
@@ -185,7 +187,9 @@ public static class RescuerEndpoints
         CancellationToken ct)
     {
         var currentUser = await EndpointUsers.RequireActiveUserAsync(
-            httpRequest, tokenService, userStore, accountStatus, ct);
+            httpRequest,
+            new ActiveUserDependencies(tokenService, userStore, accountStatus),
+            ct);
         if (currentUser.Failure is not null) return currentUser.Failure;
 
         var profile = await store.FindByIdAsync(id, ct);

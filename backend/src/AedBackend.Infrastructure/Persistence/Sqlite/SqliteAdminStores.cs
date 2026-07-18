@@ -133,8 +133,17 @@ internal sealed class SqliteAdminAuditLogStore : IAdminAuditLogStore
     public async Task AppendAsync(AdminAuditLogRecord record, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
+        if (await db.AdminAuditLogs.AnyAsync(item => item.Id == record.Id, ct)) return;
         db.AdminAuditLogs.Add(SqliteMapper.ToEntity(record));
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            db.ChangeTracker.Clear();
+            if (!await db.AdminAuditLogs.AnyAsync(item => item.Id == record.Id, ct)) throw;
+        }
     }
 
     public async Task<IReadOnlyList<AdminAuditLogRecord>> ListAsync(CancellationToken ct)

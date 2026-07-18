@@ -4,6 +4,11 @@ using System.Net.Http.Headers;
 using System.Net.WebSockets;
 using System.Text.Json;
 using AedBackend.Api.WebSockets;
+using AedBackend.Core.Models.Help;
+using AedBackend.Core.Services.Help;
+using AedBackend.Core.Services.Rescue;
+using AedBackend.Core.Services.WeChat;
+using AedBackend.Infrastructure.Help;
 using AedBackend.Tests.Admin;
 using AedBackend.Tests.Persistence;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,9 +30,8 @@ public sealed class RescueSessionJoinFlowRegressionTests
         using var client = app.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ResponderToken);
         var broadcaster = app.Services.GetRequiredService<RescueSessionBroadcaster>();
-        var connectionId = Guid.NewGuid();
         var socket = new RecordingWebSocket();
-        Assert.True(broadcaster.Register("help-01", connectionId, socket));
+        var registration = Register(broadcaster, app, socket);
 
         var responses = await Task.WhenAll(
             client.PostAsync("/api/help/help-01/session/join", null),
@@ -45,7 +49,112 @@ public sealed class RescueSessionJoinFlowRegressionTests
             envelope.GetProperty("type").GetString() == "help_status"
             && envelope.GetProperty("data").GetProperty("helpStatus").GetString() == "responding");
 
-        broadcaster.Unregister("help-01", connectionId);
+        broadcaster.Unregister(registration);
+    }
+
+    [Fact]
+    public async Task Join_TransitionFailsOnce_RetryRepairsRespondingInvariantBeforeBroadcast()
+    {
+        using var temp = new ProviderTempData();
+        await temp.WriteValidDataAsync();
+        await temp.WriteUsersJsonAsync(("openid-1", "token-requester"), ("openid-2", ResponderToken));
+        await temp.WriteBoundResponderJsonAsync("openid-2");
+        using var app = new AdminTestApplication(
+            temp.Root,
+            configureServices: services => services.AddSingleton<IHelpRequestStore>(provider =>
+                new FailOnceTransitionHelpStore(provider.GetRequiredService<JsonHelpRequestStore>())));
+        using var client = app.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ResponderToken);
+        var broadcaster = app.Services.GetRequiredService<RescueSessionBroadcaster>();
+        var socket = new RecordingWebSocket();
+        var registration = Register(broadcaster, app, socket);
+
+        var failed = await client.PostAsync("/api/help/help-01/session/join", null);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, failed.StatusCode);
+        Assert.Empty(socket.Envelopes);
+        var sessionStore = app.Services.GetRequiredService<IRescueSessionStore>();
+        var afterFailure = await sessionStore.FindByHelpIdAsync("help-01", CancellationToken.None);
+        Assert.Single(afterFailure!.Participants);
+        Assert.Single(afterFailure.Messages, message => message.EventType == "joined");
+        var helpStore = app.Services.GetRequiredService<IHelpRequestStore>();
+        var published = await helpStore.FindByIdOrRequestNoAsync("help-01", CancellationToken.None);
+        Assert.Equal(HelpStatuses.Published, published!.Status);
+
+        var retried = await client.PostAsync("/api/help/help-01/session/join", null);
+
+        Assert.Equal(HttpStatusCode.OK, retried.StatusCode);
+        var repaired = await helpStore.FindByIdOrRequestNoAsync("help-01", CancellationToken.None);
+        Assert.Equal(HelpStatuses.Responding, repaired!.Status);
+        var finalSession = await sessionStore.FindByHelpIdAsync("help-01", CancellationToken.None);
+        Assert.Single(finalSession!.Participants);
+        Assert.Single(finalSession.Messages, message => message.EventType == "joined");
+        var envelope = Assert.Single(socket.Envelopes);
+        Assert.Equal("help_status", envelope.GetProperty("type").GetString());
+        Assert.Equal("responding", envelope.GetProperty("data").GetProperty("helpStatus").GetString());
+
+        broadcaster.Unregister(registration);
+    }
+
+    private static RescueSocketRegistration Register(
+        RescueSessionBroadcaster broadcaster,
+        AdminTestApplication app,
+        WebSocket socket)
+    {
+        var tokens = app.Services.GetRequiredService<ISessionTokenService>();
+        var identity = new RescueSocketIdentity("openid-2", tokens.HashToken(ResponderToken));
+        return broadcaster.Register("help-01", identity, socket)!;
+    }
+
+    private sealed class FailOnceTransitionHelpStore(JsonHelpRequestStore inner) : IHelpRequestStore
+    {
+        private int transitionAttempts;
+
+        public Task<bool> TrySaveIfNoActiveAsync(
+            HelpRequestRecord record,
+            CancellationToken cancellationToken) =>
+            inner.TrySaveIfNoActiveAsync(record, cancellationToken);
+
+        public Task<HelpRequestRecord?> FindByIdOrRequestNoAsync(
+            string idOrRequestNo,
+            CancellationToken cancellationToken) =>
+            inner.FindByIdOrRequestNoAsync(idOrRequestNo, cancellationToken);
+
+        public Task<IReadOnlyList<HelpRequestRecord>> ListByUserAsync(
+            string userId,
+            CancellationToken cancellationToken) =>
+            inner.ListByUserAsync(userId, cancellationToken);
+
+        public Task<IReadOnlyList<HelpRequestRecord>> ListAllAsync(CancellationToken cancellationToken) =>
+            inner.ListAllAsync(cancellationToken);
+
+        public Task<HelpRequestOverviewPage> ListOverviewsAsync(
+            HelpRequestOverviewQuery query,
+            CancellationToken cancellationToken) =>
+            inner.ListOverviewsAsync(query, cancellationToken);
+
+        public Task<HelpRequestRecord> AddReportAsync(
+            HelpReportUpdate update,
+            CancellationToken cancellationToken) =>
+            inner.AddReportAsync(update, cancellationToken);
+
+        public Task<HelpRequestRecord> CloseAsync(
+            HelpClosureUpdate update,
+            CancellationToken cancellationToken) =>
+            inner.CloseAsync(update, cancellationToken);
+
+        public Task<HelpRequestRecord> TransitionToRespondingAsync(
+            string id,
+            DateTimeOffset now,
+            CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref transitionAttempts) == 1)
+            {
+                throw new InvalidOperationException("injected responding transition failure");
+            }
+
+            return inner.TransitionToRespondingAsync(id, now, cancellationToken);
+        }
     }
 
     private sealed class RecordingWebSocket : WebSocket

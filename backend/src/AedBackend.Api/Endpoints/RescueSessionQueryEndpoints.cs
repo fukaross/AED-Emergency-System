@@ -1,14 +1,11 @@
-using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.DTOs.Rescue;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Models.Rescue;
-using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.Rescue;
-using AedBackend.Core.Services.WeChat;
 using AedBackend.Infrastructure.Rescue;
-using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AedBackend.Api.Endpoints;
 
@@ -28,83 +25,45 @@ internal static class RescueSessionQueryEndpoints
     }
 
     private static async Task<IResult> GetRescueViewAsync(
-        HttpRequest httpRequest,
-        string id,
-        IOptions<RescueOptions> rescueOptions,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IResponderStore responderStore,
-        IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionLifecycleCoordinator lifecycle,
-        CancellationToken cancellationToken)
+        [AsParameters] RescueSessionEndpointRequest endpoint)
     {
-        var services = new SessionEndpointServices(
-            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
-        var current = await EndpointUsers.RequireActiveUserAsync(
-            httpRequest,
-            services.Tokens,
-            services.Users,
-            services.AccountStatus,
-            cancellationToken);
-        if (current.Failure is not null) return current.Failure;
-
-        var help = await services.HelpStore.FindByIdOrRequestNoAsync(id, cancellationToken);
-        if (help is null) return RescueSessionContext.NotFound();
-        if (HelpStatuses.IsClosed(help.Status)) return RescueSessionContext.SessionClosed();
-
-        var session = await services.SessionStore.FindByHelpIdAsync(help.Id, cancellationToken);
-        if (session?.ClosedAt is not null) return RescueSessionContext.SessionClosed();
-        var isRequester = help.UserId == current.User!.OpenId;
-        var isParticipant = session?.Participants.Any(
-            participant => participant.OpenId == current.User.OpenId) == true;
-        if (!isRequester && !isParticipant)
-        {
-            var profile = await responderStore.FindByBoundOpenIdAsync(current.User.OpenId, cancellationToken);
-            if (profile?.QualificationStatus == EndpointRescuers.ActiveQualificationStatus)
-            {
-                return EndpointFailures.JsonFailure(
-                    ErrorCodes.RescueNotParticipant,
-                    "请先加入急救会话",
-                    403);
-            }
-            return EndpointFailures.JsonFailure(
-                ErrorCodes.Forbidden,
-                "仅求助人本人或已加入会话的急救员可查看",
-                403);
-        }
+        var context = await endpoint.Authorizer.RequireRescueViewAsync(
+            endpoint.HttpRequest,
+            endpoint.Id!,
+            endpoint.CancellationToken);
+        if (context.Failure is not null) return context.Failure;
 
         var now = DateTimeOffset.UtcNow;
-        return Results.Ok(ApiResponse.Ok(RescueSessionMapper.ToRescueView(help, session, rescueOptions.Value, now)));
+        return Results.Ok(ApiResponse.Ok(RescueSessionMapper.ToRescueView(
+            new RescueViewMappingInput
+            {
+                Help = context.Help!,
+                Session = context.Session,
+                Context = new RescueMappingContext(endpoint.RescueOptions.Value, now),
+            })));
     }
 
     private static async Task<IResult> ListMineAsync(
-        HttpRequest httpRequest,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IResponderStore responderStore,
-        IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionLifecycleCoordinator lifecycle,
-        CancellationToken cancellationToken)
+        [AsParameters] RescueSessionEndpointRequest endpoint)
     {
-        var services = new SessionEndpointServices(
-            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
-        var responder = await EndpointRescuers.RequireCertifiedResponderAsync(
-            httpRequest,
-            services.Tokens,
-            services.Users,
-            services.AccountStatus,
-            responderStore,
+        var cancellationToken = endpoint.CancellationToken;
+        var responder = await endpoint.Authorizer.RequireCertifiedResponderAsync(
+            endpoint.HttpRequest,
             cancellationToken);
         if (responder.Failure is not null) return responder.Failure;
 
-        var sessions = (await services.SessionStore.ListOverviewsAsync(responder.User!.OpenId, cancellationToken))
+        var helps = await endpoint.HelpStore.ListOverviewsAsync(
+            new HelpRequestOverviewQuery { Scope = HelpRequestOverviewScope.Active },
+            cancellationToken);
+        var sessions = (await endpoint.SessionStore.ListOverviewsAsync(
+            new RescueSessionOverviewQuery
+            {
+                HelpRequestIds = helps.Items.Select(help => help.Id).ToArray(),
+                ViewerOpenId = responder.User!.OpenId
+            },
+            cancellationToken))
             .ToDictionary(session => session.HelpRequestId);
-        var items = (await services.HelpStore.ListAllAsync(cancellationToken))
-            .Where(help => HelpStatuses.Active.Contains(help.Status))
+        var items = helps.Items
             .Select(help => new
             {
                 Item = ToMineItem(sessions.GetValueOrDefault(help.Id), help),
@@ -119,7 +78,7 @@ internal static class RescueSessionQueryEndpoints
 
     private static RescueMineItemDto ToMineItem(
         RescueSessionOverviewRecord? session,
-        HelpRequestRecord help)
+        HelpRequestOverviewRecord help)
     {
         var viewer = session?.Viewer;
         return new RescueMineItemDto(

@@ -68,9 +68,13 @@ public sealed class AdminRescueSessionApiTests : AdminApiTestBase
         Assert.Equal(3, data.GetProperty("messages").GetArrayLength());
         Assert.Equal("设备已拿到", data.GetProperty("messages")[2].GetProperty("text").GetString());
 
+        var repeatedViews = await Task.WhenAll(Enumerable.Range(0, 4)
+            .Select(_ => Client.GetAsync("/api/admin/rescue-sessions/help-1")));
+        Assert.All(repeatedViews, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+
         var logs = await Client.GetAsync("/api/admin/audit-logs?eventName=rescue_session.viewed&keyword=help-1");
         var logData = (await ReadAsync<ApiResponse<JsonElement>>(logs)).Data;
-        Assert.Equal(1, logData.GetProperty("total").GetInt32());
+        Assert.Equal(5, logData.GetProperty("total").GetInt32());
     }
 
     [Fact]

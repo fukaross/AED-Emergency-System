@@ -57,11 +57,8 @@ internal static class AdminHelpEndpoints
         string id,
         CloseHelpRequest request,
         IAdminAuthorizationService authorization,
-        IAdminAuditLogStore auditLogs,
         IHelpRequestStore store,
-        IRescueSessionStore sessionStore,
-        RescueSessionLifecycleCoordinator lifecycle,
-        RescueSessionBroadcaster broadcaster,
+        HelpClosureApplication closure,
         CancellationToken cancellationToken)
     {
         var auth = await RequireAdminAsync(context, authorization, cancellationToken);
@@ -72,31 +69,21 @@ internal static class AdminHelpEndpoints
         var existing = await store.FindByIdOrRequestNoAsync(id, cancellationToken);
         if (existing is null)
             return EndpointFailures.JsonFailure(ErrorCodes.ResourceNotFound, "求助不存在", 404);
-        using var lifecycleLease = await lifecycle.EnterAsync(existing.Id, cancellationToken);
 
-        try
-        {
-            var record = await store.CloseAsync(
-                existing.Id,
-                request.Status,
-                request.Note,
-                DateTimeOffset.UtcNow,
-                cancellationToken);
-            // 求助关闭级联关闭急救会话并清空参与者位置（BackEnd.md §4.5A 生命周期约定）
-            await sessionStore.CloseSessionAsync(record.Id, cancellationToken);
-            await broadcaster.BroadcastAsync(record.Id, "help_status", new RescueHelpStatusDto(record.Status));
-            await broadcaster.CloseAllAsync(record.Id, "help closed");
-            await auditLogs.AppendAsync(CreateCloseAudit(context, auth.Principal, record), cancellationToken);
-            return Results.Ok(ApiResponse.Ok(AdminEndpointHelpers.ToAdminHelpDetail(record)));
-        }
-        catch (KeyNotFoundException)
-        {
-            return EndpointFailures.JsonFailure(ErrorCodes.ResourceNotFound, "求助不存在", 404);
-        }
-        catch (InvalidOperationException)
-        {
-            return EndpointFailures.JsonFailure(ErrorCodes.HelpAlreadyClosed, "该求助已结束", 409);
-        }
+        return await HelpEndpoints.UpdateHelpAsync(
+            () => closure.CloseAsync(
+                new HelpClosureCommand
+                {
+                    HelpId = existing.Id,
+                    Status = request.Status,
+                    Note = request.Note,
+                    Audit = CreateCloseAudit(
+                        context,
+                        auth.Principal,
+                        existing with { Status = request.Status })
+                },
+                cancellationToken),
+            record => Results.Ok(ApiResponse.Ok(AdminEndpointHelpers.ToAdminHelpDetail(record))));
     }
 
     private static Task<AdminAuthorizationResult> RequireAdminAsync(

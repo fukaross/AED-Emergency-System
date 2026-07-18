@@ -56,6 +56,11 @@ public sealed class AdminHelpApiTests : AdminApiTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(status, data.GetProperty("status").GetString());
 
+        var duplicate = await Client.PutAsJsonAsync(
+            "/api/admin/help-requests/help-1/close",
+            new { status, note = "重复请求" });
+        Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
+
         var logs = await Client.GetAsync($"/api/admin/audit-logs?eventName={eventName}");
         var logData = (await ReadAsync<ApiResponse<JsonElement>>(logs)).Data;
         Assert.Equal(1, logData.GetProperty("total").GetInt32());

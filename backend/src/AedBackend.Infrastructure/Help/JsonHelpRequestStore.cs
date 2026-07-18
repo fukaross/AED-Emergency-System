@@ -1,4 +1,3 @@
-using System.Text.Json;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Services.Help;
 using AedBackend.Infrastructure.WeChat;
@@ -9,11 +8,6 @@ namespace AedBackend.Infrastructure.Help;
 // [Transitional: JSON -> MySQL] Keep schema close to BackEnd.md tables.
 public sealed class JsonHelpRequestStore : IHelpRequestStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true
-    };
-
     private readonly string filePath;
     private readonly SemaphoreSlim fileLock = new(1, 1);
 
@@ -22,11 +16,29 @@ public sealed class JsonHelpRequestStore : IHelpRequestStore
         filePath = Path.GetFullPath(options.Value.HelpRequestsFilePath);
     }
 
-    public async Task SaveAsync(
+    public async Task<bool> TrySaveIfNoActiveAsync(
         HelpRequestRecord record,
         CancellationToken cancellationToken)
     {
-        await WithWriteAsync(database => database.Requests.Insert(0, record), cancellationToken);
+        await fileLock.WaitAsync(cancellationToken);
+        try
+        {
+            var database = await ReadDatabaseAsync(cancellationToken);
+            if (record.UserId is not null && database.Requests.Any(item =>
+                item.UserId == record.UserId && HelpStatuses.Active.Contains(item.Status)))
+            {
+                return false;
+            }
+
+            EnsureUniqueIdentity(database, record);
+            database.Requests.Insert(0, record);
+            await WriteDatabaseAsync(database);
+            return true;
+        }
+        finally
+        {
+            fileLock.Release();
+        }
     }
 
     public async Task<HelpRequestRecord?> FindByIdOrRequestNoAsync(
@@ -61,14 +73,25 @@ public sealed class JsonHelpRequestStore : IHelpRequestStore
             cancellationToken);
     }
 
-    public async Task<bool> HasActiveRequestAsync(
-        string userId,
+    public async Task<HelpRequestOverviewPage> ListOverviewsAsync(
+        HelpRequestOverviewQuery query,
         CancellationToken cancellationToken)
     {
+        query.Validate();
         return await WithReadAsync(
-            database => database.Requests.Any(item =>
-                item.UserId == userId && HelpStatuses.Active.Contains(item.Status)),
+            database => CreateOverviewPage(database.Requests, query),
             cancellationToken);
+    }
+
+    private static void EnsureUniqueIdentity(
+        HelpRequestDatabase database,
+        HelpRequestRecord record)
+    {
+        if (database.Requests.Any(item => item.Id == record.Id
+            || item.RequestNo.Equals(record.RequestNo, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException("求助 ID 或 requestNo 重复");
+        }
     }
 
     public async Task<HelpRequestRecord> AddReportAsync(
@@ -82,15 +105,12 @@ public sealed class JsonHelpRequestStore : IHelpRequestStore
     }
 
     public async Task<HelpRequestRecord> CloseAsync(
-        string id,
-        string status,
-        string? note,
-        DateTimeOffset closedAt,
+        HelpClosureUpdate update,
         CancellationToken cancellationToken)
     {
         return await WithUpdateAsync(
-            database => ReplaceRequest(database, id, item =>
-                CloseRequest(item, status, note, closedAt)),
+            database => ReplaceRequest(database, update.HelpRequestId, item =>
+                CloseRequest(item, update)),
             cancellationToken);
     }
 
@@ -110,6 +130,33 @@ public sealed class JsonHelpRequestStore : IHelpRequestStore
             item.Id == id || item.RequestNo.Equals(id, StringComparison.OrdinalIgnoreCase));
     }
 
+    private static HelpRequestOverviewPage CreateOverviewPage(
+        IReadOnlyCollection<HelpRequestRecord> records,
+        HelpRequestOverviewQuery query)
+    {
+        var filtered = records
+            .Where(record => query.Scope == HelpRequestOverviewScope.History
+                ? HelpStatuses.IsClosed(record.Status)
+                : HelpStatuses.Active.Contains(record.Status))
+            .OrderByDescending(record => record.CreatedAt)
+            .ToArray();
+        var page = filtered.Skip(query.Offset);
+        if (query.Limit is not null) page = page.Take(query.Limit.Value);
+        return new HelpRequestOverviewPage(
+            page.Select(ToOverview).ToArray(),
+            filtered.Length);
+    }
+
+    private static HelpRequestOverviewRecord ToOverview(HelpRequestRecord record) => new()
+    {
+        Id = record.Id,
+        RequestNo = record.RequestNo,
+        Status = record.Status,
+        Type = record.Type,
+        Address = record.Address,
+        CreatedAt = record.CreatedAt
+    };
+
     private static HelpRequestRecord AddReportToRequest(
         HelpRequestRecord item,
         HelpReportUpdate update)
@@ -127,17 +174,15 @@ public sealed class JsonHelpRequestStore : IHelpRequestStore
 
     private static HelpRequestRecord CloseRequest(
         HelpRequestRecord item,
-        string status,
-        string? note,
-        DateTimeOffset closedAt)
+        HelpClosureUpdate update)
     {
         EnsureOpen(item);
         return item with
         {
-            Status = status,
-            ClosedAt = closedAt,
-            CloseNote = note,
-            Timeline = AppendTimeline(item, status, closedAt, note)
+            Status = update.Status,
+            ClosedAt = update.ClosedAt,
+            CloseNote = update.Note,
+            Timeline = AppendTimeline(item, update.Status, update.ClosedAt, update.Note)
         };
     }
 
@@ -157,7 +202,7 @@ public sealed class JsonHelpRequestStore : IHelpRequestStore
     {
         if (HelpStatuses.IsClosed(item.Status))
         {
-            throw new InvalidOperationException("求助已结束");
+            throw new HelpAlreadyClosedException();
         }
     }
 
@@ -202,19 +247,6 @@ public sealed class JsonHelpRequestStore : IHelpRequestStore
         }
     }
 
-    private async Task WithWriteAsync(
-        Action<HelpRequestDatabase> write,
-        CancellationToken cancellationToken)
-    {
-        await WithUpdateAsync(
-            database =>
-            {
-                write(database);
-                return true;
-            },
-            cancellationToken);
-    }
-
     private async Task<T> WithUpdateAsync<T>(
         Func<HelpRequestDatabase, T> update,
         CancellationToken cancellationToken)
@@ -224,7 +256,7 @@ public sealed class JsonHelpRequestStore : IHelpRequestStore
         {
             var database = await ReadDatabaseAsync(cancellationToken);
             var result = update(database);
-            await WriteDatabaseAsync(database, cancellationToken);
+            await WriteDatabaseAsync(database);
             return result;
         }
         finally
@@ -234,36 +266,9 @@ public sealed class JsonHelpRequestStore : IHelpRequestStore
     }
 
     private async Task<HelpRequestDatabase> ReadDatabaseAsync(
-        CancellationToken cancellationToken)
-    {
-        if (!File.Exists(filePath))
-        {
-            return new HelpRequestDatabase();
-        }
+        CancellationToken cancellationToken) =>
+        await JsonHelpRequestPersistence.ReadAsync(filePath, cancellationToken);
 
-        await using var stream = File.OpenRead(filePath);
-        return await JsonSerializer.DeserializeAsync<HelpRequestDatabase>(
-            stream,
-            JsonOptions,
-            cancellationToken) ?? new HelpRequestDatabase();
-    }
-
-    private async Task WriteDatabaseAsync(
-        HelpRequestDatabase database,
-        CancellationToken cancellationToken)
-    {
-        var directory = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrWhiteSpace(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        await using var stream = File.Create(filePath);
-        await JsonSerializer.SerializeAsync(stream, database, JsonOptions, cancellationToken);
-    }
-
-    private sealed class HelpRequestDatabase
-    {
-        public List<HelpRequestRecord> Requests { get; init; } = [];
-    }
+    private async Task WriteDatabaseAsync(HelpRequestDatabase database) =>
+        await JsonHelpRequestPersistence.WriteAtomicallyAsync(filePath, database);
 }

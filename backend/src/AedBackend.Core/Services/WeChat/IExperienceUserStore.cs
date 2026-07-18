@@ -14,6 +14,10 @@ public interface IExperienceUserStore
         string tokenHash,
         CancellationToken cancellationToken);
 
+    Task<ExperienceUserRecord?> FindByOpenIdAsync(
+        string openId,
+        CancellationToken cancellationToken);
+
     Task<SaveLoginResult?> RefreshTokenAsync(
         string oldTokenHash,
         string newTokenHash,

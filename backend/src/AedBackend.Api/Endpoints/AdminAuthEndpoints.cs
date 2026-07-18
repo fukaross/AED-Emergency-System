@@ -47,7 +47,7 @@ internal static class AdminAuthEndpoints
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, validationError, 400);
 
         if (await users.HasSuperAdminAsync(cancellationToken))
-            return EndpointFailures.JsonFailure(ErrorCodes.Forbidden, "超级管理员已初始化", 409);
+            return EndpointFailures.JsonFailure(ErrorCodes.AdminAlreadyInitialized, "超级管理员已初始化", 409);
 
         var now = DateTimeOffset.UtcNow;
         var user = AdminAuthSupport.NewAdmin(request.Username, AdminRoles.SuperAdmin, now);

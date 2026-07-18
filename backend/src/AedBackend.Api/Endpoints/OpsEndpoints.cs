@@ -32,8 +32,8 @@ public static class OpsEndpoints
         IHelpRequestStore store,
         CancellationToken cancellationToken)
     {
-        var authFailure = await ValidateAdminAsync(httpRequest, authorization, cancellationToken);
-        if (authFailure is not null) return authFailure;
+        var auth = await AuthorizeAdminAsync(httpRequest, authorization, cancellationToken);
+        if (!auth.Succeeded) return AdminEndpointHelpers.AuthorizationFailure(auth);
 
         var records = await store.ListAllAsync(cancellationToken);
         var filtered = FilterOpsRecords(records, query);
@@ -46,13 +46,11 @@ public static class OpsEndpoints
         CloseHelpRequest request,
         IAdminAuthorizationService authorization,
         IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionLifecycleCoordinator lifecycle,
-        RescueSessionBroadcaster broadcaster,
+        HelpClosureApplication closure,
         CancellationToken cancellationToken)
     {
-        var authFailure = await ValidateAdminAsync(httpRequest, authorization, cancellationToken);
-        if (authFailure is not null) return authFailure;
+        var auth = await AuthorizeAdminAsync(httpRequest, authorization, cancellationToken);
+        if (!auth.Succeeded) return AdminEndpointHelpers.AuthorizationFailure(auth);
 
         if (request.Status is not (HelpStatuses.Closed or HelpStatuses.FalseAlarm))
         {
@@ -61,45 +59,49 @@ public static class OpsEndpoints
         var existing = await helpStore.FindByIdOrRequestNoAsync(id, cancellationToken);
         if (existing is null)
             return EndpointFailures.JsonFailure(ErrorCodes.ResourceNotFound, "求助不存在", 404);
-        using var lifecycleLease = await lifecycle.EnterAsync(existing.Id, cancellationToken);
 
-        try
-        {
-            var record = await helpStore.CloseAsync(
-                existing.Id,
-                request.Status,
-                request.Note,
-                DateTimeOffset.UtcNow,
-                cancellationToken);
-            await sessionStore.CloseSessionAsync(record.Id, cancellationToken);
-            await broadcaster.BroadcastAsync(
-                record.Id,
-                "help_status",
-                new RescueHelpStatusDto(record.Status));
-            await broadcaster.CloseAllAsync(record.Id, "help closed");
-            return Results.Ok(ApiResponse.Ok(HelpResponseMapper.ToDetail(record)));
-        }
-        catch (KeyNotFoundException)
-        {
-            return EndpointFailures.JsonFailure(ErrorCodes.ResourceNotFound, "求助不存在", 404);
-        }
-        catch (InvalidOperationException)
-        {
-            return EndpointFailures.JsonFailure(ErrorCodes.HelpAlreadyClosed, "该求助已结束", 409);
-        }
+        return await HelpEndpoints.UpdateHelpAsync(
+            () => closure.CloseAsync(
+                new HelpClosureCommand
+                {
+                    HelpId = existing.Id,
+                    Status = request.Status,
+                    Note = request.Note,
+                    Audit = CreateCloseAudit(
+                        httpRequest.HttpContext,
+                        auth.Principal,
+                        existing with { Status = request.Status })
+                },
+                cancellationToken),
+            record => Results.Ok(ApiResponse.Ok(HelpResponseMapper.ToDetail(record))));
     }
 
-    private static async Task<IResult?> ValidateAdminAsync(
+    private static Task<AdminAuthorizationResult> AuthorizeAdminAsync(
         HttpRequest request,
         IAdminAuthorizationService authorization,
         CancellationToken cancellationToken)
     {
-        var result = await authorization.RequireLegacyOrAdminAsync(
+        return authorization.RequireLegacyOrAdminAsync(
             AdminEndpointHelpers.ReadAdminKey(request),
             request.HttpContext.Connection.RemoteIpAddress?.ToString(),
             request.Headers.UserAgent.ToString(),
             cancellationToken);
-        return result.Succeeded ? null : AdminEndpointHelpers.AuthorizationFailure(result);
+    }
+
+    private static Core.Models.Admin.AdminAuditLogRecord CreateCloseAudit(
+        HttpContext context,
+        Core.Models.Admin.AdminPrincipal? actor,
+        HelpRequestRecord record)
+    {
+        var eventName = record.Status == HelpStatuses.FalseAlarm ? "help.false_alarm" : "help.close";
+        return AdminEndpointHelpers.CreateAudit(
+            "help",
+            eventName,
+            actor,
+            record.Id,
+            $"兼容入口将求助 {record.RequestNo} 处理为 {record.Status}",
+            context,
+            new Dictionary<string, object?> { ["status"] = record.Status });
     }
 
     private static IReadOnlyList<HelpRequestRecord> FilterOpsRecords(

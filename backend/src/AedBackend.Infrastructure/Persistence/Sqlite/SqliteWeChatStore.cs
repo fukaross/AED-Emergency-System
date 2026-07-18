@@ -39,6 +39,15 @@ internal sealed class SqliteExperienceUserStore : IExperienceUserStore
         return SqliteMapper.ToRecord(item);
     }
 
+    public async Task<ExperienceUserRecord?> FindByOpenIdAsync(string openId, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var item = await WithSubscriptions(db.ExperienceUsers)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user => user.OpenId == openId, ct);
+        return item is null ? null : SqliteMapper.ToRecord(item);
+    }
+
     public async Task<SaveLoginResult?> RefreshTokenAsync(string oldTokenHash, string newTokenHash, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);

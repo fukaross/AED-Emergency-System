@@ -44,7 +44,7 @@ internal static partial class SqliteMapper
         };
     }
 
-    private static RescueSessionParticipantRecord ToRecord(RescueSessionParticipantEntity item)
+    internal static RescueSessionParticipantRecord ToRecord(RescueSessionParticipantEntity item)
     {
         return new RescueSessionParticipantRecord
         {

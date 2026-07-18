@@ -5,12 +5,6 @@ namespace AedBackend.Infrastructure.Persistence.Sqlite;
 
 internal static class SqliteRescueSessionWriteSupport
 {
-    public static void EnsureTextMessage(RescueSessionAppendCommand command)
-    {
-        if (command.Kind != RescueMessageKinds.Text)
-            throw new ArgumentException("状态事件必须通过原子状态写入方法追加", nameof(command));
-    }
-
     public static void ValidateStatus(RescueSessionStatusCommand command)
     {
         if (command.EventType is not (RescueEventTypes.TakenAed or RescueEventTypes.Arrived))

@@ -18,6 +18,21 @@ public sealed class JsonRescueSessionStore : IRescueSessionStore
     public Task<RescueSessionRecord?> FindByHelpIdAsync(string helpRequestId, CancellationToken ct) =>
         WithReadAsync(database => JsonRescueSessionOperations.Find(database, helpRequestId), ct);
 
+    public Task<RescueSessionParticipantAccess?> FindParticipantAccessAsync(
+        RescueSessionParticipantQuery query,
+        CancellationToken ct) =>
+        WithReadAsync(
+            database =>
+            {
+                var session = JsonRescueSessionOperations.Find(database, query.HelpRequestId);
+                var participant = session?.Participants.FirstOrDefault(
+                    item => item.OpenId == query.OpenId);
+                return participant is null
+                    ? null
+                    : new RescueSessionParticipantAccess(session!.ClosedAt, participant);
+            },
+            ct);
+
     public Task<RescueSessionRecord> GetOrCreateAsync(
         string helpRequestId,
         DateTimeOffset now,
@@ -27,8 +42,8 @@ public sealed class JsonRescueSessionStore : IRescueSessionStore
     public Task<RescueSessionJoinResult> JoinAsync(RescueSessionJoinCommand command, CancellationToken ct) =>
         WithUpdateAsync(database => JsonRescueSessionOperations.Join(database, command), ct);
 
-    public Task<RescueSessionRecord> AppendMessageAsync(
-        RescueSessionAppendCommand command,
+    public Task<RescueSessionMessageRecord> AppendMessageAsync(
+        RescueTextMessageCommand command,
         CancellationToken ct) =>
         WithUpdateAsync(database => JsonRescueSessionOperations.AppendMessage(database, command), ct);
 
@@ -37,23 +52,34 @@ public sealed class JsonRescueSessionStore : IRescueSessionStore
         CancellationToken ct) =>
         WithUpdateAsync(database => JsonRescueSessionOperations.AppendStatusEvent(database, command), ct);
 
-    public Task<RescueSessionRecord> UpdateLocationAsync(
+    public Task<RescueSessionParticipantRecord> UpdateLocationAsync(
         RescueSessionLocationCommand command,
         CancellationToken ct) =>
         WithUpdateAsync(database => JsonRescueSessionOperations.UpdateLocation(database, command), ct);
 
-    public Task<RescueSessionRecord> MarkReadAsync(
-        string helpRequestId,
-        string openId,
-        long lastReadSeq,
-        CancellationToken ct) =>
+    public Task<long> MarkReadAsync(RescueSessionReadCommand command, CancellationToken ct) =>
         WithUpdateAsync(
-            database => JsonRescueSessionOperations.MarkRead(database, helpRequestId, openId, lastReadSeq),
+            database => JsonRescueSessionOperations.MarkRead(
+                database,
+                command),
             ct);
 
-    public async Task CloseSessionAsync(string helpRequestId, CancellationToken ct)
+    public async Task CloseSessionAsync(
+        string helpRequestId,
+        DateTimeOffset closedAt,
+        CancellationToken ct)
     {
-        await BackfillClosedSessionsAsync([helpRequestId], ct);
+        await fileLock.WaitAsync(ct);
+        try
+        {
+            var database = await JsonRescueSessionPersistence.ReadAsync(filePath, ct);
+            if (JsonRescueSessionOperations.Close(database, helpRequestId, closedAt))
+                await JsonRescueSessionPersistence.WriteAtomicallyAsync(filePath, database);
+        }
+        finally
+        {
+            fileLock.Release();
+        }
     }
 
     public async Task BackfillClosedSessionsAsync(
@@ -78,30 +104,26 @@ public sealed class JsonRescueSessionStore : IRescueSessionStore
         }
     }
 
-    public Task<IReadOnlyList<RescueSessionRecord>> ListByParticipantAsync(
-        string openId,
-        CancellationToken ct) =>
-        WithReadAsync<IReadOnlyList<RescueSessionRecord>>(
-            database => database.Sessions
-                .Where(item => item.Participants.Any(participant => participant.OpenId == openId))
-                .OrderByDescending(item => item.CreatedAt)
-                .ToArray(),
-            ct);
-
-    public Task<IReadOnlyList<RescueSessionRecord>> ListAllAsync(CancellationToken ct) =>
-        WithReadAsync<IReadOnlyList<RescueSessionRecord>>(
-            database => database.Sessions.OrderByDescending(item => item.CreatedAt).ToArray(),
-            ct);
-
     public Task<IReadOnlyList<RescueSessionOverviewRecord>> ListOverviewsAsync(
-        string? viewerOpenId,
+        RescueSessionOverviewQuery query,
         CancellationToken ct) =>
         WithReadAsync<IReadOnlyList<RescueSessionOverviewRecord>>(
-            database => database.Sessions
-                .Select(session => RescueSessionOverviewProjection.FromSession(session, viewerOpenId))
+            database => FilterSessions(database, query)
+                .Select(session => RescueSessionOverviewProjection.FromSession(
+                    session,
+                    query.ViewerOpenId))
                 .OrderByDescending(item => item.CreatedAt)
                 .ToArray(),
             ct);
+
+    private static IEnumerable<RescueSessionRecord> FilterSessions(
+        JsonRescueSessionDatabase database,
+        RescueSessionOverviewQuery query)
+    {
+        if (query.HelpRequestIds.Count == 0) return [];
+        var helpIds = query.HelpRequestIds.ToHashSet(StringComparer.Ordinal);
+        return database.Sessions.Where(session => helpIds.Contains(session.HelpRequestId));
+    }
 
     private async Task<T> WithReadAsync<T>(Func<JsonRescueSessionDatabase, T> read, CancellationToken ct)
     {

@@ -4,7 +4,9 @@ namespace AedBackend.Core.Services.Help;
 
 public interface IHelpRequestStore
 {
-    Task SaveAsync(HelpRequestRecord record, CancellationToken cancellationToken);
+    Task<bool> TrySaveIfNoActiveAsync(
+        HelpRequestRecord record,
+        CancellationToken cancellationToken);
 
     Task<HelpRequestRecord?> FindByIdOrRequestNoAsync(
         string idOrRequestNo,
@@ -16,8 +18,8 @@ public interface IHelpRequestStore
 
     Task<IReadOnlyList<HelpRequestRecord>> ListAllAsync(CancellationToken cancellationToken);
 
-    Task<bool> HasActiveRequestAsync(
-        string userId,
+    Task<HelpRequestOverviewPage> ListOverviewsAsync(
+        HelpRequestOverviewQuery query,
         CancellationToken cancellationToken);
 
     Task<HelpRequestRecord> AddReportAsync(
@@ -25,10 +27,7 @@ public interface IHelpRequestStore
         CancellationToken cancellationToken);
 
     Task<HelpRequestRecord> CloseAsync(
-        string id,
-        string status,
-        string? note,
-        DateTimeOffset closedAt,
+        HelpClosureUpdate update,
         CancellationToken cancellationToken);
 
     Task<HelpRequestRecord> TransitionToRespondingAsync(
@@ -36,3 +35,44 @@ public interface IHelpRequestStore
         DateTimeOffset now,
         CancellationToken cancellationToken);
 }
+
+public enum HelpRequestOverviewScope
+{
+    Active,
+    History
+}
+
+public sealed record HelpRequestOverviewQuery
+{
+    public required HelpRequestOverviewScope Scope { get; init; }
+    public int Offset { get; init; }
+    public int? Limit { get; init; }
+
+    public void Validate()
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(Offset);
+        if (Limit is <= 0) throw new ArgumentOutOfRangeException(nameof(Limit));
+    }
+}
+
+public sealed record HelpRequestOverviewRecord
+{
+    public string Id { get; init; } = string.Empty;
+    public string RequestNo { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public string Type { get; init; } = string.Empty;
+    public string Address { get; init; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; init; }
+}
+
+public sealed record HelpClosureUpdate
+{
+    public required string HelpRequestId { get; init; }
+    public required string Status { get; init; }
+    public string? Note { get; init; }
+    public required DateTimeOffset ClosedAt { get; init; }
+}
+
+public sealed record HelpRequestOverviewPage(
+    IReadOnlyList<HelpRequestOverviewRecord> Items,
+    int Total);

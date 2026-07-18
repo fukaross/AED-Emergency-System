@@ -31,7 +31,10 @@ internal static class UserArchiveEndpoints
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await EndpointUsers.RequireActiveUserAsync(request, tokenService, users, accountStatus, ct);
+        var current = await EndpointUsers.RequireActiveUserAsync(
+            request,
+            new ActiveUserDependencies(tokenService, users, accountStatus),
+            ct);
         if (current.Failure is not null) return current.Failure;
 
         var validationError = query.Validate();
@@ -53,7 +56,10 @@ internal static class UserArchiveEndpoints
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await EndpointUsers.RequireActiveUserAsync(request, tokenService, users, accountStatus, ct);
+        var current = await EndpointUsers.RequireActiveUserAsync(
+            request,
+            new ActiveUserDependencies(tokenService, users, accountStatus),
+            ct);
         if (current.Failure is not null) return current.Failure;
 
         var profile = await responders.FindByIdAsync(id, ct);
@@ -74,7 +80,10 @@ internal static class UserArchiveEndpoints
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
-        var current = await EndpointUsers.RequireActiveUserAsync(context.Request, tokenService, users, accountStatus, ct);
+        var current = await EndpointUsers.RequireActiveUserAsync(
+            context.Request,
+            new ActiveUserDependencies(tokenService, users, accountStatus),
+            ct);
         if (current.Failure is not null) return current.Failure;
         if (string.IsNullOrWhiteSpace(purpose)) return ParameterInvalid("purpose 不能为空");
 

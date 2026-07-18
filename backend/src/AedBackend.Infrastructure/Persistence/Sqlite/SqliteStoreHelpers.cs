@@ -5,7 +5,7 @@ namespace AedBackend.Infrastructure.Persistence.Sqlite;
 
 internal static class SqliteStoreHelpers
 {
-    public const int BusyTimeoutMilliseconds = 5000;
+    public const int BusyTimeoutSeconds = 5;
 
     public static IQueryable<CourseEntity> WithCourseGraph(IQueryable<CourseEntity> query)
     {
@@ -45,6 +45,7 @@ internal static class SqliteStoreHelpers
         var builder = new SqliteConnectionStringBuilder
         {
             DataSource = Path.GetFullPath(path),
+            DefaultTimeout = BusyTimeoutSeconds,
             ForeignKeys = true,
             Pooling = false
         };
@@ -64,7 +65,6 @@ internal static class SqliteStoreHelpers
     public static async Task ApplyPragmasAsync(AedDbContext db, CancellationToken ct)
     {
         await db.Database.ExecuteSqlRawAsync("PRAGMA foreign_keys=ON;", ct);
-        await db.Database.ExecuteSqlRawAsync("PRAGMA busy_timeout=5000;", ct);
         await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;", ct);
     }
 }

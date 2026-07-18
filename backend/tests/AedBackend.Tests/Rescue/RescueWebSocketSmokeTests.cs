@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Net.WebSockets;
 using System.Text.Json;
+using AedBackend.Core.Constants;
 using AedBackend.Tests.Admin;
 using Microsoft.AspNetCore.TestHost;
 
@@ -12,6 +13,7 @@ public sealed class RescueWebSocketSmokeTests : AdminApiTestBase
 {
     private const string RequesterToken = "token-requester";
     private const string ResponderTokenA = "token-responder-a";
+    private const string ResponderTokenB = "token-responder-b";
 
     [Fact]
     public async Task Connect_WithoutToken_IsRejected()
@@ -145,6 +147,64 @@ public sealed class RescueWebSocketSmokeTests : AdminApiTestBase
         Assert.Equal(HttpStatusCode.OK, (await closeTask).StatusCode);
     }
 
+    [Fact]
+    public async Task EstablishedConnection_AccountDisabled_ClosesBeforeNextSensitiveFanout()
+    {
+        SeedStandardCast();
+        SeedHelpRequests(Help("help-1"));
+        await JoinBothRespondersAsync();
+        using var socket = await ConnectResponderAAsync();
+
+        UseAdminKey(await BootstrapAndLoginAsync());
+        var disabled = await Client.PutAsJsonAsync(
+            "/api/admin/users/openid-2",
+            new { accountStatus = "disabled" });
+        Assert.Equal(HttpStatusCode.OK, disabled.StatusCode);
+
+        await AssertRevokedConnectionClosesAsync(socket);
+    }
+
+    [Fact]
+    public async Task EstablishedConnection_OldTokenRotated_ClosesBeforeNextSensitiveFanout()
+    {
+        SeedStandardCast();
+        SeedHelpRequests(Help("help-1"));
+        await JoinBothRespondersAsync();
+        using var socket = await ConnectResponderAAsync();
+
+        UseUserToken(ResponderTokenA);
+        var refreshed = await Client.PostAsync("/api/auth/refresh", null);
+        Assert.Equal(HttpStatusCode.OK, refreshed.StatusCode);
+
+        await AssertRevokedConnectionClosesAsync(socket);
+    }
+
+    [Fact]
+    public async Task CurrentQualificationRequired_ForHttpAndEstablishedConnection()
+    {
+        SeedStandardCast();
+        SeedHelpRequests(Help("help-1"));
+        await JoinBothRespondersAsync();
+        using var socket = await ConnectResponderAAsync();
+
+        UseAdminKey(await BootstrapAndLoginAsync());
+        var inactive = await Client.PutAsJsonAsync(
+            "/api/admin/rescuers/rescuer-t1",
+            new { qualificationStatus = "inactive" });
+        Assert.Equal(HttpStatusCode.OK, inactive.StatusCode);
+
+        UseUserToken(ResponderTokenA);
+        await AssertErrorAsync(
+            await Client.GetAsync("/api/help/help-1/session"),
+            HttpStatusCode.Forbidden,
+            ErrorCodes.Forbidden);
+        await AssertErrorAsync(
+            await Client.GetAsync("/api/help/help-1/rescue-view"),
+            HttpStatusCode.Forbidden,
+            ErrorCodes.Forbidden);
+        await AssertRevokedConnectionClosesAsync(socket);
+    }
+
     private WebSocketClient CreateAuthorizedWebSocketClient(string token)
     {
         var client = CreateWebSocketClient();
@@ -161,12 +221,45 @@ public sealed class RescueWebSocketSmokeTests : AdminApiTestBase
         return JsonDocument.Parse(buffer.AsMemory(0, result.Count)).RootElement.Clone();
     }
 
+    private async Task JoinBothRespondersAsync()
+    {
+        UseUserToken(ResponderTokenA);
+        Assert.Equal(HttpStatusCode.OK,
+            (await Client.PostAsync("/api/help/help-1/session/join", null)).StatusCode);
+        UseUserToken(ResponderTokenB);
+        Assert.Equal(HttpStatusCode.OK,
+            (await Client.PostAsync("/api/help/help-1/session/join", null)).StatusCode);
+    }
+
+    private Task<WebSocket> ConnectResponderAAsync()
+    {
+        return CreateAuthorizedWebSocketClient(ResponderTokenA).ConnectAsync(
+            new Uri("ws://localhost/ws/help/help-1/session"),
+            CancellationToken.None);
+    }
+
+    private async Task AssertRevokedConnectionClosesAsync(WebSocket socket)
+    {
+        UseUserToken(ResponderTokenB);
+        var postTask = Client.PostAsJsonAsync(
+            "/api/help/help-1/session/messages",
+            new { text = "资格变更后的消息" });
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var result = await socket.ReceiveAsync(new byte[256], timeout.Token);
+        Assert.Equal(WebSocketMessageType.Close, result.MessageType);
+        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "ack", CancellationToken.None);
+        Assert.Equal(HttpStatusCode.OK, (await postTask).StatusCode);
+    }
+
     private void SeedStandardCast()
     {
         SeedLoggedInExperienceUsers(
             null,
             ("openid-1", RequesterToken),
-            ("openid-2", ResponderTokenA));
-        SeedBoundResponders(("rescuer-t1", "openid-2", "active", "张急救"));
+            ("openid-2", ResponderTokenA),
+            ("openid-3", ResponderTokenB));
+        SeedBoundResponders(
+            ("rescuer-t1", "openid-2", "active", "张急救"),
+            ("rescuer-t2", "openid-3", "active", "李急救"));
     }
 }

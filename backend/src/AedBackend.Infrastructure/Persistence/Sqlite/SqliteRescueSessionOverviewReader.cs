@@ -1,4 +1,5 @@
 using AedBackend.Core.Models.Rescue;
+using AedBackend.Core.Services.Rescue;
 using Microsoft.EntityFrameworkCore;
 
 namespace AedBackend.Infrastructure.Persistence.Sqlite;
@@ -8,18 +9,23 @@ internal static class SqliteRescueSessionOverviewReader
     /**
      * 三条线性元数据查询避免列表端加载消息正文，也避免两个 collection Include 形成笛卡尔积。
      */
-    public static async Task<IReadOnlyList<RescueSessionOverviewRecord>> ReadAllAsync(
+    public static async Task<IReadOnlyList<RescueSessionOverviewRecord>> ReadAsync(
         AedDbContext db,
-        string? viewerOpenId,
+        RescueSessionOverviewQuery query,
         CancellationToken ct)
     {
-        var rows = await ReadRowsAsync(db, ct);
-        return BuildOverviews(rows, viewerOpenId);
+        var helpIds = query.HelpRequestIds.Distinct(StringComparer.Ordinal).ToArray();
+        var rows = await ReadRowsAsync(db, helpIds, ct);
+        return BuildOverviews(rows, query.ViewerOpenId);
     }
 
-    private static async Task<OverviewRows> ReadRowsAsync(AedDbContext db, CancellationToken ct)
+    private static async Task<OverviewRows> ReadRowsAsync(
+        AedDbContext db,
+        IReadOnlyCollection<string> helpIds,
+        CancellationToken ct)
     {
         var sessions = await db.RescueSessions.AsNoTracking()
+            .Where(item => helpIds.Contains(item.HelpRequestId))
             .Select(item => new SessionRow
             {
                 HelpRequestId = item.HelpRequestId,
@@ -28,6 +34,7 @@ internal static class SqliteRescueSessionOverviewReader
             })
             .ToArrayAsync(ct);
         var participants = await db.RescueSessionParticipants.AsNoTracking()
+            .Where(item => helpIds.Contains(item.HelpRequestId))
             .Select(item => new ParticipantRow
             {
                 HelpRequestId = item.HelpRequestId,
@@ -37,6 +44,7 @@ internal static class SqliteRescueSessionOverviewReader
             })
             .ToArrayAsync(ct);
         var messages = await db.RescueSessionMessages.AsNoTracking()
+            .Where(item => helpIds.Contains(item.HelpRequestId))
             .Select(item => new MessageRow
             {
                 HelpRequestId = item.HelpRequestId,

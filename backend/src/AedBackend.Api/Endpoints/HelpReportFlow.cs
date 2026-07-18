@@ -19,9 +19,9 @@ internal sealed record HelpReportInput
     public required UploadOptions UploadOptions { get; init; }
     public required CertifiedResponderResult Responder { get; init; }
     public required IHelpRequestStore HelpStore { get; init; }
-    public required IRescueSessionStore SessionStore { get; init; }
     public required RescueSessionLifecycleCoordinator Lifecycle { get; init; }
     public required RescueSessionBroadcaster Broadcaster { get; init; }
+    public required HelpClosureApplication Closure { get; init; }
     public required CancellationToken CancellationToken { get; init; }
 }
 
@@ -45,6 +45,21 @@ internal static class HelpReportFlow
         if (existing is null)
             return EndpointFailures.JsonFailure(ErrorCodes.ResourceNotFound, "求助不存在", 404);
 
+        if (input.Request.IsFalseAlarm)
+        {
+            return await HelpEndpoints.UpdateHelpAsync(
+                () => input.Closure.CloseAsync(
+                    new HelpClosureCommand
+                    {
+                        HelpId = existing.Id,
+                        Status = HelpStatuses.FalseAlarm,
+                        FalseAlarmReport = report
+                    },
+                    input.CancellationToken),
+                record => Results.Ok(ApiResponse.Ok(
+                    new HelpReportResponse(report.Id, record.Status, report.SubmittedAt))));
+        }
+
         using var lease = await input.Lifecycle.EnterAsync(existing.Id, input.CancellationToken);
         return await HelpEndpoints.UpdateHelpAsync(
             () => PersistAsync(input, existing.Id, report),
@@ -67,20 +82,17 @@ internal static class HelpReportFlow
         string helpId,
         HelpReportRecord report)
     {
-        var nextStatus = input.Request.IsFalseAlarm
-            ? HelpStatuses.FalseAlarm
-            : HelpStatuses.PendingReview;
         var updated = await input.HelpStore.AddReportAsync(
-            new HelpReportUpdate(helpId, report, nextStatus, report.SubmittedAt),
+            new HelpReportUpdate(
+                helpId,
+                report,
+                HelpStatuses.PendingReview,
+                report.SubmittedAt),
             input.CancellationToken);
-        if (input.Request.IsFalseAlarm)
-            await input.SessionStore.CloseSessionAsync(updated.Id, input.CancellationToken);
         await input.Broadcaster.BroadcastAsync(
             updated.Id,
             "help_status",
             new RescueHelpStatusDto(updated.Status));
-        if (input.Request.IsFalseAlarm)
-            await input.Broadcaster.CloseAllAsync(updated.Id, "help closed");
         return updated;
     }
 }

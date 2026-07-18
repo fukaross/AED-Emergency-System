@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace AedBackend.Tests.Rescue;
 
-public sealed class JsonRescueSessionStoreTests : IDisposable
+public sealed partial class JsonRescueSessionStoreTests : IDisposable
 {
     private static readonly DateTimeOffset BaseTime = new(2026, 7, 17, 12, 0, 0, TimeSpan.Zero);
     private readonly List<string> tempFiles = [];
@@ -91,11 +91,10 @@ public sealed class JsonRescueSessionStoreTests : IDisposable
 
         await store.JoinAsync(Join("help-1", "openid-a", "张三", BaseTime), CancellationToken.None);
         await store.JoinAsync(Join("help-1", "openid-b", "李四", BaseTime), CancellationToken.None);
-        var session = await store.AppendMessageAsync(
+        var text = await store.AppendMessageAsync(
             Text("help-1", "openid-a", "张三", "马上到", BaseTime.AddSeconds(10)), CancellationToken.None);
 
-        Assert.Equal(new long[] { 1, 2, 3 }, session.Messages.Select(m => m.Seq).ToArray());
-        var text = session.Messages[^1];
+        Assert.Equal(3, text.Seq);
         Assert.Equal(RescueMessageKinds.Text, text.Kind);
         Assert.Equal("马上到", text.Text);
         Assert.Null(text.EventType);
@@ -108,10 +107,11 @@ public sealed class JsonRescueSessionStoreTests : IDisposable
         var store = CreateRegisteredStore();
 
         await store.JoinAsync(Join("help-1", "openid-a", "张三", BaseTime), CancellationToken.None);
-        var session = await store.AppendMessageAsync(
+        await store.AppendMessageAsync(
             Text("help-1", "openid-a", "张三", "hi", BaseTime.AddSeconds(20)), CancellationToken.None);
+        var session = await store.FindByHelpIdAsync("help-1", CancellationToken.None);
 
-        Assert.Equal(BaseTime.AddSeconds(20), session.Participants[0].LastSeenAt);
+        Assert.Equal(BaseTime.AddSeconds(20), session!.Participants[0].LastSeenAt);
     }
 
     [Fact]
@@ -133,13 +133,12 @@ public sealed class JsonRescueSessionStoreTests : IDisposable
 
         await store.JoinAsync(Join("help-1", "openid-a", "张三", BaseTime), CancellationToken.None);
         await store.UpdateLocationAsync(
-            new RescueSessionLocationCommand("help-1", "openid-a", 20.0, 110.0, BaseTime.AddSeconds(5)),
+            Location("help-1", "openid-a", 20.0, 110.0, BaseTime.AddSeconds(5)),
             CancellationToken.None);
-        var session = await store.UpdateLocationAsync(
-            new RescueSessionLocationCommand("help-1", "openid-a", 20.1, 110.1, BaseTime.AddSeconds(10)),
+        var participant = await store.UpdateLocationAsync(
+            Location("help-1", "openid-a", 20.1, 110.1, BaseTime.AddSeconds(10)),
             CancellationToken.None);
 
-        var participant = session.Participants[0];
         Assert.Equal(20.1, participant.LastLat);
         Assert.Equal(110.1, participant.LastLng);
         Assert.Equal(BaseTime.AddSeconds(10), participant.LocationReportedAt);
@@ -153,11 +152,11 @@ public sealed class JsonRescueSessionStoreTests : IDisposable
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             store.UpdateLocationAsync(
-                new RescueSessionLocationCommand("help-1", "openid-a", 1, 1, BaseTime), CancellationToken.None));
+                Location("help-1", "openid-a", 1, 1, BaseTime), CancellationToken.None));
         await store.JoinAsync(Join("help-1", "openid-a", "张三", BaseTime), CancellationToken.None);
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             store.UpdateLocationAsync(
-                new RescueSessionLocationCommand("help-1", "ghost", 1, 1, BaseTime), CancellationToken.None));
+                Location("help-1", "ghost", 1, 1, BaseTime), CancellationToken.None));
     }
 
     [Fact]
@@ -166,9 +165,11 @@ public sealed class JsonRescueSessionStoreTests : IDisposable
         var store = CreateRegisteredStore();
 
         await store.JoinAsync(Join("help-1", "openid-a", "张三", BaseTime), CancellationToken.None);
-        var session = await store.MarkReadAsync("help-1", "openid-a", 1, CancellationToken.None);
+        var lastReadSeq = await store.MarkReadAsync(
+            Read("help-1", "openid-a", 1),
+            CancellationToken.None);
 
-        Assert.Equal(1, session.Participants[0].LastReadSeq);
+        Assert.Equal(1, lastReadSeq);
     }
 
     [Fact]
@@ -179,12 +180,12 @@ public sealed class JsonRescueSessionStoreTests : IDisposable
         await store.JoinAsync(Join("help-1", "openid-a", "张三", BaseTime), CancellationToken.None);
         await store.JoinAsync(Join("help-1", "openid-b", "李四", BaseTime), CancellationToken.None);
         await store.UpdateLocationAsync(
-            new RescueSessionLocationCommand("help-1", "openid-a", 20.0, 110.0, BaseTime.AddSeconds(5)),
+            Location("help-1", "openid-a", 20.0, 110.0, BaseTime.AddSeconds(5)),
             CancellationToken.None);
         await store.AppendMessageAsync(
             Text("help-1", "openid-a", "张三", "到了", BaseTime.AddSeconds(6)), CancellationToken.None);
 
-        await store.CloseSessionAsync("help-1", CancellationToken.None);
+        await store.CloseSessionAsync("help-1", DateTimeOffset.UtcNow, CancellationToken.None);
         var session = await store.FindByHelpIdAsync("help-1", CancellationToken.None);
 
         Assert.NotNull(session);
@@ -202,50 +203,62 @@ public sealed class JsonRescueSessionStoreTests : IDisposable
     {
         var store = CreateRegisteredStore();
 
-        await store.CloseSessionAsync("missing", CancellationToken.None);
+        await store.CloseSessionAsync("missing", DateTimeOffset.UtcNow, CancellationToken.None);
         await store.JoinAsync(Join("help-1", "openid-a", "张三", BaseTime), CancellationToken.None);
-        await store.CloseSessionAsync("help-1", CancellationToken.None);
-        await store.CloseSessionAsync("help-1", CancellationToken.None);
+        await store.CloseSessionAsync("help-1", DateTimeOffset.UtcNow, CancellationToken.None);
+        await store.CloseSessionAsync("help-1", DateTimeOffset.UtcNow, CancellationToken.None);
 
         var session = await store.FindByHelpIdAsync("help-1", CancellationToken.None);
         Assert.NotNull(session);
         Assert.Single(session.Messages);
     }
 
-    [Fact]
-    public async Task ListByParticipantAsync_ReturnsOnlyJoinedSessions()
+    private static RescueSessionJoinCommand Join(
+        string helpId,
+        string openId,
+        string name,
+        DateTimeOffset now) => new()
+        {
+            HelpRequestId = helpId,
+            OpenId = openId,
+            DisplayName = name,
+            Now = now
+        };
+
+    private static RescueTextMessageCommand Text(
+        string helpId,
+        string openId,
+        string name,
+        string text,
+        DateTimeOffset now) => new()
+        {
+            HelpRequestId = helpId,
+            SenderOpenId = openId,
+            SenderName = name,
+            Text = text,
+            Now = now
+        };
+
+    private static RescueSessionLocationCommand Location(
+        string helpId,
+        string openId,
+        double lat,
+        double lng,
+        DateTimeOffset now) => new()
+        {
+            HelpRequestId = helpId,
+            OpenId = openId,
+            Lat = lat,
+            Lng = lng,
+            Now = now
+        };
+
+    private static RescueSessionReadCommand Read(string helpId, string openId, long lastReadSeq) => new()
     {
-        var store = CreateRegisteredStore();
-
-        await store.JoinAsync(Join("help-1", "openid-a", "张三", BaseTime), CancellationToken.None);
-        await store.JoinAsync(Join("help-2", "openid-b", "李四", BaseTime), CancellationToken.None);
-
-        var mine = await store.ListByParticipantAsync("openid-a", CancellationToken.None);
-
-        var item = Assert.Single(mine);
-        Assert.Equal("help-1", item.HelpRequestId);
-        Assert.Equal(2, (await store.ListAllAsync(CancellationToken.None)).Count);
-    }
-
-    [Fact]
-    public async Task Store_PersistsAcrossInstances()
-    {
-        var path = RegisterTempFile();
-
-        await CreateStore(path).JoinAsync(Join("help-1", "openid-a", "张三", BaseTime), CancellationToken.None);
-        var session = await CreateStore(path).FindByHelpIdAsync("help-1", CancellationToken.None);
-
-        Assert.NotNull(session);
-        Assert.Single(session.Participants);
-        Assert.Single(session.Messages);
-    }
-
-    private static RescueSessionJoinCommand Join(string helpId, string openId, string name, DateTimeOffset now) =>
-        new(helpId, openId, name, now);
-
-    private static RescueSessionAppendCommand Text(
-        string helpId, string openId, string name, string text, DateTimeOffset now) =>
-        new(helpId, RescueMessageKinds.Text, openId, name, text, null, null, now);
+        HelpRequestId = helpId,
+        OpenId = openId,
+        LastReadSeq = lastReadSeq
+    };
 
     private JsonRescueSessionStore CreateRegisteredStore() => CreateStore(RegisterTempFile());
 

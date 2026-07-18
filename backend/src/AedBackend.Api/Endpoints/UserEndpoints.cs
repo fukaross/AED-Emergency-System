@@ -297,7 +297,10 @@ internal static partial class UserEndpoints
         IUserAccountStatusService accountStatus,
         CancellationToken ct)
     {
-        return await EndpointUsers.RequireActiveUserAsync(request, tokenService, users, accountStatus, ct);
+        return await EndpointUsers.RequireActiveUserAsync(
+            request,
+            new ActiveUserDependencies(tokenService, users, accountStatus),
+            ct);
     }
 
     private static IResult FeatureRequiresSqlite()

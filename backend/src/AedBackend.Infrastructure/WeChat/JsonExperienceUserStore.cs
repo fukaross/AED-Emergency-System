@@ -64,6 +64,22 @@ public sealed class JsonExperienceUserStore : IExperienceUserStore
         }
     }
 
+    public async Task<ExperienceUserRecord?> FindByOpenIdAsync(
+        string openId,
+        CancellationToken cancellationToken)
+    {
+        await fileLock.WaitAsync(cancellationToken);
+        try
+        {
+            var database = await ReadDatabaseAsync(cancellationToken);
+            return database.Users.FirstOrDefault(user => user.OpenId == openId);
+        }
+        finally
+        {
+            fileLock.Release();
+        }
+    }
+
     public async Task<SaveLoginResult?> RefreshTokenAsync(
         string oldTokenHash,
         string newTokenHash,

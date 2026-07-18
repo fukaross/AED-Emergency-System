@@ -1,116 +1,49 @@
-using System.Net.WebSockets;
 using AedBackend.Api.Endpoints;
-using AedBackend.Core.Models.Help;
-using AedBackend.Core.Services.Admin;
-using AedBackend.Core.Services.Help;
-using AedBackend.Core.Services.Rescue;
-using AedBackend.Core.Services.WeChat;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AedBackend.Api.WebSockets;
 
-/**
- * 急救会话 WS 通道（ADR 0001）：握手校验 token + 会话参与者身份；
- * 通道仅接收服务端扇出，客户端消息一律忽略，写操作只走 HTTP。
- */
+/** ADR 0001 的只读 WS 入口；HTTP 是唯一写真源。 */
 public static class RescueWebSocketEndpoints
 {
-    private const int ReceiveBufferSize = 1024;
-
     public static IEndpointRouteBuilder MapRescueWebSocketEndpoints(this IEndpointRouteBuilder app)
     {
         app.Map("/ws/help/{id}/session", HandleAsync);
         return app;
     }
 
+    /** 握手只负责编排；连接生命周期由 registration + receive pump 收口。 */
     private static async Task HandleAsync(
-        HttpContext context,
-        string id,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionBroadcaster broadcaster)
+        [AsParameters] RescueWebSocketEndpointRequest endpoint)
     {
+        var context = endpoint.HttpContext;
         if (!context.WebSockets.IsWebSocketRequest)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
 
-        var token = EndpointSecurity.ReadBearerToken(context.Request);
-        var user = string.IsNullOrWhiteSpace(token)
-            ? null
-            : await userStore.FindByTokenHashAsync(tokenService.HashToken(token), context.RequestAborted);
-        if (user is null)
+        var access = await endpoint.Authorizer.RequireParticipantAsync(
+            context.Request,
+            endpoint.Id,
+            context.RequestAborted);
+        if (access.Failure is not null)
         {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return;
-        }
-
-        if (await accountStatus.IsDisabledAsync(user.OpenId, context.RequestAborted))
-        {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            return;
-        }
-
-        var help = await helpStore.FindByIdOrRequestNoAsync(id, context.RequestAborted);
-        if (help is null)
-        {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
-            return;
-        }
-
-        var session = await sessionStore.FindByHelpIdAsync(help.Id, context.RequestAborted);
-        var isParticipant = session?.Participants.Any(p => p.OpenId == user.OpenId) == true;
-        if (!isParticipant)
-        {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            return;
-        }
-
-        if (HelpStatuses.IsClosed(help.Status) || session!.ClosedAt is not null)
-        {
-            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.StatusCode = access.FailureStatusCode;
             return;
         }
 
         using var socket = await context.WebSockets.AcceptWebSocketAsync();
-        var connectionId = Guid.NewGuid();
-        if (!broadcaster.Register(help.Id, connectionId, socket))
-        {
-            return;
-        }
+        var identity = new RescueSocketIdentity(access.User!.OpenId, access.TokenHash!);
+        var registration = endpoint.Broadcaster.Register(access.Help!.Id, identity, socket);
+        if (registration is null) return;
         try
         {
-            var buffer = new byte[ReceiveBufferSize];
-            while (!context.RequestAborted.IsCancellationRequested)
-            {
-                var result = await socket.ReceiveAsync(buffer, context.RequestAborted);
-                if (result.MessageType == WebSocketMessageType.Close)
-                {
-                    if (socket.State == WebSocketState.CloseReceived)
-                    {
-                        await socket.CloseOutputAsync(
-                            WebSocketCloseStatus.NormalClosure,
-                            null,
-                            CancellationToken.None);
-                    }
-                    break;
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // 客户端断开连接
-        }
-        catch (WebSocketException)
-        {
-            // 连接异常断开，按注销处理
+            await endpoint.ReceivePump.RunAsync(registration, context.RequestAborted);
         }
         finally
         {
-            broadcaster.Unregister(help.Id, connectionId);
+            endpoint.Broadcaster.Unregister(registration);
         }
     }
 }

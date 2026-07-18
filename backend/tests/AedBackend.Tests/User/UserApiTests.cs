@@ -66,13 +66,31 @@ public sealed class UserApiTests
         await AssertErrorAsync(
             await fixture.Client.GetAsync("/api/user/profile"),
             HttpStatusCode.Forbidden,
-            ErrorCodes.Forbidden);
+            ErrorCodes.AccountDisabled);
         await AssertErrorAsync(
             await fixture.Client.PostAsync("/api/auth/refresh", null),
             HttpStatusCode.Forbidden,
-            ErrorCodes.Forbidden);
+            ErrorCodes.AccountDisabled);
+        await AssertErrorAsync(
+            await fixture.Client.PostAsJsonAsync(
+                "/api/auth/wechat-phone",
+                new { phone = "REDACTED" }),
+            HttpStatusCode.Forbidden,
+            ErrorCodes.AccountDisabled);
+        await AssertErrorAsync(
+            await fixture.Client.PostAsJsonAsync(
+                "/api/wechat/subscriptions",
+                new { templateId = "disabled-template", status = "accept" }),
+            HttpStatusCode.Forbidden,
+            ErrorCodes.AccountDisabled);
 
         fixture.UseAdminKey();
+        var disabledDetail = await fixture.Client.GetAsync($"/api/admin/users/{OpenId}");
+        var disabledData = (await ReadAsync<ApiResponse<JsonElement>>(disabledDetail)).Data;
+        Assert.False(disabledData.GetProperty("subscriptions").TryGetProperty(
+            "disabled-template",
+            out _));
+
         Assert.Equal(HttpStatusCode.OK, (await fixture.Client.PutAsJsonAsync(
             $"/api/admin/users/{OpenId}",
             new { accountStatus = "active" })).StatusCode);
@@ -95,7 +113,7 @@ public sealed class UserApiTests
         var disabled = await fixture.Client.PostAsJsonAsync(
             "/api/auth/wechat-login",
             new { code = "login-code" });
-        await AssertErrorAsync(disabled, HttpStatusCode.Forbidden, ErrorCodes.Forbidden);
+        await AssertErrorAsync(disabled, HttpStatusCode.Forbidden, ErrorCodes.AccountDisabled);
 
         fixture.UseAdminKey();
         Assert.Equal(HttpStatusCode.OK, (await fixture.Client.PutAsJsonAsync(
@@ -107,6 +125,20 @@ public sealed class UserApiTests
             "/api/auth/wechat-login",
             new { code = "login-code" });
         Assert.Equal(HttpStatusCode.OK, restored.StatusCode);
+    }
+
+    [Fact]
+    public async Task Subscription_AuthenticatesBeforePayloadValidation()
+    {
+        using var fixture = await UserApiFixture.CreateAsync();
+        fixture.Client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", "invalid-token");
+
+        var response = await fixture.Client.PostAsJsonAsync(
+            "/api/wechat/subscriptions",
+            new { templateId = string.Empty, status = "invalid" });
+
+        await AssertErrorAsync(response, HttpStatusCode.Unauthorized, ErrorCodes.Unauthorized);
     }
 
     [Fact]

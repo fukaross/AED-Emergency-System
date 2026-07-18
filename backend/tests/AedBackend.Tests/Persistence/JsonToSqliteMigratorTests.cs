@@ -1,3 +1,4 @@
+using System.Globalization;
 using AedBackend.Core.Models.Course;
 using AedBackend.Core.Models.Rescue;
 using AedBackend.Infrastructure.Persistence.Sqlite;
@@ -78,6 +79,32 @@ public sealed class JsonToSqliteMigratorTests
     }
 
     [Fact]
+    public async Task RunAsync_ExplainsDuplicateActiveHelpBeforeWritingTarget()
+    {
+        using var temp = new ProviderTempData();
+        await temp.WriteMinimalJsonAsync();
+        var sourcePath = Path.Combine(temp.Root, "help-requests.json");
+        await temp.WriteAsync("help-requests.json", new
+        {
+            requests = new[]
+            {
+                ActiveHelp("help-01", "HELP-01", "duplicate-user"),
+                ActiveHelp("help-02", "HELP-02", "duplicate-user")
+            }
+        });
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None));
+
+        Assert.Contains(Path.GetFullPath(sourcePath), ex.Message, StringComparison.Ordinal);
+        Assert.Contains(Path.GetFullPath(temp.DbPath), ex.Message, StringComparison.Ordinal);
+        Assert.Contains("1 个身份共有 2 条冲突", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("不会自动", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("只读", ex.Message, StringComparison.Ordinal);
+        Assert.False(File.Exists(temp.DbPath));
+    }
+
+    [Fact]
     public async Task RunAsync_FailsWhenRescueSessionReferencesMissingHelp()
     {
         using var temp = new ProviderTempData();
@@ -95,6 +122,45 @@ public sealed class JsonToSqliteMigratorTests
 
         Assert.Contains("缺少关联求助", ex.Message);
         Assert.False(File.Exists(temp.DbPath));
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("{}")]
+    [InlineData("{\"sessions\":null}")]
+    [InlineData("{\"sessions\":[null]}")]
+    [InlineData("[]")]
+    [InlineData("{")]
+    public async Task RunAsync_FailsExplicitlyWhenRescueJsonIsStructurallyInvalid(string payload)
+    {
+        using var temp = new ProviderTempData();
+        await temp.WriteMinimalJsonAsync();
+        var jsonPath = Path.Combine(temp.Root, "rescue-sessions.json");
+        await File.WriteAllTextAsync(jsonPath, payload);
+
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None));
+
+        Assert.Contains(Path.GetFullPath(jsonPath), ex.Message, StringComparison.Ordinal);
+        Assert.False(File.Exists(temp.DbPath));
+    }
+
+    [Fact]
+    public async Task RunAsync_ReconcilesClosedRescueSessionWithMultipleChildren()
+    {
+        using var temp = new ProviderTempData();
+        await temp.WriteValidDataAsync();
+        var session = ComplexClosedSession();
+        await temp.WriteAsync("rescue-sessions.json", new { sessions = new[] { session } });
+
+        var report = await new JsonToSqliteMigrator().RunAsync(
+            temp.Root,
+            temp.DbPath,
+            CancellationToken.None);
+
+        Assert.Equal(2, report.Counts["rescue_session_participants"]);
+        Assert.Equal(4, report.Counts["rescue_session_messages"]);
+        Assert.Equal(session.ClosedAt, await ReadClosedAtAsync(temp.DbPath));
     }
 
     private static CourseRecord SampleCourse(string id)
@@ -115,5 +181,76 @@ public sealed class JsonToSqliteMigratorTests
             ],
             CreatedAt = "2026-06-02T00:00:00Z"
         };
+    }
+
+    private static Core.Models.Help.HelpRequestRecord ActiveHelp(
+        string id,
+        string requestNo,
+        string userId) => new()
+        {
+            Id = id,
+            RequestNo = requestNo,
+            UserId = userId,
+            Address = "教学楼",
+            Content = "需要帮助",
+            Status = Core.Models.Help.HelpStatuses.Published,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+    private static RescueSessionRecord ComplexClosedSession()
+    {
+        var createdAt = new DateTimeOffset(2026, 7, 17, 12, 0, 0, TimeSpan.Zero);
+        return new RescueSessionRecord
+        {
+            HelpRequestId = "help-01",
+            CreatedAt = createdAt,
+            ClosedAt = createdAt.AddMinutes(10),
+            Participants = ComplexParticipants(createdAt),
+            Messages = ComplexMessages(createdAt)
+        };
+    }
+
+    private static RescueSessionParticipantRecord[] ComplexParticipants(DateTimeOffset createdAt) =>
+    [
+        new()
+        {
+            OpenId = "openid-2",
+            DisplayName = "急救员甲",
+            JoinedAt = createdAt.AddSeconds(1),
+            LastSeenAt = createdAt.AddSeconds(8),
+            LastReadSeq = 4
+        },
+        new()
+        {
+            OpenId = "openid-3",
+            DisplayName = "急救员乙",
+            JoinedAt = createdAt.AddSeconds(2),
+            LastSeenAt = createdAt.AddSeconds(9),
+            LastReadSeq = 3
+        }
+    ];
+
+    private static RescueSessionMessageRecord[] ComplexMessages(DateTimeOffset createdAt) =>
+        Enumerable.Range(1, 4).Select(seq => new RescueSessionMessageRecord
+        {
+            Id = $"complex-message-{seq}",
+            Seq = seq,
+            Kind = RescueMessageKinds.Text,
+            SenderOpenId = seq % 2 == 0 ? "openid-2" : "openid-3",
+            SenderName = seq % 2 == 0 ? "急救员甲" : "急救员乙",
+            Text = $"消息 {seq}",
+            CreatedAt = createdAt.AddSeconds(seq + 2)
+        }).ToArray();
+
+    private static async Task<DateTimeOffset?> ReadClosedAtAsync(string dbPath)
+    {
+        await using var connection = new SqliteConnection($"Data Source={dbPath};Pooling=False");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT ClosedAt FROM rescue_sessions WHERE HelpRequestId='help-01';";
+        var value = Convert.ToString(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : DateTimeOffset.Parse(value, CultureInfo.InvariantCulture);
     }
 }

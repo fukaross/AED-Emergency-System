@@ -1,7 +1,6 @@
 using AedBackend.Core.Constants;
 using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.DTOs.WeChat;
-using AedBackend.Core.Services.WeChat;
 
 namespace AedBackend.Api.Endpoints;
 
@@ -28,33 +27,31 @@ public static class WeChatSubscriptionEndpoints
     }
 
     private static async Task<IResult> SaveSubscriptionAsync(
-        HttpRequest httpRequest,
-        SaveSubscribeDecisionRequest request,
-        ISessionTokenService tokenService,
-        IExperienceUserStore store,
-        CancellationToken cancellationToken)
+        [AsParameters] WeChatSubscriptionEndpointRequest endpoint)
     {
-        var token = EndpointSecurity.ReadBearerToken(httpRequest);
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "缺少登录 token", 401);
-        }
+        var current = await EndpointUsers.RequireActiveUserAsync(
+            endpoint.HttpRequest,
+            endpoint.ActiveUserDependencies,
+            endpoint.CancellationToken);
+        if (current.Failure is not null) return current.Failure;
 
-        var validationError = ValidateRequest(request);
+        var validationError = ValidateRequest(endpoint.Body);
         if (validationError is not null)
         {
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, validationError, 400);
         }
 
-        var tokenHash = tokenService.HashToken(token);
-        var user = await store.FindByTokenHashAsync(tokenHash, cancellationToken);
-        if (user is null)
+        var token = EndpointSecurity.ReadBearerToken(endpoint.HttpRequest)!;
+        var tokenHash = endpoint.TokenService.HashToken(token);
+        await endpoint.UserStore.SaveSubscriptionAsync(
+            tokenHash,
+            endpoint.Body,
+            endpoint.CancellationToken);
+        return Results.Ok(ApiResponse.Ok(new
         {
-            return EndpointFailures.JsonFailure(ErrorCodes.Unauthorized, "登录 token 无效", 401);
-        }
-
-        await store.SaveSubscriptionAsync(tokenHash, request, cancellationToken);
-        return Results.Ok(ApiResponse.Ok(new { request.TemplateId, request.Status }));
+            endpoint.Body.TemplateId,
+            endpoint.Body.Status
+        }));
     }
 
     private static string? ValidateRequest(SaveSubscribeDecisionRequest request)

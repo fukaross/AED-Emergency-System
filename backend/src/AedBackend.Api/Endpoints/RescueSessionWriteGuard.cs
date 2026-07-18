@@ -3,14 +3,12 @@ using AedBackend.Core.Services.Rescue;
 
 namespace AedBackend.Api.Endpoints;
 
-internal sealed record RescueSessionWriteResult<T>(T? Value, IResult? Failure)
-    where T : class;
+internal sealed record RescueSessionWriteResult<T>(T? Value, IResult? Failure);
 
 internal static class RescueSessionWriteGuard
 {
     public static async Task<RescueSessionWriteResult<T>> ExecuteActiveAsync<T>(
         RescueSessionActiveWrite<T> input)
-        where T : class
     {
         using var lease = await input.Services.Lifecycle.EnterAsync(
             input.HelpId,
@@ -19,14 +17,13 @@ internal static class RescueSessionWriteGuard
             input.HelpId,
             input.CancellationToken);
         if (help is null)
-            return new RescueSessionWriteResult<T>(null, RescueSessionContext.NotFound());
+            return new RescueSessionWriteResult<T>(default, RescueSessionContext.NotFound());
         if (HelpStatuses.IsClosed(help.Status))
-            return new RescueSessionWriteResult<T>(null, RescueSessionContext.SessionClosed());
+            return new RescueSessionWriteResult<T>(default, RescueSessionContext.SessionClosed());
         return await ExecuteAsync(input.Write);
     }
 
     public static async Task<RescueSessionWriteResult<T>> ExecuteAsync<T>(Func<Task<T>> write)
-        where T : class
     {
         try
         {
@@ -34,13 +31,12 @@ internal static class RescueSessionWriteGuard
         }
         catch (RescueSessionClosedException)
         {
-            return new RescueSessionWriteResult<T>(null, RescueSessionContext.SessionClosed());
+            return new RescueSessionWriteResult<T>(default, RescueSessionContext.SessionClosed());
         }
     }
 }
 
 internal sealed record RescueSessionActiveWrite<T>
-    where T : class
 {
     public required string HelpId { get; init; }
     public required SessionEndpointServices Services { get; init; }

@@ -128,15 +128,17 @@ public static class WeChatAuthEndpoints
         IUserAccountStatusService accountStatus,
         CancellationToken cancellationToken)
     {
+        var current = await EndpointUsers.RequireActiveUserAsync(
+            httpRequest,
+            new ActiveUserDependencies(tokenService, store, accountStatus),
+            cancellationToken);
+        if (current.Failure is not null) return current.Failure;
+
         var validationError = ValidatePhoneRequest(request, options.Value);
         if (validationError is not null)
         {
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, validationError, 400);
         }
-
-        var current = await EndpointUsers.RequireActiveUserAsync(
-            httpRequest, tokenService, store, accountStatus, cancellationToken);
-        if (current.Failure is not null) return current.Failure;
 
         var tokenHash = tokenService.HashToken(EndpointSecurity.ReadBearerToken(httpRequest)!);
         if (!string.IsNullOrWhiteSpace(request.Phone))
@@ -209,22 +211,6 @@ public static class WeChatAuthEndpoints
         }
 
         return null;
-    }
-
-    private static async Task<ExperienceUserRecord?> FindCurrentUserAsync(
-        HttpRequest request,
-        ISessionTokenService tokenService,
-        IExperienceUserStore store,
-        CancellationToken cancellationToken)
-    {
-        var token = EndpointSecurity.ReadBearerToken(request);
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return null;
-        }
-
-        var tokenHash = tokenService.HashToken(token);
-        return await store.FindByTokenHashAsync(tokenHash, cancellationToken);
     }
 
     private static IResult ToCodeSessionFailure(int errorCode, string errorMessage)

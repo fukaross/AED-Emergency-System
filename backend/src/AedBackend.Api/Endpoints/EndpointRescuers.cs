@@ -15,25 +15,23 @@ internal static class EndpointRescuers
      * 认证急救员准入判定：有效登录态 + responder_profiles 绑定当前用户且资格 active（BackEnd.md §4.5A）。
      */
     public static async Task<CertifiedResponderResult> RequireCertifiedResponderAsync(
-        HttpRequest request,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IResponderStore responderStore,
-        CancellationToken cancellationToken)
+        CertifiedResponderAuthorization authorization)
     {
         var current = await EndpointUsers.RequireActiveUserAsync(
-            request,
-            tokenService,
-            userStore,
-            accountStatus,
-            cancellationToken);
+            authorization.Request,
+            new ActiveUserDependencies(
+                authorization.TokenService,
+                authorization.UserStore,
+                authorization.AccountStatus),
+            authorization.CancellationToken);
         if (current.Failure is not null)
         {
             return CertifiedResponderResult.Failed(current.Failure);
         }
 
-        var profile = await responderStore.FindByBoundOpenIdAsync(current.User!.OpenId, cancellationToken);
+        var profile = await authorization.ResponderStore.FindByBoundOpenIdAsync(
+            current.User!.OpenId,
+            authorization.CancellationToken);
         return profile?.QualificationStatus == ActiveQualificationStatus
             ? CertifiedResponderResult.Success(current.User, profile)
             : CertifiedResponderResult.Failed(
@@ -46,6 +44,16 @@ internal static class EndpointRescuers
         if (!string.IsNullOrWhiteSpace(profile.Name)) return profile.Name.Trim();
         return string.IsNullOrWhiteSpace(user.Name) ? "急救员" : user.Name.Trim();
     }
+}
+
+internal sealed record CertifiedResponderAuthorization
+{
+    public required HttpRequest Request { get; init; }
+    public required ISessionTokenService TokenService { get; init; }
+    public required IExperienceUserStore UserStore { get; init; }
+    public required IUserAccountStatusService AccountStatus { get; init; }
+    public required IResponderStore ResponderStore { get; init; }
+    public required CancellationToken CancellationToken { get; init; }
 }
 
 public sealed record CertifiedResponderResult(

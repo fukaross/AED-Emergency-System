@@ -3,12 +3,11 @@ using AedBackend.Core.DTOs.Common;
 using AedBackend.Core.DTOs.Rescue;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Models.Rescue;
-using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.Rescue;
-using AedBackend.Core.Services.WeChat;
 using AedBackend.Api.WebSockets;
 using AedBackend.Infrastructure.Rescue;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace AedBackend.Api.Endpoints;
@@ -30,69 +29,53 @@ public static class RescueSessionEndpoints
     }
 
     private static async Task<IResult> JoinSessionAsync(
-        HttpRequest httpRequest,
-        string id,
-        IOptions<RescueOptions> rescueOptions,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IResponderStore responderStore,
-        IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionLifecycleCoordinator lifecycle,
-        RescueSessionBroadcaster broadcaster,
-        CancellationToken cancellationToken)
+        [AsParameters] RescueSessionEndpointRequest endpoint)
     {
-        var services = new SessionEndpointServices(
-            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
         return await RescueSessionJoinFlow.ExecuteAsync(new RescueSessionJoinInput
         {
-            HttpRequest = httpRequest,
-            HelpId = id,
-            Options = rescueOptions.Value,
-            ResponderStore = responderStore,
-            Services = services,
-            Broadcaster = broadcaster,
-            CancellationToken = cancellationToken,
+            HttpRequest = endpoint.HttpRequest,
+            HelpId = endpoint.Id!,
+            Options = endpoint.RescueOptions.Value,
+            Services = endpoint.ToServices(),
+            Broadcaster = endpoint.Broadcaster,
+            CancellationToken = endpoint.CancellationToken,
         });
     }
 
     private static async Task<IResult> GetSessionAsync(
-        HttpRequest httpRequest,
-        string id,
-        long? afterSeq,
-        IOptions<RescueOptions> rescueOptions,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionLifecycleCoordinator lifecycle,
-        CancellationToken cancellationToken)
+        [AsParameters] RescueSessionEndpointRequest endpoint,
+        long? afterSeq)
     {
-        var services = new SessionEndpointServices(
-            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
-        var context = await RescueSessionContext.RequireParticipantAsync(httpRequest, id, services, cancellationToken);
+        var services = endpoint.ToServices();
+        var cancellationToken = endpoint.CancellationToken;
+        var context = await services.Authorizer.RequireParticipantAsync(
+            endpoint.HttpRequest,
+            endpoint.Id!,
+            cancellationToken);
         if (context.Failure is not null) return context.Failure;
 
         var now = DateTimeOffset.UtcNow;
-        var snapshot = RescueSessionMapper.ToSnapshot(
-            context.Session!,
-            context.Help!,
-            context.User!.OpenId,
-            afterSeq,
-            rescueOptions.Value,
-            now);
+        var snapshot = RescueSessionMapper.ToSnapshot(new RescueSnapshotMappingInput
+        {
+            Session = context.Session!,
+            Help = context.Help!,
+            CurrentOpenId = context.User!.OpenId,
+            AfterSeq = afterSeq,
+            Context = new RescueMappingContext(endpoint.RescueOptions.Value, now),
+        });
         // 隐式已读：lastReadSeq 推进到当前 latestSeq，响应中的 me 同步反映新值（BackEnd.md §4.5A）
         var write = await RescueSessionWriteGuard.ExecuteActiveAsync(
-            new RescueSessionActiveWrite<RescueSessionRecord>
+            new RescueSessionActiveWrite<long>
             {
                 HelpId = context.Help!.Id,
                 Services = services,
                 Write = () => services.SessionStore.MarkReadAsync(
-                    context.Help.Id,
-                    context.User.OpenId,
-                    snapshot.LatestSeq,
+                    new RescueSessionReadCommand
+                    {
+                        HelpRequestId = context.Help.Id,
+                        OpenId = context.User.OpenId,
+                        LastReadSeq = snapshot.LatestSeq,
+                    },
                     cancellationToken),
                 CancellationToken = cancellationToken,
             });
@@ -104,21 +87,15 @@ public static class RescueSessionEndpoints
     }
 
     private static async Task<IResult> PostMessageAsync(
-        HttpRequest httpRequest,
-        string id,
-        SendRescueMessageRequest request,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionLifecycleCoordinator lifecycle,
-        RescueSessionBroadcaster broadcaster,
-        CancellationToken cancellationToken)
+        [AsParameters] RescueSessionEndpointRequest endpoint,
+        SendRescueMessageRequest request)
     {
-        var services = new SessionEndpointServices(
-            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
-        var context = await RescueSessionContext.RequireParticipantAsync(httpRequest, id, services, cancellationToken);
+        var cancellationToken = endpoint.CancellationToken;
+        var services = endpoint.ToServices();
+        var context = await services.Authorizer.RequireParticipantAsync(
+            endpoint.HttpRequest,
+            endpoint.Id!,
+            cancellationToken);
         if (context.Failure is not null) return context.Failure;
 
         var text = request.Text?.Trim();
@@ -128,113 +105,130 @@ public static class RescueSessionEndpoints
         }
 
         var write = await RescueSessionWriteGuard.ExecuteActiveAsync(
-            new RescueSessionActiveWrite<RescueSessionRecord>
+            new RescueSessionActiveWrite<RescueSessionMessageRecord>
             {
                 HelpId = context.Help!.Id,
                 Services = services,
                 Write = () => services.SessionStore.AppendMessageAsync(
-                    new RescueSessionAppendCommand(
-                        context.Help.Id,
-                        RescueMessageKinds.Text,
-                        context.User!.OpenId,
-                        context.Participant!.DisplayName,
-                        text,
-                        null,
-                        null,
-                        DateTimeOffset.UtcNow),
+                    new RescueTextMessageCommand
+                    {
+                        HelpRequestId = context.Help.Id,
+                        SenderOpenId = context.User!.OpenId,
+                        SenderName = context.Participant!.DisplayName,
+                        Text = text,
+                        Now = DateTimeOffset.UtcNow
+                    },
                     cancellationToken),
                 CancellationToken = cancellationToken,
             });
         if (write.Failure is not null) return write.Failure;
-        var session = write.Value!;
-        var message = RescueSessionMapper.ToMessage(LatestMessage(session));
-        await broadcaster.BroadcastAsync(context.Help!.Id, "message", message);
+        var message = RescueSessionMapper.ToMessage(write.Value!);
+        await endpoint.Broadcaster.BroadcastAsync(context.Help!.Id, "message", message);
         return Results.Ok(ApiResponse.Ok(message));
     }
 
     private static async Task<IResult> PostStatusEventAsync(
-        HttpRequest httpRequest,
-        string id,
-        SendRescueStatusEventRequest request,
-        IOptions<RescueOptions> rescueOptions,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionLifecycleCoordinator lifecycle,
-        RescueSessionBroadcaster broadcaster,
-        CancellationToken cancellationToken)
+        [AsParameters] RescueSessionEndpointRequest endpoint,
+        SendRescueStatusEventRequest request)
     {
-        var services = new SessionEndpointServices(
-            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
         return await RescueSessionStatusFlow.ExecuteAsync(new RescueSessionStatusInput
         {
-            HttpRequest = httpRequest,
-            HelpId = id,
+            HttpRequest = endpoint.HttpRequest,
+            HelpId = endpoint.Id!,
             Request = request,
-            Options = rescueOptions.Value,
-            Services = services,
-            Broadcaster = broadcaster,
-            CancellationToken = cancellationToken,
+            Options = endpoint.RescueOptions.Value,
+            Services = endpoint.ToServices(),
+            Broadcaster = endpoint.Broadcaster,
+            CancellationToken = endpoint.CancellationToken,
         });
     }
 
     private static async Task<IResult> ReportLocationAsync(
-        HttpRequest httpRequest,
-        string id,
-        ReportRescueLocationRequest request,
-        IOptions<RescueOptions> rescueOptions,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionLifecycleCoordinator lifecycle,
-        RescueSessionBroadcaster broadcaster,
-        CancellationToken cancellationToken)
+        [AsParameters] RescueSessionEndpointRequest endpoint,
+        ReportRescueLocationRequest request)
     {
-        var services = new SessionEndpointServices(
-            tokenService, userStore, accountStatus, helpStore, sessionStore, lifecycle);
-        var context = await RescueSessionContext.RequireParticipantAsync(httpRequest, id, services, cancellationToken);
+        var cancellationToken = endpoint.CancellationToken;
+        var services = endpoint.ToServices();
+        var context = await services.Authorizer.RequireParticipantAsync(
+            endpoint.HttpRequest,
+            endpoint.Id!,
+            cancellationToken);
         if (context.Failure is not null) return context.Failure;
 
-        if (request.Lat is < -90 or > 90 || request.Lng is < -180 or > 180)
+        var validationFailure = ValidateLocation(request);
+        if (validationFailure is not null) return validationFailure;
+        return await PersistLocationAsync(new RescueLocationEndpointInput
         {
-            return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "lat/lng 不合法", 400);
-        }
+            Endpoint = endpoint,
+            Services = services,
+            Context = context,
+            Request = request
+        });
+    }
 
-        var now = DateTimeOffset.UtcNow;
+    private static async Task<IResult> PersistLocationAsync(RescueLocationEndpointInput input)
+    {
+        var cancellationToken = input.Endpoint.CancellationToken;
+        var reportedAt = DateTimeOffset.MinValue;
         var write = await RescueSessionWriteGuard.ExecuteActiveAsync(
-            new RescueSessionActiveWrite<RescueSessionRecord>
+            new RescueSessionActiveWrite<RescueSessionParticipantRecord>
             {
-                HelpId = context.Help!.Id,
-                Services = services,
-                Write = () => services.SessionStore.UpdateLocationAsync(
-                    new RescueSessionLocationCommand(
-                        context.Help.Id,
-                        context.User!.OpenId,
-                        request.Lat,
-                        request.Lng,
-                        now),
-                    cancellationToken),
+                HelpId = input.Context.Help!.Id,
+                Services = input.Services,
+                Write = () =>
+                {
+                    reportedAt = DateTimeOffset.UtcNow;
+                    return input.Services.SessionStore.UpdateLocationAsync(
+                        new RescueSessionLocationCommand
+                        {
+                            HelpRequestId = input.Context.Help.Id,
+                            OpenId = input.Context.User!.OpenId,
+                            Lat = input.Request.Lat!.Value,
+                            Lng = input.Request.Lng!.Value,
+                            Now = reportedAt
+                        },
+                        cancellationToken);
+                },
                 CancellationToken = cancellationToken,
             });
         if (write.Failure is not null) return write.Failure;
-        var session = write.Value!;
-        var participant = RescueSessionMapper.ToParticipants(session, rescueOptions.Value, now)
-            .First(item => item.OpenId == context.User!.OpenId);
-        await broadcaster.BroadcastAsync(
-            context.Help!.Id,
-            "participant",
-            participant);
-        var me = session.Participants.First(p => p.OpenId == context.User!.OpenId);
-        return Results.Ok(ApiResponse.Ok(new ReportRescueLocationResponse(me.LocationReportedAt!.Value)));
+        var participantRecord = write.Value!;
+        var state = RescueSessionProjection.FoldParticipantStates(
+            input.Context.Session!)[input.Context.User!.OpenId];
+        var participant = RescueSessionMapper.ToParticipant(new ParticipantMappingInput
+        {
+            Participant = participantRecord,
+            State = state,
+            Context = new RescueMappingContext(
+                input.Endpoint.RescueOptions.Value,
+                reportedAt)
+        });
+        await input.Endpoint.Broadcaster.BroadcastAsync(new RescueBroadcastCommand
+        {
+            HelpId = input.Context.Help!.Id,
+            Type = "participant",
+            Data = participant,
+            ParticipantVersion = reportedAt
+        });
+        return Results.Ok(ApiResponse.Ok(new ReportRescueLocationResponse(
+            participantRecord.LocationReportedAt!.Value)));
     }
 
-    private static RescueSessionMessageRecord LatestMessage(RescueSessionRecord session)
+    private static IResult? ValidateLocation(ReportRescueLocationRequest request)
     {
-        return session.Messages.OrderByDescending(message => message.Seq).First();
+        return request.Lat is null
+            || request.Lng is null
+            || request.Lat is < -90 or > 90
+            || request.Lng is < -180 or > 180
+            ? EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "lat/lng 不合法", 400)
+            : null;
     }
 
+    private sealed record RescueLocationEndpointInput
+    {
+        public required RescueSessionEndpointRequest Endpoint { get; init; }
+        public required SessionEndpointServices Services { get; init; }
+        public required ParticipantContextResult Context { get; init; }
+        public required ReportRescueLocationRequest Request { get; init; }
+    }
 }

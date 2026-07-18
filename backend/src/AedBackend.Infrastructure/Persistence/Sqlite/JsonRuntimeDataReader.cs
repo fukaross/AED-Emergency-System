@@ -4,9 +4,9 @@ using AedBackend.Core.Models.Aed;
 using AedBackend.Core.Models.Course;
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Models.Knowledge;
-using AedBackend.Core.Models.Rescue;
 using AedBackend.Core.Models.Responder;
 using AedBackend.Core.Models.WeChat;
+using AedBackend.Infrastructure.Rescue;
 
 namespace AedBackend.Infrastructure.Persistence.Sqlite;
 
@@ -19,6 +19,9 @@ internal sealed class JsonRuntimeDataReader
 
     public async Task<JsonRuntimeSnapshot> ReadAsync(CancellationToken ct)
     {
+        var rescueSessions = (await JsonRescueSessionPersistence.ReadAsync(
+            Resolve("rescue-sessions.json"),
+            ct)).Sessions;
         return new JsonRuntimeSnapshot(
             await ReadWrappedListAsync<ExperienceUserDatabase, ExperienceUserRecord>("wechat-experience-users.json", db => db.Users, ct),
             await ReadWrappedListAsync<AdminUserDatabase, AdminUserRecord>("admin-users.json", db => db.Users, ct),
@@ -30,7 +33,7 @@ internal sealed class JsonRuntimeDataReader
             await ReadListAsync<CourseRecord>("courses.json", ct),
             await ReadListAsync<QuickActionRecord>("quick-actions.json", ct),
             await ReadWrappedListAsync<HelpRequestDatabase, HelpRequestRecord>("help-requests.json", db => db.Requests, ct),
-            await ReadWrappedListAsync<RescueSessionDatabase, RescueSessionRecord>("rescue-sessions.json", db => db.Sessions, ct));
+            rescueSessions);
     }
 
     private async Task<T?> ReadOptionalAsync<T>(string fileName, CancellationToken ct)
@@ -88,10 +91,5 @@ internal sealed class JsonRuntimeDataReader
     private sealed class HelpRequestDatabase
     {
         public List<HelpRequestRecord> Requests { get; init; } = [];
-    }
-
-    private sealed class RescueSessionDatabase
-    {
-        public List<RescueSessionRecord> Sessions { get; init; } = [];
     }
 }

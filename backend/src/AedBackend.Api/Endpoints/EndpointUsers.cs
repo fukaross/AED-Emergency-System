@@ -10,8 +10,7 @@ internal static class EndpointUsers
 {
     public static async Task<ExperienceUserRecord?> FindCurrentUserAsync(
         HttpRequest request,
-        ISessionTokenService tokenService,
-        IExperienceUserStore store,
+        ActiveUserDependencies dependencies,
         CancellationToken cancellationToken)
     {
         var token = EndpointSecurity.ReadBearerToken(request);
@@ -20,22 +19,20 @@ internal static class EndpointUsers
             return null;
         }
 
-        return await store.FindByTokenHashAsync(
-            tokenService.HashToken(token),
+        return await dependencies.UserStore.FindByTokenHashAsync(
+            dependencies.TokenService.HashToken(token),
             cancellationToken);
     }
 
     public static async Task<CurrentUserResult> RequireActiveUserAsync(
         HttpRequest request,
-        ISessionTokenService tokenService,
-        IExperienceUserStore store,
-        IUserAccountStatusService accountStatus,
+        ActiveUserDependencies dependencies,
         CancellationToken cancellationToken)
     {
-        var user = await FindCurrentUserAsync(request, tokenService, store, cancellationToken);
+        var user = await FindCurrentUserAsync(request, dependencies, cancellationToken);
         if (user is null) return CurrentUserResult.Unauthorized();
-        return await accountStatus.IsDisabledAsync(user.OpenId, cancellationToken)
-            ? CurrentUserResult.Forbidden()
+        return await dependencies.AccountStatus.IsDisabledAsync(user.OpenId, cancellationToken)
+            ? CurrentUserResult.AccountDisabled()
             : CurrentUserResult.Success(user);
     }
 
@@ -46,9 +43,14 @@ internal static class EndpointUsers
 
     public static IResult AccountDisabled()
     {
-        return EndpointFailures.JsonFailure(ErrorCodes.Forbidden, "账号已禁用", 403);
+        return EndpointFailures.JsonFailure(ErrorCodes.AccountDisabled, "账号已禁用", 403);
     }
 }
+
+internal sealed record ActiveUserDependencies(
+    ISessionTokenService TokenService,
+    IExperienceUserStore UserStore,
+    IUserAccountStatusService AccountStatus);
 
 public sealed record CurrentUserResult(
     ExperienceUserRecord? User,
@@ -64,7 +66,7 @@ public sealed record CurrentUserResult(
         return new CurrentUserResult(null, EndpointUsers.Unauthorized());
     }
 
-    public static CurrentUserResult Forbidden()
+    public static CurrentUserResult AccountDisabled()
     {
         return new CurrentUserResult(null, EndpointUsers.AccountDisabled());
     }

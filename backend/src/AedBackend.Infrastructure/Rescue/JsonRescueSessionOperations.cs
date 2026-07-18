@@ -42,29 +42,26 @@ internal static class JsonRescueSessionOperations
             null);
     }
 
-    public static RescueSessionRecord AppendMessage(
+    public static RescueSessionMessageRecord AppendMessage(
         JsonRescueSessionDatabase database,
-        RescueSessionAppendCommand command)
+        RescueTextMessageCommand command)
     {
-        if (command.Kind != RescueMessageKinds.Text)
-            throw new ArgumentException("状态事件必须通过原子状态写入方法追加", nameof(command));
         var session = RequireOpenSession(database, command.HelpRequestId);
         RequireParticipant(session, command.SenderOpenId);
-        var message = CreateMessage(session, new MessageDraft
+        var message = CreateMessage(session, new JsonRescueMessageDraft
         {
-            Kind = command.Kind,
+            Kind = RescueMessageKinds.Text,
             SenderOpenId = command.SenderOpenId,
             SenderName = command.SenderName,
             Text = command.Text,
-            EventType = command.EventType,
-            Action = command.Action,
             CreatedAt = command.Now
         });
         var next = TouchParticipant(
             session with { Messages = [.. session.Messages, message] },
             command.SenderOpenId,
             command.Now);
-        return Replace(database, next);
+        Replace(database, next);
+        return message;
     }
 
     public static RescueSessionStatusAppendResult AppendStatusEvent(
@@ -78,9 +75,9 @@ internal static class JsonRescueSessionOperations
         var current = latest?.Action == RescueEventActions.Mark;
         var desired = command.Action == RescueEventActions.Mark;
         if (current == desired)
-            return new RescueSessionStatusAppendResult(session, false, null);
+            return new RescueSessionStatusAppendResult(false, null, StateOf(session, command.SenderOpenId));
 
-        var message = CreateMessage(session, new MessageDraft
+        var message = CreateMessage(session, new JsonRescueMessageDraft
         {
             Kind = RescueMessageKinds.StatusEvent,
             SenderOpenId = command.SenderOpenId,
@@ -93,15 +90,19 @@ internal static class JsonRescueSessionOperations
             session with { Messages = [.. session.Messages, message] },
             command.SenderOpenId,
             command.Now);
-        return new RescueSessionStatusAppendResult(Replace(database, next), true, message);
+        Replace(database, next);
+        return new RescueSessionStatusAppendResult(true, message, StateOf(next, command.SenderOpenId));
     }
 
-    public static RescueSessionRecord UpdateLocation(
+    public static RescueSessionParticipantRecord UpdateLocation(
         JsonRescueSessionDatabase database,
         RescueSessionLocationCommand command)
     {
         var session = RequireOpenSession(database, command.HelpRequestId);
-        RequireParticipant(session, command.OpenId);
+        var participant = RequireParticipant(session, command.OpenId);
+        if (participant.LocationReportedAt is not null
+            && command.Now < participant.LocationReportedAt)
+            return participant;
         var next = session with
         {
             Participants = session.Participants.Select(participant =>
@@ -115,25 +116,28 @@ internal static class JsonRescueSessionOperations
                     }
                     : participant).ToArray()
         };
-        return Replace(database, next);
+        Replace(database, next);
+        return RequireParticipant(next, command.OpenId);
     }
 
-    public static RescueSessionRecord MarkRead(
+    public static long MarkRead(
         JsonRescueSessionDatabase database,
-        string helpRequestId,
-        string openId,
-        long lastReadSeq)
+        RescueSessionReadCommand command)
     {
-        var session = RequireOpenSession(database, helpRequestId);
-        RequireParticipant(session, openId);
+        var session = RequireOpenSession(database, command.HelpRequestId);
+        RequireParticipant(session, command.OpenId);
         var next = session with
         {
             Participants = session.Participants.Select(participant =>
-                participant.OpenId == openId
-                    ? participant with { LastReadSeq = Math.Max(participant.LastReadSeq, lastReadSeq) }
+                participant.OpenId == command.OpenId
+                    ? participant with
+                    {
+                        LastReadSeq = Math.Max(participant.LastReadSeq, command.LastReadSeq)
+                    }
                     : participant).ToArray()
         };
-        return Replace(database, next);
+        Replace(database, next);
+        return RequireParticipant(next, command.OpenId).LastReadSeq;
     }
 
     public static bool Close(
@@ -152,11 +156,15 @@ internal static class JsonRescueSessionOperations
             });
             return true;
         }
-        if (session.ClosedAt is not null) return false;
+        var hasLocation = session.Participants.Any(participant =>
+            participant.LastLat is not null
+            || participant.LastLng is not null
+            || participant.LocationReportedAt is not null);
+        if (session.ClosedAt is not null && !hasLocation) return false;
 
         Replace(database, session with
         {
-            ClosedAt = closedAt,
+            ClosedAt = session.ClosedAt ?? closedAt,
             Participants = session.Participants.Select(participant => participant with
             {
                 LastLat = null,
@@ -179,7 +187,7 @@ internal static class JsonRescueSessionOperations
             JoinedAt = command.Now,
             LastSeenAt = command.Now
         };
-        joined = CreateMessage(session, new MessageDraft
+        joined = CreateMessage(session, new JsonRescueMessageDraft
         {
             Kind = RescueMessageKinds.StatusEvent,
             SenderOpenId = command.OpenId,
@@ -197,7 +205,7 @@ internal static class JsonRescueSessionOperations
 
     private static RescueSessionMessageRecord CreateMessage(
         RescueSessionRecord session,
-        MessageDraft draft) => new()
+        JsonRescueMessageDraft draft) => new()
         {
             Id = Guid.NewGuid().ToString(),
             Seq = session.Messages.Count == 0 ? 1 : session.Messages.Max(item => item.Seq) + 1,
@@ -219,6 +227,21 @@ internal static class JsonRescueSessionOperations
                 && item.SenderOpenId == senderOpenId
                 && item.EventType == eventType)
             .MaxBy(item => item.Seq);
+
+    private static RescueParticipantState StateOf(RescueSessionRecord session, string openId)
+    {
+        return new RescueParticipantState(
+            IsMarked(session, openId, RescueEventTypes.TakenAed),
+            IsMarked(session, openId, RescueEventTypes.Arrived));
+    }
+
+    private static bool IsMarked(
+        RescueSessionRecord session,
+        string openId,
+        string eventType)
+    {
+        return LatestStatus(session, openId, eventType)?.Action == RescueEventActions.Mark;
+    }
 
     private static void ValidateStatus(RescueSessionStatusCommand command)
     {
@@ -257,10 +280,12 @@ internal static class JsonRescueSessionOperations
         string openId) =>
         session.Participants.FirstOrDefault(participant => participant.OpenId == openId);
 
-    private static void RequireParticipant(RescueSessionRecord session, string openId)
+    private static RescueSessionParticipantRecord RequireParticipant(
+        RescueSessionRecord session,
+        string openId)
     {
-        if (FindParticipant(session, openId) is null)
-            throw new KeyNotFoundException("参与者不在急救会话中");
+        return FindParticipant(session, openId)
+            ?? throw new KeyNotFoundException("参与者不在急救会话中");
     }
 
     private static RescueSessionRecord Replace(
@@ -271,16 +296,5 @@ internal static class JsonRescueSessionOperations
         if (index < 0) throw new KeyNotFoundException("急救会话不存在");
         database.Sessions[index] = next;
         return next;
-    }
-
-    private sealed record MessageDraft
-    {
-        public string Kind { get; init; } = string.Empty;
-        public string SenderOpenId { get; init; } = string.Empty;
-        public string SenderName { get; init; } = string.Empty;
-        public string? Text { get; init; }
-        public string? EventType { get; init; }
-        public string? Action { get; init; }
-        public DateTimeOffset CreatedAt { get; init; }
     }
 }

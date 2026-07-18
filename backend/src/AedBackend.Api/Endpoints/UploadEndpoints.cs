@@ -150,9 +150,7 @@ public static class UploadEndpoints
         {
             var user = await EndpointUsers.RequireActiveUserAsync(
                 request,
-                tokenService,
-                userStore,
-                accountStatus,
+                new ActiveUserDependencies(tokenService, userStore, accountStatus),
                 cancellationToken);
             return user.Failure;
         }

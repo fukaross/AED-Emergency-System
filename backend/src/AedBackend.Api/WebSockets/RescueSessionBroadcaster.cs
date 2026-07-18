@@ -2,217 +2,238 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.WebSockets;
-using System.Text.Json;
 using AedBackend.Core.DTOs.Rescue;
 
 namespace AedBackend.Api.WebSockets;
 
 /**
- * 急救会话 WS 扇出注册表：不同连接并行发送，同一连接通过发送锁保持严格串行。
- * 超时或异常连接会被 Abort 并移出注册表，不能拖慢其余参与者或 HTTP 写请求。
+ * 急救会话 WS 扇出注册表：每次敏感扇出重校验连接身份，同连接严格串行且终态信封永远最后。
  */
-public sealed class RescueSessionBroadcaster
+internal sealed class RescueSessionBroadcaster
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-    private static readonly TimeSpan DefaultSendTimeout = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan DefaultClosedHelpRetention = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan DefaultClosedHelpPruneInterval = TimeSpan.FromMinutes(1);
+    private static readonly RescueBroadcasterTiming DefaultTiming = new()
+    {
+        SendTimeout = TimeSpan.FromSeconds(5),
+        CloseGracePeriod = TimeSpan.FromSeconds(2),
+        ClosedHelpRetention = TimeSpan.FromMinutes(5),
+        ClosedHelpPruneInterval = TimeSpan.FromMinutes(1)
+    };
 
-    private readonly ConcurrentDictionary<string, ConnectionBucket> connections =
-        new(StringComparer.Ordinal);
+    private readonly IRescueConnectionAuthorizer authorizer;
     private readonly ConcurrentDictionary<string, long> closedHelpIds = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ConnectionBucket> connections = new(StringComparer.Ordinal);
     private readonly ILogger<RescueSessionBroadcaster> logger;
-    private readonly TimeSpan closedHelpPruneInterval;
-    private readonly TimeSpan closedHelpRetention;
-    private readonly TimeSpan sendTimeout;
+    private readonly RescueBroadcasterTiming timing;
     private long nextPruneAtTimestamp;
+
+    public RescueSessionBroadcaster(
+        IRescueConnectionAuthorizer authorizer,
+        ILogger<RescueSessionBroadcaster> logger)
+        : this(authorizer, logger, DefaultTiming)
+    {
+    }
+
+    internal RescueSessionBroadcaster(
+        IRescueConnectionAuthorizer authorizer,
+        ILogger<RescueSessionBroadcaster> logger,
+        RescueBroadcasterTiming timing)
+    {
+        Validate(timing);
+        this.authorizer = authorizer;
+        this.logger = logger;
+        this.timing = timing;
+        nextPruneAtTimestamp = Stopwatch.GetTimestamp();
+    }
 
     internal int ActiveHelpBucketCount => connections.Count;
     internal int ClosedHelpCount => closedHelpIds.Count;
 
-    public RescueSessionBroadcaster(ILogger<RescueSessionBroadcaster> logger)
-        : this(logger, DefaultSendTimeout)
-    {
-    }
-
-    public RescueSessionBroadcaster(
-        ILogger<RescueSessionBroadcaster> logger,
-        TimeSpan sendTimeout)
-        : this(logger, sendTimeout, DefaultClosedHelpRetention, DefaultClosedHelpPruneInterval)
-    {
-    }
-
-    public RescueSessionBroadcaster(
-        ILogger<RescueSessionBroadcaster> logger,
-        TimeSpan sendTimeout,
-        TimeSpan closedHelpRetention,
-        TimeSpan closedHelpPruneInterval)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(sendTimeout, TimeSpan.Zero);
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(closedHelpRetention, TimeSpan.Zero);
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(closedHelpPruneInterval, TimeSpan.Zero);
-        this.logger = logger;
-        this.sendTimeout = sendTimeout;
-        this.closedHelpRetention = closedHelpRetention;
-        this.closedHelpPruneInterval = closedHelpPruneInterval;
-        nextPruneAtTimestamp = Stopwatch.GetTimestamp();
-    }
-
-    public bool Register(string helpId, Guid connectionId, WebSocket socket)
+    /** 连接注册与 closed gate 二次检查原子衔接，关单竞态只会拒绝而不会漏接。 */
+    public RescueSocketRegistration? Register(
+        string helpId,
+        RescueSocketIdentity identity,
+        WebSocket socket)
     {
         MaybePruneClosedHelpIds();
-        if (IsHelpClosed(helpId))
-        {
-            socket.Abort();
-            return false;
-        }
+        if (IsHelpClosed(helpId)) return Reject(socket);
 
-        var entry = new ConnectionEntry(socket, new SemaphoreSlim(1, 1));
+        var registration = new RescueSocketRegistration(
+            helpId,
+            Guid.NewGuid(),
+            new RescueSocketConnection(socket, identity));
         while (true)
         {
             var bucket = connections.GetOrAdd(helpId, _ => new ConnectionBucket());
-            if (!bucket.TryAdd(connectionId, entry))
+            if (!bucket.TryAdd(registration))
             {
                 TryRemoveBucket(helpId, bucket);
                 continue;
             }
+            if (!IsHelpClosed(helpId)) return registration;
 
-            if (!IsHelpClosed(helpId)) return true;
-
-            if (bucket.TryRemove(connectionId))
-            {
-                TryRemoveBucket(helpId, bucket);
-            }
-            socket.Abort();
-            return false;
+            bucket.TryRemove(registration.ConnectionId);
+            TryRemoveBucket(helpId, bucket);
+            return Reject(socket);
         }
     }
 
-    public void Unregister(string helpId, Guid connectionId)
+    /** endpoint finally 是唯一注销所有者，确保服务端关闭仍能由 receive pump 完成握手。 */
+    public void Unregister(RescueSocketRegistration registration)
     {
-        Remove(new ConnectionTarget(helpId, connectionId, null));
+        if (!connections.TryGetValue(registration.HelpId, out var bucket)) return;
+        if (!bucket.TryRemove(registration.ConnectionId)) return;
+        TryRemoveBucket(registration.HelpId, bucket);
     }
 
-    public async Task BroadcastAsync(string helpId, string type, object data)
+    public Task BroadcastAsync(
+        string helpId,
+        string type,
+        object data)
+    {
+        return BroadcastAsync(new RescueBroadcastCommand
+        {
+            HelpId = helpId,
+            Type = type,
+            Data = data
+        });
+    }
+
+    public async Task BroadcastAsync(RescueBroadcastCommand command)
     {
         MaybePruneClosedHelpIds();
-        if (IsHelpClosed(helpId)) return;
-        if (!connections.TryGetValue(helpId, out var bucket)) return;
-        var targets = bucket.Snapshot(helpId);
-        if (targets.Length == 0)
-        {
-            TryRemoveBucket(helpId, bucket);
-            return;
-        }
+        if (IsHelpClosed(command.HelpId)) return;
+        var targets = Snapshot(command.HelpId);
+        if (targets.Length == 0) return;
 
-        var payload = JsonSerializer.SerializeToUtf8Bytes(new RescueSocketEnvelope(type, data), JsonOptions);
-        var sends = targets.Select(target => SendAsync(target, payload));
-        await Task.WhenAll(sends);
+        var payload = RescueBroadcastPayload.Serialize(command.Type, command.Data);
+        var stamp = RescueBroadcastPayload.CreateStamp(
+            command.Data,
+            command.ParticipantVersion);
+        await Task.WhenAll(targets.Select(target => SendAuthorizedAsync(new RescueAuthorizedSendCommand
+        {
+            Target = target,
+            Payload = payload,
+            Stamp = stamp,
+            AllowClosed = false
+        })));
     }
 
+    /** 设置终态门后发送唯一终态信封，再启动关闭握手；排队中的普通信封会在发送锁内被抑制。 */
+    public async Task BroadcastTerminalAndCloseAsync(
+        string helpId,
+        RescueHelpStatusDto status,
+        string reason)
+    {
+        MarkClosed(helpId);
+        var targets = Snapshot(helpId);
+        if (targets.Length == 0) return;
+
+        var payload = RescueBroadcastPayload.Serialize("help_status", status);
+        await Task.WhenAll(targets.Select(target => SendAuthorizedAsync(new RescueAuthorizedSendCommand
+        {
+            Target = target,
+            Payload = payload,
+            AllowClosed = true
+        })));
+        await CloseTargetsAsync(targets, WebSocketCloseStatus.NormalClosure, reason);
+    }
+
+    /** 无终态载荷的关闭入口，仅供明确不需要状态信封的生命周期收口。 */
     public async Task CloseAllAsync(string helpId, string reason)
     {
-        MaybePruneClosedHelpIds();
-        closedHelpIds[helpId] = Stopwatch.GetTimestamp();
-        if (!connections.TryGetValue(helpId, out var bucket)) return;
-        var targets = bucket.Snapshot(helpId);
-        if (targets.Length == 0)
-        {
-            TryRemoveBucket(helpId, bucket);
-            return;
-        }
+        MarkClosed(helpId);
+        var targets = Snapshot(helpId);
+        await CloseTargetsAsync(targets, WebSocketCloseStatus.NormalClosure, reason);
+    }
 
-        var closes = targets.Select(target => CloseAsync(target, reason));
+    private async Task SendAuthorizedAsync(RescueAuthorizedSendCommand command)
+    {
+        using var timeout = new CancellationTokenSource(timing.SendTimeout);
+        try
+        {
+            var target = command.Target;
+            var authorized = await authorizer.IsAuthorizedAsync(new RescueSocketAuthorization
+            {
+                HelpId = target.HelpId,
+                Identity = target.Connection.Identity,
+                AllowClosedSession = command.AllowClosed,
+                CancellationToken = timeout.Token
+            });
+            if (!authorized)
+            {
+                await target.Connection.RequestCloseAsync(
+                    WebSocketCloseStatus.PolicyViolation,
+                    "authorization revoked",
+                    timing.CloseGracePeriod);
+                return;
+            }
+
+            await target.Connection.SendAsync(new RescueSocketSendCommand
+            {
+                Payload = command.Payload,
+                Stamp = command.Stamp,
+                CanSend = () => command.AllowClosed || !IsHelpClosed(target.HelpId),
+                CancellationToken = timeout.Token
+            });
+        }
+        catch (Exception exception)
+        {
+            var target = command.Target;
+            logger.LogWarning(
+                exception,
+                "Rescue WS fanout failed for {HelpId}/{ConnectionId}",
+                target.HelpId,
+                target.ConnectionId);
+            Abort(target);
+        }
+    }
+
+    private async Task CloseTargetsAsync(
+        RescueSocketRegistration[] targets,
+        WebSocketCloseStatus status,
+        string reason)
+    {
+        var closes = targets.Select(target => CloseAsync(target, status, reason));
         await Task.WhenAll(closes);
     }
 
-    private async Task SendAsync(ConnectionTarget target, byte[] payload)
-    {
-        var entry = target.Entry!;
-        if (entry.Socket.State != WebSocketState.Open)
-        {
-            Remove(target);
-            return;
-        }
-
-        using var timeout = new CancellationTokenSource(sendTimeout);
-        var lockTaken = false;
-        try
-        {
-            await entry.SendLock.WaitAsync(timeout.Token);
-            lockTaken = true;
-            if (entry.Socket.State != WebSocketState.Open) return;
-            await entry.Socket.SendAsync(
-                new ArraySegment<byte>(payload),
-                WebSocketMessageType.Text,
-                true,
-                timeout.Token);
-        }
-        catch (Exception exception)
-        {
-            logger.LogWarning(exception, "Rescue WS send failed for {HelpId}/{ConnectionId}", target.HelpId, target.Id);
-            AbortAndRemove(target);
-        }
-        finally
-        {
-            if (lockTaken) entry.SendLock.Release();
-        }
-    }
-
-    private async Task CloseAsync(ConnectionTarget target, string reason)
-    {
-        var entry = target.Entry!;
-        using var timeout = new CancellationTokenSource(sendTimeout);
-        var lockTaken = false;
-        try
-        {
-            await entry.SendLock.WaitAsync(timeout.Token);
-            lockTaken = true;
-            if (entry.Socket.State == WebSocketState.Open)
-            {
-                await entry.Socket.CloseOutputAsync(
-                    WebSocketCloseStatus.NormalClosure,
-                    reason,
-                    timeout.Token);
-            }
-        }
-        catch (Exception exception)
-        {
-            logger.LogWarning(exception, "Rescue WS close failed for {HelpId}/{ConnectionId}", target.HelpId, target.Id);
-            AbortAndRemove(target);
-        }
-        finally
-        {
-            if (lockTaken) entry.SendLock.Release();
-            Remove(target);
-        }
-    }
-
-    private void AbortAndRemove(ConnectionTarget target)
+    private async Task CloseAsync(
+        RescueSocketRegistration target,
+        WebSocketCloseStatus status,
+        string reason)
     {
         try
         {
-            target.Entry?.Socket.Abort();
+            await target.Connection.RequestCloseAsync(status, reason, timing.CloseGracePeriod);
         }
         catch (Exception exception)
         {
-            logger.LogDebug(exception, "Rescue WS abort failed for {HelpId}/{ConnectionId}", target.HelpId, target.Id);
+            logger.LogDebug(
+                exception,
+                "Rescue WS close handshake failed for {HelpId}/{ConnectionId}",
+                target.HelpId,
+                target.ConnectionId);
+            Abort(target);
         }
-        Remove(target);
     }
 
-    private void Remove(ConnectionTarget target)
+    private RescueSocketRegistration[] Snapshot(string helpId)
     {
-        if (!connections.TryGetValue(target.HelpId, out var bucket)) return;
-        if (!bucket.TryRemove(target.Id)) return;
-        TryRemoveBucket(target.HelpId, bucket);
+        return connections.TryGetValue(helpId, out var bucket)
+            ? bucket.Snapshot()
+            : [];
+    }
+
+    private void MarkClosed(string helpId)
+    {
+        MaybePruneClosedHelpIds();
+        closedHelpIds[helpId] = Stopwatch.GetTimestamp();
     }
 
     private bool IsHelpClosed(string helpId)
     {
-        if (!closedHelpIds.TryGetValue(helpId, out var closedAtTimestamp)) return false;
-        if (Stopwatch.GetElapsedTime(closedAtTimestamp) < closedHelpRetention) return true;
-
+        if (!closedHelpIds.TryGetValue(helpId, out var closedAt)) return false;
+        if (Stopwatch.GetElapsedTime(closedAt) < timing.ClosedHelpRetention) return true;
         closedHelpIds.TryRemove(helpId, out _);
         return false;
     }
@@ -222,16 +243,13 @@ public sealed class RescueSessionBroadcaster
         var now = Stopwatch.GetTimestamp();
         var due = Volatile.Read(ref nextPruneAtTimestamp);
         if (now < due) return;
-
-        var next = now + ToTimestampDelta(closedHelpPruneInterval);
+        var next = now + ToTimestampDelta(timing.ClosedHelpPruneInterval);
         if (Interlocked.CompareExchange(ref nextPruneAtTimestamp, next, due) != due) return;
 
         foreach (var item in closedHelpIds)
         {
-            if (Stopwatch.GetElapsedTime(item.Value, now) >= closedHelpRetention)
-            {
+            if (Stopwatch.GetElapsedTime(item.Value, now) >= timing.ClosedHelpRetention)
                 closedHelpIds.TryRemove(item.Key, out _);
-            }
         }
     }
 
@@ -242,56 +260,37 @@ public sealed class RescueSessionBroadcaster
         pairs.Remove(new KeyValuePair<string, ConnectionBucket>(helpId, bucket));
     }
 
+    private void Abort(RescueSocketRegistration target)
+    {
+        try
+        {
+            target.Connection.Socket.Abort();
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(
+                exception,
+                "Rescue WS abort failed for {HelpId}/{ConnectionId}",
+                target.HelpId,
+                target.ConnectionId);
+        }
+    }
+
+    private static RescueSocketRegistration? Reject(WebSocket socket)
+    {
+        socket.Abort();
+        return null;
+    }
+
     private static long ToTimestampDelta(TimeSpan interval) =>
         (long)(interval.TotalSeconds * Stopwatch.Frequency);
 
-    private sealed record ConnectionEntry(WebSocket Socket, SemaphoreSlim SendLock);
-
-    private sealed record ConnectionTarget(string HelpId, Guid Id, ConnectionEntry? Entry);
-
-    private sealed class ConnectionBucket
+    private static void Validate(RescueBroadcasterTiming timing)
     {
-        private readonly Dictionary<Guid, ConnectionEntry> entries = [];
-        private readonly object gate = new();
-        private bool retired;
-
-        public bool IsRetired
-        {
-            get
-            {
-                lock (gate)
-                {
-                    return retired;
-                }
-            }
-        }
-
-        public bool TryAdd(Guid connectionId, ConnectionEntry entry)
-        {
-            lock (gate)
-            {
-                if (retired) return false;
-                entries[connectionId] = entry;
-                return true;
-            }
-        }
-
-        public ConnectionTarget[] Snapshot(string helpId)
-        {
-            lock (gate)
-            {
-                return entries.Select(item => new ConnectionTarget(helpId, item.Key, item.Value)).ToArray();
-            }
-        }
-
-        public bool TryRemove(Guid connectionId)
-        {
-            lock (gate)
-            {
-                if (!entries.Remove(connectionId) || entries.Count != 0) return false;
-                retired = true;
-                return true;
-            }
-        }
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timing.SendTimeout, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timing.CloseGracePeriod, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timing.ClosedHelpRetention, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timing.ClosedHelpPruneInterval, TimeSpan.Zero);
     }
+
 }

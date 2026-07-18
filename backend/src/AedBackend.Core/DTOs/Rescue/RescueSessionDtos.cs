@@ -30,6 +30,11 @@ public sealed record RescueMessageDto(
     string? Action,
     DateTimeOffset CreatedAt);
 
+public sealed record RescueTimingDto(
+    int SignalLostAfterSeconds,
+    int LocationGoneAfterSeconds,
+    int LocationReportIntervalSeconds);
+
 public sealed record RescueSessionSnapshotDto(
     string HelpId,
     string RequestNo,
@@ -39,6 +44,7 @@ public sealed record RescueSessionSnapshotDto(
     IReadOnlyList<RescueParticipantDto> Participants,
     IReadOnlyList<RescueMessageDto> Messages,
     long LatestSeq,
+    RescueTimingDto Timing,
     DateTimeOffset ServerTime);
 
 public sealed record SendRescueMessageRequest(string? Text);
@@ -52,7 +58,7 @@ public sealed record RescueStatusEventResponse(
     RescueMessageDto? Event,
     RescueMyStateDto Me);
 
-public sealed record ReportRescueLocationRequest(double Lat, double Lng);
+public sealed record ReportRescueLocationRequest(double? Lat, double? Lng);
 
 public sealed record ReportRescueLocationResponse(DateTimeOffset ReportedAt);
 
@@ -78,6 +84,7 @@ public sealed record RescueViewDto(
     int RespondersCount,
     IReadOnlyList<RescueViewParticipantDto> Participants,
     IReadOnlyList<RescueViewEventDto> Events,
+    RescueTimingDto Timing,
     DateTimeOffset ServerTime);
 
 public sealed record RescueMineItemDto(
@@ -93,7 +100,7 @@ public sealed record RescueMineItemDto(
 
 public sealed record RescueMineResponse(IReadOnlyList<RescueMineItemDto> Items);
 
-/** WS 扇出信封（ADR 0001）：type 为 message / participant / help_status，仅作推送提示，权威数据以 HTTP 为准。 */
+/** WS 扇出信封（ADR 0001）：非终态载荷仅作变化提示；关闭门后的最终 help_status 是客户端停止实时任务的控制帧。 */
 public sealed record RescueSocketEnvelope(string Type, object Data);
 
 public sealed record RescueHelpStatusDto(string HelpStatus);

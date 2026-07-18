@@ -39,7 +39,14 @@ public static class ServiceCollectionExtensions
         services.PostConfigure<DataOptions>(options => options.ApplyEnvironmentAliases(configuration));
         services.Configure<UploadOptions>(configuration.GetSection(UploadOptions.SectionName));
         services.PostConfigure<UploadOptions>(options => options.ApplyEnvironmentAliases(configuration));
-        services.Configure<RescueOptions>(configuration.GetSection(RescueOptions.SectionName));
+        services.AddOptions<RescueOptions>()
+            .Bind(configuration.GetSection(RescueOptions.SectionName))
+            .Validate(
+                options => options.SignalLostAfterSeconds > 0
+                    && options.LocationGoneAfterSeconds > options.SignalLostAfterSeconds
+                    && options.LocationReportIntervalSeconds > 0,
+                "Rescue timing must satisfy 0 < signalLost < locationGone and reportInterval > 0")
+            .ValidateOnStart();
         services.AddSingleton<ISessionTokenService, SessionTokenService>();
         AddRuntimeDataStores(services);
         AddUploadStorage(services);

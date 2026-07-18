@@ -184,6 +184,10 @@ public sealed class RescueSessionAccessApiTests : AdminApiTestBase
         var data = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
         var participant = Assert.Single(data.GetProperty("participants").EnumerateArray());
         Assert.Equal(JsonValueKind.Null, participant.GetProperty("location").ValueKind);
+
+        var logs = await Client.GetAsync("/api/admin/audit-logs?eventName=help.close");
+        var logData = (await ReadAsync<ApiResponse<JsonElement>>(logs)).Data;
+        Assert.Equal(1, logData.GetProperty("total").GetInt32());
     }
 
     [Fact]

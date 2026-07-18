@@ -1,5 +1,6 @@
 using AedBackend.Core.Models.Help;
 using AedBackend.Core.Services.Help;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace AedBackend.Infrastructure.Persistence.Sqlite;
@@ -9,11 +10,21 @@ internal sealed class SqliteHelpRequestStore : IHelpRequestStore
     private readonly IDbContextFactory<AedDbContext> factory;
     public SqliteHelpRequestStore(IDbContextFactory<AedDbContext> factory) => this.factory = factory;
 
-    public async Task SaveAsync(HelpRequestRecord record, CancellationToken ct)
+    public async Task<bool> TrySaveIfNoActiveAsync(HelpRequestRecord record, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         db.HelpRequests.Add(SqliteMapper.ToEntity(record));
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateException exception) when (IsConstraintViolation(exception))
+        {
+            if (record.UserId is not null
+                && await ActiveRequestExistsAsync(record.UserId, ct)) return false;
+            throw;
+        }
     }
 
     public async Task<HelpRequestRecord?> FindByIdOrRequestNoAsync(string idOrRequestNo, CancellationToken ct)
@@ -46,11 +57,49 @@ internal sealed class SqliteHelpRequestStore : IHelpRequestStore
             .ToArray();
     }
 
-    public async Task<bool> HasActiveRequestAsync(string userId, CancellationToken ct)
+    public async Task<HelpRequestOverviewPage> ListOverviewsAsync(
+        HelpRequestOverviewQuery query,
+        CancellationToken ct)
+    {
+        query.Validate();
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var filtered = db.HelpRequests.AsNoTracking().Where(record =>
+            query.Scope == HelpRequestOverviewScope.History
+                ? record.Status == HelpStatuses.Closed || record.Status == HelpStatuses.FalseAlarm
+                : record.Status == HelpStatuses.Published
+                    || record.Status == HelpStatuses.Responding
+                    || record.Status == HelpStatuses.PendingReview);
+        var total = await filtered.CountAsync(ct);
+        var page = filtered.OrderByDescending(record => record.CreatedAt).Skip(query.Offset);
+        if (query.Limit is not null) page = page.Take(query.Limit.Value);
+        var items = await page.Select(record => new HelpRequestOverviewRecord
+        {
+            Id = record.Id,
+            RequestNo = record.RequestNo,
+            Status = record.Status,
+            Type = record.Type,
+            Address = record.Address,
+            CreatedAt = record.CreatedAt
+        }).ToArrayAsync(ct);
+        return new HelpRequestOverviewPage(items, total);
+    }
+
+    private async Task<bool> ActiveRequestExistsAsync(string userId, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         return await db.HelpRequests.AnyAsync(h =>
-            h.UserId == userId && HelpStatuses.Active.Contains(h.Status), ct);
+            h.UserId == userId
+            && (h.Status == HelpStatuses.Published
+                || h.Status == HelpStatuses.Responding
+                || h.Status == HelpStatuses.PendingReview), ct);
+    }
+
+    private static bool IsConstraintViolation(DbUpdateException exception)
+    {
+        return exception.InnerException is SqliteException
+        {
+            SqliteErrorCode: 19
+        };
     }
 
     public async Task<HelpRequestRecord> AddReportAsync(HelpReportUpdate update, CancellationToken ct)
@@ -58,9 +107,12 @@ internal sealed class SqliteHelpRequestStore : IHelpRequestStore
         return await ReplaceAsync(update.HelpRequestId, item => AddReportToRequest(item, update), ct);
     }
 
-    public async Task<HelpRequestRecord> CloseAsync(string id, string status, string? note, DateTimeOffset closedAt, CancellationToken ct)
+    public async Task<HelpRequestRecord> CloseAsync(HelpClosureUpdate update, CancellationToken ct)
     {
-        return await ReplaceAsync(id, item => CloseRequest(item, status, note, closedAt), ct);
+        return await ReplaceAsync(
+            update.HelpRequestId,
+            item => CloseRequest(item, update),
+            ct);
     }
 
     public async Task<HelpRequestRecord> TransitionToRespondingAsync(string id, DateTimeOffset now, CancellationToken ct)
@@ -101,17 +153,15 @@ internal sealed class SqliteHelpRequestStore : IHelpRequestStore
 
     private static HelpRequestRecord CloseRequest(
         HelpRequestRecord item,
-        string status,
-        string? note,
-        DateTimeOffset closedAt)
+        HelpClosureUpdate update)
     {
         EnsureOpen(item);
         return item with
         {
-            Status = status,
-            ClosedAt = closedAt,
-            CloseNote = note,
-            Timeline = AppendTimeline(item, status, closedAt, note)
+            Status = update.Status,
+            ClosedAt = update.ClosedAt,
+            CloseNote = update.Note,
+            Timeline = AppendTimeline(item, update.Status, update.ClosedAt, update.Note)
         };
     }
 
@@ -129,7 +179,7 @@ internal sealed class SqliteHelpRequestStore : IHelpRequestStore
 
     private static void EnsureOpen(HelpRequestRecord item)
     {
-        if (HelpStatuses.IsClosed(item.Status)) throw new InvalidOperationException("求助已结束");
+        if (HelpStatuses.IsClosed(item.Status)) throw new HelpAlreadyClosedException();
     }
 
     private static IReadOnlyList<HelpTimelineRecord> AppendTimeline(

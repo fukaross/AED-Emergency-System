@@ -1,3 +1,5 @@
+using AedBackend.Core.Models.Help;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using AedBackend.Infrastructure.Help;
 
@@ -5,12 +7,22 @@ namespace AedBackend.Infrastructure.Persistence.Sqlite;
 
 internal static class SqliteSchemaUpgrade
 {
+    private const string ActiveHelpConflictReadOnlySql = """
+        SELECT UserId, COUNT(*) AS ActiveCount, GROUP_CONCAT(Id) AS HelpIds
+        FROM help_requests
+        WHERE UserId IS NOT NULL
+          AND Status IN ('published', 'responding', 'pending_review')
+        GROUP BY UserId
+        HAVING COUNT(*) > 1;
+        """;
+
     public static async Task ApplyAsync(AedDbContext db, CancellationToken ct)
     {
         await AddExperienceUserColumnsAsync(db, ct);
         await AddResponderColumnsAsync(db, ct);
         await CreateVolunteerApplicationsAsync(db, ct);
         await CreateSchoolIdentityTablesAsync(db, ct);
+        await CreateHelpRequestIndexesAsync(db, ct);
         await SqliteRescueSchemaUpgrade.EnsureAsync(db, ct);
         await InsertMissingAedDeviceSeedsAsync(db, ct);
     }
@@ -144,6 +156,57 @@ internal static class SqliteSchemaUpgrade
         await CreateIdentityIndexesAsync(db, ct);
     }
 
+    /** 将历史冲突转换为可行动的启动错误；失败的建索引语句不会改写业务记录。 */
+    private static async Task CreateHelpRequestIndexesAsync(AedDbContext db, CancellationToken ct)
+    {
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uk_help_active_user
+                ON help_requests(UserId)
+                WHERE Status IN ('published', 'responding', 'pending_review');
+                """, ct);
+        }
+        catch (SqliteException exception) when (exception.SqliteErrorCode == 19)
+        {
+            var conflict = await ReadActiveHelpConflictAsync(db, ct);
+            if (conflict.UserCount == 0) throw;
+            throw CreateActiveHelpConflictException(db, conflict, exception);
+        }
+    }
+
+    private static async Task<ActiveHelpConflictSummary> ReadActiveHelpConflictAsync(
+        AedDbContext db,
+        CancellationToken ct)
+    {
+        var counts = await db.HelpRequests.AsNoTracking()
+            .Where(help => help.UserId != null
+                && (help.Status == HelpStatuses.Published
+                    || help.Status == HelpStatuses.Responding
+                    || help.Status == HelpStatuses.PendingReview))
+            .GroupBy(help => help.UserId)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Count())
+            .ToArrayAsync(ct);
+        return new ActiveHelpConflictSummary(counts.Length, counts.Sum());
+    }
+
+    private static InvalidOperationException CreateActiveHelpConflictException(
+        AedDbContext db,
+        ActiveHelpConflictSummary conflict,
+        SqliteException innerException)
+    {
+        var databasePath = Path.GetFullPath(db.Database.GetDbConnection().DataSource);
+        var message = $"""
+            SQLite 活动求助唯一索引升级已中止：数据库 "{databasePath}" 中检测到 {conflict.UserCount} 个身份共有 {conflict.RequestCount} 条冲突的活动求助。
+            uk_help_active_user 尚未创建；升级不会自动删除或合并任何求助记录。
+            请保持服务停止，先备份数据库文件以及同目录下可能存在的 -wal/-shm 文件，再以 SQLite 只读模式执行以下只读 SQL 排查：
+            {ActiveHelpConflictReadOnlySql}
+            由运维与业务负责人逐条确认真实状态并明确处理冲突；只读 SQL 返回 0 行后方可重启服务。
+            """;
+        return new InvalidOperationException(message, innerException);
+    }
+
     private static async Task InsertMissingAedDeviceSeedsAsync(AedDbContext db, CancellationToken ct)
     {
         var existingIds = await db.AedDevices.Select(d => d.Id).ToArrayAsync(ct);
@@ -187,4 +250,6 @@ internal static class SqliteSchemaUpgrade
             ? table
             : throw new ArgumentOutOfRangeException(nameof(table), table, "不支持的 SQLite 表名");
     }
+
+    private sealed record ActiveHelpConflictSummary(int UserCount, int RequestCount);
 }

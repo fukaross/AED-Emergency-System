@@ -31,7 +31,13 @@ public sealed class RescueSessionLifecycleApiTests : AdminApiTestBase
             new { text = "不应写入" });
         await WaitForUsageAsync(coordinator, 2);
         await helpStore.CloseAsync(
-            "help-1", HelpStatuses.Closed, null, DateTimeOffset.UtcNow, CancellationToken.None);
+            new HelpClosureUpdate
+            {
+                HelpRequestId = "help-1",
+                Status = HelpStatuses.Closed,
+                ClosedAt = DateTimeOffset.UtcNow
+            },
+            CancellationToken.None);
         lease.Dispose();
 
         var response = await pending;

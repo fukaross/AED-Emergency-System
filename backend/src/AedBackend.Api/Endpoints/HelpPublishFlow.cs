@@ -8,6 +8,7 @@ using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.WeChat;
 using AedBackend.Infrastructure.Upload;
 using AedBackend.Infrastructure.WeChat;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace AedBackend.Api.Endpoints;
 
@@ -24,11 +25,24 @@ internal sealed record HelpNotificationInput
     public required CancellationToken CancellationToken { get; init; }
 }
 
+internal sealed record NotificationDeliveryInput
+{
+    public required ExperienceUserRecord Target { get; init; }
+    public required WeChatOptions Options { get; init; }
+    public required IWeChatSubscribeMessageSender Sender { get; init; }
+    public required string Page { get; init; }
+    public required IReadOnlyDictionary<string, SubscribeMessageDataValue> Data { get; init; }
+    public required CancellationToken CancellationToken { get; init; }
+}
+
 internal static class HelpPublishFlow
 {
+    private const int GuestCredentialByteCount = 16;
+    private const int GuestAnonymousIdByteCount = 8;
     private const int TemplateThingMaxLength = 20;
     private const int ChinaUtcOffsetHours = 8;
     private const int MaxHelpImageCount = 3;
+    private const int RequestNumberRandomHexLength = 12;
 
     public static string? ValidatePublishRequest(
         PublishHelpRequest request,
@@ -62,7 +76,8 @@ internal static class HelpPublishFlow
         return new HelpRequestRecord
         {
             Id = Guid.NewGuid().ToString("N"),
-            RequestNo = $"HELP{now.ToUnixTimeMilliseconds()}",
+            RequestNo = $"HELP{now.ToUnixTimeMilliseconds()}"
+                + RandomNumberGenerator.GetHexString(RequestNumberRandomHexLength),
             UserId = currentUser.OpenId,
             RequestChannel = request.RequestChannel == "guest" ? "guest" : "user",
             Lat = request.Lat,
@@ -120,13 +135,15 @@ internal static class HelpPublishFlow
                 continue;
             }
 
-            results.Add(await SendNotificationAsync(
-                target,
-                input.Options,
-                input.Sender,
-                page,
-                data,
-                input.CancellationToken));
+            results.Add(await SendNotificationAsync(new NotificationDeliveryInput
+            {
+                Target = target,
+                Options = input.Options,
+                Sender = input.Sender,
+                Page = page,
+                Data = data,
+                CancellationToken = input.CancellationToken,
+            }));
         }
 
         return results;
@@ -170,58 +187,36 @@ internal static class HelpPublishFlow
         if (request.RequestChannel != "guest") return null;
         return new HelpGuestSessionRecord(
             request.GuestName,
-            CreateCode("Q", 3),
-            CreateCode("CLOSE", 4),
-            CreateCode("ANON", 8),
+            CreateCode("Q", GuestCredentialByteCount),
+            CreateCode("CLOSE", GuestCredentialByteCount),
+            CreateCode("ANON", GuestAnonymousIdByteCount),
             request.CallbackAllowed ?? false,
             request.PrivacyConsentAt);
     }
 
     private static async Task<BroadcastRecipientResult> SendNotificationAsync(
-        ExperienceUserRecord target,
-        WeChatOptions options,
-        IWeChatSubscribeMessageSender sender,
-        string page,
-        IReadOnlyDictionary<string, SubscribeMessageDataValue> data,
-        CancellationToken cancellationToken)
+        NotificationDeliveryInput input)
     {
         try
         {
-            return await SendNotificationCoreAsync(
-                target,
-                options,
-                sender,
-                page,
-                data,
-                cancellationToken);
+            var command = new SubscribeMessageCommand(
+                input.Target.OpenId,
+                input.Options.SubscribeTemplateId,
+                input.Page,
+                input.Options.DefaultMiniProgramState,
+                input.Data);
+            var result = await input.Sender.SendAsync(command, input.CancellationToken);
+            return new BroadcastRecipientResult(
+                input.Target.OpenId,
+                result.Sent,
+                result.WeChatErrorCode,
+                result.WeChatErrorMessage,
+                result.MessageId);
         }
         catch (Exception ex)
         {
-            return new BroadcastRecipientResult(target.OpenId, false, -1, ex.Message, null);
+            return new BroadcastRecipientResult(input.Target.OpenId, false, -1, ex.Message, null);
         }
-    }
-
-    private static async Task<BroadcastRecipientResult> SendNotificationCoreAsync(
-        ExperienceUserRecord target,
-        WeChatOptions options,
-        IWeChatSubscribeMessageSender sender,
-        string page,
-        IReadOnlyDictionary<string, SubscribeMessageDataValue> data,
-        CancellationToken cancellationToken)
-    {
-        var command = new SubscribeMessageCommand(
-            target.OpenId,
-            options.SubscribeTemplateId,
-            page,
-            options.DefaultMiniProgramState,
-            data);
-        var result = await sender.SendAsync(command, cancellationToken);
-        return new BroadcastRecipientResult(
-            target.OpenId,
-            result.Sent,
-            result.WeChatErrorCode,
-            result.WeChatErrorMessage,
-            result.MessageId);
     }
 
     private static IReadOnlyDictionary<string, SubscribeMessageDataValue> CreateTemplateData(
@@ -259,6 +254,6 @@ internal static class HelpPublishFlow
 
     private static string CreateCode(string prefix, int byteCount)
     {
-        return $"{prefix}{Convert.ToHexString(RandomNumberGenerator.GetBytes(byteCount))}";
+        return $"{prefix}{WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(byteCount))}";
     }
 }

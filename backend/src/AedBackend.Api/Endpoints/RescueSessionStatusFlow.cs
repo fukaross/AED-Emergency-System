@@ -31,10 +31,9 @@ internal static class RescueSessionStatusFlow
 {
     public static async Task<IResult> ExecuteAsync(RescueSessionStatusInput input)
     {
-        var context = await RescueSessionContext.RequireParticipantAsync(
+        var context = await input.Services.Authorizer.RequireParticipantAsync(
             input.HttpRequest,
             input.HelpId,
-            input.Services,
             input.CancellationToken);
         if (context.Failure is not null) return context.Failure;
         if (!IsValid(input.Request)) return InvalidStatusEvent();
@@ -42,13 +41,13 @@ internal static class RescueSessionStatusFlow
         var write = await PersistAsync(input, context);
         if (write.Failure is not null) return write.Failure;
 
-        var output = Project(write.Value!, context.User!.OpenId);
+        var output = Project(write.Value!);
         await BroadcastAsync(input, context, output);
         return Results.Ok(ApiResponse.Ok(new RescueStatusEventResponse(
             output.Result.Appended,
             output.EventMessage,
             new RescueMyStateDto(
-                context.User.OpenId,
+                context.User!.OpenId,
                 output.Updated.TakenAed,
                 output.Updated.Arrived))));
     }
@@ -91,14 +90,12 @@ internal static class RescueSessionStatusFlow
             });
     }
 
-    private static RescueSessionStatusOutput Project(
-        RescueSessionStatusAppendResult result,
-        string openId)
+    private static RescueSessionStatusOutput Project(RescueSessionStatusAppendResult result)
     {
         return new RescueSessionStatusOutput
         {
             Result = result,
-            Updated = RescueSessionProjection.FoldParticipantStates(result.Session)[openId],
+            Updated = result.State,
             EventMessage = result.Event is null ? null : RescueSessionMapper.ToMessage(result.Event),
         };
     }
@@ -111,10 +108,18 @@ internal static class RescueSessionStatusFlow
         if (!output.Result.Appended) return;
 
         await input.Broadcaster.BroadcastAsync(context.Help!.Id, "message", output.EventMessage!);
-        var participant = RescueSessionMapper.ToParticipants(
-            output.Result.Session,
-            input.Options,
-            DateTimeOffset.UtcNow).First(item => item.OpenId == context.User!.OpenId);
-        await input.Broadcaster.BroadcastAsync(context.Help.Id, "participant", participant);
+        var participant = RescueSessionMapper.ToParticipant(new ParticipantMappingInput
+        {
+            Participant = context.Participant!,
+            State = output.Updated,
+            Context = new RescueMappingContext(input.Options, DateTimeOffset.UtcNow)
+        });
+        await input.Broadcaster.BroadcastAsync(new RescueBroadcastCommand
+        {
+            HelpId = context.Help.Id,
+            Type = "participant",
+            Data = participant,
+            ParticipantVersion = output.EventMessage!.CreatedAt
+        });
     }
 }

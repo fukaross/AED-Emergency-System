@@ -33,7 +33,13 @@ public sealed class RescueSessionLifecycleBackfillTests
         Assert.NotNull(session.ClosedAt);
         Assert.Null(session.Participants[0].LocationReportedAt);
         await Assert.ThrowsAsync<RescueSessionClosedException>(() => store.JoinAsync(
-            new("help-closed", "openid-late", "迟到急救员", ClosedAt), CancellationToken.None));
+            new RescueSessionJoinCommand
+            {
+                HelpRequestId = "help-closed",
+                OpenId = "openid-late",
+                DisplayName = "迟到急救员",
+                Now = ClosedAt
+            }, CancellationToken.None));
     }
 
     [Fact]
@@ -77,7 +83,13 @@ public sealed class RescueSessionLifecycleBackfillTests
         Assert.NotNull(session.ClosedAt);
         Assert.Null(session.Participants[0].LocationReportedAt);
         await Assert.ThrowsAsync<DbUpdateException>(() => store.JoinAsync(
-            new("missing-help", "openid-late", "迟到急救员", ClosedAt), CancellationToken.None));
+            new RescueSessionJoinCommand
+            {
+                HelpRequestId = "missing-help",
+                OpenId = "openid-late",
+                DisplayName = "迟到急救员",
+                Now = ClosedAt
+            }, CancellationToken.None));
     }
 
     private static HelpRequestRecord ClosedHelp() => new()

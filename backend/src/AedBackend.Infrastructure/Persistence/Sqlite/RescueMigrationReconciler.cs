@@ -11,6 +11,7 @@ internal static class RescueMigrationReconciler
         CancellationToken ct)
     {
         var entities = await SqliteStoreHelpers.WithRescueGraph(db.RescueSessions.AsNoTracking())
+            .AsSplitQuery()
             .ToArrayAsync(ct);
         var actual = entities.Select(SqliteMapper.ToRecord).ToDictionary(item => item.HelpRequestId);
         foreach (var session in sessions)

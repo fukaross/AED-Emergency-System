@@ -11,6 +11,7 @@ using AedBackend.Core.Services.WeChat;
 using AedBackend.Api.WebSockets;
 using AedBackend.Infrastructure.Upload;
 using AedBackend.Infrastructure.WeChat;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace AedBackend.Api.Endpoints;
@@ -33,100 +34,69 @@ public static class HelpEndpoints
         return app;
     }
 
+    /** 求助一旦持久化，通知阶段不再受客户端断连取消。 */
     private static async Task<IResult> PublishHelpAsync(
-        HttpRequest httpRequest,
-        PublishHelpRequest request,
-        IOptions<WeChatOptions> options,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionLifecycleCoordinator lifecycle,
-        IResponderStore responderStore,
-        IWeChatSubscribeMessageSender sender,
-        CancellationToken cancellationToken)
+        [AsParameters] PublishHelpEndpointRequest endpoint)
     {
-        var current = await EndpointUsers.RequireActiveUserAsync(
-            httpRequest,
-            tokenService,
-            userStore,
-            accountStatus,
-            cancellationToken);
-        if (current.Failure is not null) return current.Failure;
-
-        var currentUser = current.User!;
-        var validationError = HelpPublishFlow.ValidatePublishRequest(
-            request,
-            options.Value,
-            currentUser);
-        if (validationError is not null)
+        var preparation = await PreparePublishAsync(endpoint);
+        if (preparation.Failure is not null) return preparation.Failure;
+        var currentUser = preparation.User!;
+        var record = HelpPublishFlow.CreateRecord(endpoint.Body, currentUser);
+        var saved = await HelpPublishPersistence.ExecuteAsync(new HelpPublishPersistenceInput
         {
-            return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, validationError, 400);
-        }
-
-        if (await helpStore.HasActiveRequestAsync(currentUser!.OpenId, cancellationToken))
-        {
-            return EndpointFailures.JsonFailure(
-                ErrorCodes.DuplicateHelpRequest,
-                "已有进行中的求助",
-                409);
-        }
-
-        var record = HelpPublishFlow.CreateRecord(request, currentUser);
-        using var lifecycleLease = await lifecycle.EnterAsync(record.Id, cancellationToken);
-        await helpStore.SaveAsync(record, cancellationToken);
-        // 急救会话随求助发布创建（BackEnd.md §4.5A 生命周期约定）
-        await sessionStore.GetOrCreateAsync(record.Id, DateTimeOffset.UtcNow, cancellationToken);
+            HelpId = record.Id,
+            Lifecycle = endpoint.Lifecycle,
+            TrySaveHelp = token => endpoint.HelpStore.TrySaveIfNoActiveAsync(record, token),
+            EnsureSession = token => endpoint.SessionStore.GetOrCreateAsync(
+                record.Id,
+                record.CreatedAt,
+                token),
+            RequestCancellationToken = endpoint.CancellationToken,
+        });
+        if (!saved) return DuplicateActiveHelp();
         var recipients = await HelpPublishFlow.SendNotificationsAsync(new HelpNotificationInput
         {
             Record = record,
-            Request = request,
+            Request = endpoint.Body,
             CurrentUser = currentUser,
-            Options = options.Value,
-            UserStore = userStore,
-            AccountStatus = accountStatus,
-            ResponderStore = responderStore,
-            Sender = sender,
-            CancellationToken = cancellationToken,
+            Options = endpoint.Options.Value,
+            UserStore = endpoint.UserStore,
+            AccountStatus = endpoint.AccountStatus,
+            ResponderStore = endpoint.ResponderStore,
+            Sender = endpoint.Sender,
+            CancellationToken = CancellationToken.None,
         });
 
         return Results.Ok(ApiResponse.Ok(HelpPublishFlow.ToPublishResponse(record, recipients)));
     }
 
     private static async Task<IResult> ListHelpAsync(
-        HttpRequest httpRequest,
-        int? page,
-        int? pageSize,
-        string? status,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IHelpRequestStore helpStore,
-        CancellationToken cancellationToken)
+        [AsParameters] ListHelpEndpointRequest endpoint)
     {
-        var user = await RequireUserAsync(httpRequest, tokenService, userStore, accountStatus, cancellationToken);
+        var user = await RequireUserAsync(endpoint);
         if (user.Failure is not null) return user.Failure;
 
-        var records = await helpStore.ListByUserAsync(user.User!.OpenId, cancellationToken);
-        var filtered = HelpListPaging.FilterByStatus(records, status);
-        return Results.Ok(ApiResponse.Ok(HelpListPaging.ToPage(filtered, page, pageSize, user.User.OpenId)));
+        var records = await endpoint.HelpStore.ListByUserAsync(
+            user.User!.OpenId,
+            endpoint.CancellationToken);
+        var filtered = HelpListPaging.FilterByStatus(records, endpoint.Status);
+        return Results.Ok(ApiResponse.Ok(HelpListPaging.ToPage(
+            filtered,
+            endpoint.Page,
+            endpoint.PageSize,
+            user.User.OpenId)));
     }
 
     private static async Task<IResult> GetHelpDetailAsync(
-        HttpRequest httpRequest,
-        string id,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IResponderStore responderStore,
-        IHelpRequestStore helpStore,
-        CancellationToken cancellationToken)
+        [AsParameters] GetHelpEndpointRequest endpoint)
     {
-        var user = await RequireUserAsync(httpRequest, tokenService, userStore, accountStatus, cancellationToken);
+        var cancellationToken = endpoint.CancellationToken;
+        var user = await RequireUserAsync(endpoint);
         if (user.Failure is not null) return user.Failure;
 
-        var record = await helpStore.FindByIdOrRequestNoAsync(id, cancellationToken);
+        var record = await endpoint.HelpStore.FindByIdOrRequestNoAsync(
+            endpoint.Id,
+            cancellationToken);
         if (record is null) return NotFound("求助不存在");
 
         var viewerRole = "requester";
@@ -134,7 +104,9 @@ public static class HelpEndpoints
         // 详情权限收紧（BackEnd.md §4.5）：仅求助人本人或认证急救员可访问
         if (record.UserId != user.User!.OpenId)
         {
-            var profile = await responderStore.FindByBoundOpenIdAsync(user.User.OpenId, cancellationToken);
+            var profile = await endpoint.ResponderStore.FindByBoundOpenIdAsync(
+                user.User.OpenId,
+                cancellationToken);
             if (profile?.QualificationStatus != EndpointRescuers.ActiveQualificationStatus)
             {
                 return EndpointFailures.JsonFailure(ErrorCodes.Forbidden, "仅求助人本人或认证急救员可查看", 403);
@@ -151,107 +123,107 @@ public static class HelpEndpoints
     }
 
     private static async Task<IResult> SubmitReportAsync(
-        HttpRequest httpRequest,
-        string id,
-        HelpReportRequest request,
-        IOptions<WeChatOptions> options,
-        IOptions<UploadOptions> uploadOptions,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IResponderStore responderStore,
-        IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionLifecycleCoordinator lifecycle,
-        RescueSessionBroadcaster broadcaster,
-        CancellationToken cancellationToken)
+        [AsParameters] SubmitHelpReportEndpointRequest endpoint)
     {
         // 仅认证急救员可提交救助报告（BackEnd.md §4.5 权限约定）
         var responder = await EndpointRescuers.RequireCertifiedResponderAsync(
-            httpRequest,
-            tokenService,
-            userStore,
-            accountStatus,
-            responderStore,
-            cancellationToken);
+            new CertifiedResponderAuthorization
+            {
+                Request = endpoint.HttpRequest,
+                TokenService = endpoint.TokenService,
+                UserStore = endpoint.UserStore,
+                AccountStatus = endpoint.AccountStatus,
+                ResponderStore = endpoint.ResponderStore,
+                CancellationToken = endpoint.CancellationToken
+            });
         if (responder.Failure is not null) return responder.Failure;
 
         return await HelpReportFlow.ExecuteAsync(new HelpReportInput
         {
-            HelpId = id,
-            Request = request,
-            WeChatOptions = options.Value,
-            UploadOptions = uploadOptions.Value,
+            HelpId = endpoint.Id,
+            Request = endpoint.Body,
+            WeChatOptions = endpoint.Options.Value,
+            UploadOptions = endpoint.UploadOptions.Value,
             Responder = responder,
-            HelpStore = helpStore,
-            SessionStore = sessionStore,
-            Lifecycle = lifecycle,
-            Broadcaster = broadcaster,
-            CancellationToken = cancellationToken,
+            HelpStore = endpoint.HelpStore,
+            Lifecycle = endpoint.Lifecycle,
+            Broadcaster = endpoint.Broadcaster,
+            Closure = endpoint.Closure,
+            CancellationToken = endpoint.CancellationToken,
         });
     }
 
     private static async Task<IResult> CloseHelpAsync(
-        HttpRequest httpRequest,
-        string id,
-        CloseHelpRequest request,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        IHelpRequestStore helpStore,
-        IRescueSessionStore sessionStore,
-        RescueSessionLifecycleCoordinator lifecycle,
-        RescueSessionBroadcaster broadcaster,
-        CancellationToken cancellationToken)
+        [AsParameters] CloseHelpEndpointRequest endpoint)
     {
-        var user = await RequireUserAsync(httpRequest, tokenService, userStore, accountStatus, cancellationToken);
+        var cancellationToken = endpoint.CancellationToken;
+        var user = await RequireUserAsync(endpoint);
         if (user.Failure is not null) return user.Failure;
 
-        if (request.Status is not (HelpStatuses.Closed or HelpStatuses.FalseAlarm))
+        if (endpoint.Body.Status is not (HelpStatuses.Closed or HelpStatuses.FalseAlarm))
         {
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "status 不支持", 400);
         }
 
         // 仅求助发布者本人可关闭（BackEnd.md §5.4 权限矩阵）；管理端走 /api/admin/help-requests/{id}/close
-        var existing = await helpStore.FindByIdOrRequestNoAsync(id, cancellationToken);
+        var existing = await endpoint.HelpStore.FindByIdOrRequestNoAsync(
+            endpoint.Id,
+            cancellationToken);
         if (existing is null) return NotFound("求助不存在");
         if (existing.UserId != user.User!.OpenId)
         {
             return EndpointFailures.JsonFailure(ErrorCodes.Forbidden, "仅求助发布者本人可关闭", 403);
         }
-        using var lifecycleLease = await lifecycle.EnterAsync(existing.Id, cancellationToken);
 
         return await UpdateHelpAsync(
-            async () =>
-            {
-                var closed = await helpStore.CloseAsync(
-                    existing.Id,
-                    request.Status,
-                    request.Note,
-                    DateTimeOffset.UtcNow,
-                    cancellationToken);
-                // 求助关闭级联关闭急救会话并清空参与者位置（BackEnd.md §4.5A 生命周期约定）
-                await sessionStore.CloseSessionAsync(closed.Id, cancellationToken);
-                await broadcaster.BroadcastAsync(closed.Id, "help_status", new RescueHelpStatusDto(closed.Status));
-                await broadcaster.CloseAllAsync(closed.Id, "help closed");
-                return closed;
-            },
+            () => endpoint.Closure.CloseAsync(
+                new HelpClosureCommand
+                {
+                    HelpId = existing.Id,
+                    Status = endpoint.Body.Status,
+                    Note = endpoint.Body.Note
+                },
+                cancellationToken),
             _ => Results.Ok(ApiResponse.Ok<object>(null)));
     }
 
+    private static async Task<HelpPublishPreparation> PreparePublishAsync(
+        PublishHelpEndpointRequest endpoint)
+    {
+        var current = await EndpointUsers.RequireActiveUserAsync(
+            endpoint.HttpRequest,
+            new ActiveUserDependencies(
+                endpoint.TokenService,
+                endpoint.UserStore,
+                endpoint.AccountStatus),
+            endpoint.CancellationToken);
+        if (current.Failure is not null)
+            return new HelpPublishPreparation(null, current.Failure);
+
+        var validationError = HelpPublishFlow.ValidatePublishRequest(
+            endpoint.Body,
+            endpoint.Options.Value,
+            current.User);
+        if (validationError is not null)
+        {
+            return new HelpPublishPreparation(
+                null,
+                EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, validationError, 400));
+        }
+
+        return new HelpPublishPreparation(current.User, null);
+    }
+
     private static async Task<CurrentUserResult> RequireUserAsync(
-        HttpRequest request,
-        ISessionTokenService tokenService,
-        IExperienceUserStore userStore,
-        IUserAccountStatusService accountStatus,
-        CancellationToken cancellationToken)
+        IUserHelpEndpointRequest endpoint)
     {
         return await EndpointUsers.RequireActiveUserAsync(
-            request,
-            tokenService,
-            userStore,
-            accountStatus,
-            cancellationToken);
+            endpoint.HttpRequest,
+            new ActiveUserDependencies(
+                endpoint.TokenService,
+                endpoint.UserStore,
+                endpoint.AccountStatus),
+            endpoint.CancellationToken);
     }
 
     internal static async Task<IResult> UpdateHelpAsync(
@@ -266,7 +238,7 @@ public static class HelpEndpoints
         {
             return NotFound("求助不存在");
         }
-        catch (InvalidOperationException)
+        catch (HelpAlreadyClosedException)
         {
             return EndpointFailures.JsonFailure(
                 ErrorCodes.HelpAlreadyClosed,
@@ -279,4 +251,16 @@ public static class HelpEndpoints
     {
         return EndpointFailures.JsonFailure(ErrorCodes.ResourceNotFound, message, 404);
     }
+
+    private static IResult DuplicateActiveHelp()
+    {
+        return EndpointFailures.JsonFailure(
+            ErrorCodes.DuplicateHelpRequest,
+            "已有进行中的求助",
+            409);
+    }
+
+    private sealed record HelpPublishPreparation(
+        ExperienceUserRecord? User,
+        IResult? Failure);
 }

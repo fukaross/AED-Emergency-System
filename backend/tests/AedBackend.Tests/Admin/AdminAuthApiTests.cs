@@ -26,6 +26,9 @@ public sealed class AdminAuthApiTests : AdminApiTestBase
 
         var duplicate = await BootstrapAsync("second", DefaultPassword);
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
+        Assert.Equal(
+            ErrorCodes.AdminAlreadyInitialized,
+            (await ReadAsync<ApiResponse>(duplicate)).Code);
 
         using var wrongKey = new HttpRequestMessage(HttpMethod.Post, "/api/admin/auth/bootstrap")
         {
