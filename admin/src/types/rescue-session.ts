@@ -1,4 +1,5 @@
 // 急救会话管理端监控类型（BackEnd.md §4.12 /api/admin/rescue-sessions）
+import type { HelpRequestStatus, HelpRequestType } from '@/types/help'
 
 export type RescueSignal = 'ok' | 'lost' | 'gone'
 
@@ -23,8 +24,8 @@ export interface RescueLocation {
 export interface AdminRescueSessionListItem {
   readonly helpId: string
   readonly requestNo: string
-  readonly helpStatus: string
-  readonly type: string
+  readonly helpStatus: HelpRequestStatus
+  readonly type: HelpRequestType
   readonly address: string
   readonly createdAt: string
   readonly participantsCount: number
@@ -55,22 +56,34 @@ export interface AdminRescueParticipant {
   readonly location: RescueLocation | null
 }
 
-export interface AdminRescueMessage {
+interface AdminRescueMessageBase {
   readonly id: string
   readonly seq: number
-  readonly kind: RescueMessageKind
   readonly senderOpenId: string
   readonly senderName: string
-  readonly text: string | null
-  readonly eventType: RescueEventType | null
-  readonly action: RescueEventAction | null
   readonly createdAt: string
 }
+
+export interface AdminRescueTextMessage extends AdminRescueMessageBase {
+  readonly kind: 'text'
+  readonly text: string
+  readonly eventType: null
+  readonly action: null
+}
+
+export interface AdminRescueStatusEventMessage extends AdminRescueMessageBase {
+  readonly kind: 'status_event'
+  readonly text: null
+  readonly eventType: RescueEventType
+  readonly action: RescueEventAction
+}
+
+export type AdminRescueMessage = AdminRescueTextMessage | AdminRescueStatusEventMessage
 
 export interface AdminRescueSessionDetail {
   readonly helpId: string
   readonly requestNo: string
-  readonly helpStatus: string
+  readonly helpStatus: HelpRequestStatus
   readonly sos: RescueSos
   readonly requester: AdminRescueRequester
   readonly closedAt: string | null

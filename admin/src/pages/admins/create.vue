@@ -76,6 +76,7 @@ import type { FormInstance } from 'element-plus'
 import AdminLayout from '@/components/admin-layout.vue'
 import { createAdmin } from '@/api/admins'
 import { getApiErrorMessage } from '@/api/client'
+import { logApiError } from '@/utils/safe-api-error'
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
@@ -150,7 +151,7 @@ async function submitForm() {
         ElMessage.success('管理员创建成功')
         router.push('/admins')
       } catch (error: unknown) {
-        console.error(error)
+        logApiError({ context: 'admins.create', error, fallback: '创建管理员失败' })
         ElMessage.error(getApiErrorMessage(error, '创建管理员失败'))
       } finally {
         submitting.value = false

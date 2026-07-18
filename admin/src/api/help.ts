@@ -13,8 +13,8 @@ export function getHelpRequests(params: HelpListParams = {}) {
   return client.get<ApiResponse<AdminHelpListResponse>>('/help-requests', { params })
 }
 
-export function getHelpRequestDetail(id: string) {
-  return client.get<ApiResponse<AdminHelpDetailResponse>>(`/help-requests/${id}`)
+export function getHelpRequestDetail(id: string, signal?: AbortSignal) {
+  return client.get<ApiResponse<AdminHelpDetailResponse>>(`/help-requests/${id}`, { signal })
 }
 
 export interface CloseHelpPayload {

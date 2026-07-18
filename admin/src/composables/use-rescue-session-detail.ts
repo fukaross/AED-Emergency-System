@@ -1,11 +1,17 @@
 import { ref } from 'vue'
 import { getRescueSessionDetail } from '@/api/rescue-sessions'
 import { getApiErrorMessage } from '@/api/client'
+import { logApiError } from '@/utils/safe-api-error'
 import { createRequestSequencer, type RequestTicket } from '@/utils/request-sequencer'
+import {
+  InvalidRescueSessionPayloadError,
+  validateAdminRescueSessionDetail,
+} from '@/utils/rescue-session'
 import type { AdminRescueSessionDetail } from '@/types/rescue-session'
+import type { HelpRequestStatus } from '@/types/help'
 
 const DEFAULT_POLL_INTERVAL_MS = 10_000
-const CLOSED_STATUSES = new Set(['closed', 'false_alarm'])
+const CLOSED_STATUSES: ReadonlySet<HelpRequestStatus> = new Set(['closed', 'false_alarm'])
 
 export type RescueSessionDetailFetcher = (
   helpId: string,
@@ -17,6 +23,24 @@ interface RescueSessionDetailOptions {
   readonly fetchDetail?: RescueSessionDetailFetcher
   readonly pollIntervalMs?: number
   readonly initiallyVisible?: boolean
+  readonly now?: () => string
+}
+
+interface ResolvedRescueSessionDetailOptions {
+  readonly helpId: string
+  readonly fetchDetail: RescueSessionDetailFetcher
+  readonly pollIntervalMs: number
+  readonly initiallyVisible: boolean
+  readonly now: () => string
+}
+
+type RequestMode = 'initial' | 'refresh'
+
+interface RequestErrorContext {
+  readonly error: unknown
+  readonly ticket: RequestTicket
+  readonly controller: AbortController
+  readonly mode: RequestMode
 }
 
 async function fetchDetailFromApi(
@@ -31,6 +55,8 @@ class RescueSessionDetailController {
   readonly detail = ref<AdminRescueSessionDetail | null>(null)
   readonly loading = ref(false)
   readonly errorMessage = ref('')
+  readonly refreshErrorMessage = ref('')
+  readonly lastSuccessfulAt = ref<string | null>(null)
 
   private readonly requestSequencer = createRequestSequencer()
   private pollTimer: ReturnType<typeof setTimeout> | null = null
@@ -38,26 +64,28 @@ class RescueSessionDetailController {
   private pollGeneration = 0
   private disposed = false
 
-  constructor(
-    private helpId: string,
-    private readonly fetchDetail: RescueSessionDetailFetcher,
-    private readonly pollIntervalMs: number,
-    private visible: boolean,
-  ) {}
+  private helpId: string
+  private visible: boolean
+
+  constructor(private readonly options: ResolvedRescueSessionDetailOptions) {
+    this.helpId = options.helpId
+    this.visible = options.initiallyVisible
+  }
 
   async loadData(): Promise<void> {
     if (!this.canRequest()) return
     this.loading.value = true
     this.errorMessage.value = ''
-    await this.requestDetail(true)
+    await this.requestDetail('initial')
+    if (this.abortController === null) this.restartPolling()
   }
 
   async pollData(): Promise<void> {
     if (!this.canPoll()) return
-    await this.requestDetail(false)
+    await this.requestDetail('refresh')
   }
 
-  startPolling(): void {
+  private restartPolling(): void {
     this.pollGeneration += 1
     this.schedulePolling(this.pollGeneration)
   }
@@ -71,10 +99,10 @@ class RescueSessionDetailController {
     if (!this.canPoll()) return
     if (this.detail.value) {
       await this.pollData()
+      this.restartPolling()
     } else {
       await this.loadData()
     }
-    if (this.detail.value) this.startPolling()
   }
 
   async setHelpId(helpId: string): Promise<void> {
@@ -83,10 +111,11 @@ class RescueSessionDetailController {
     this.pause()
     this.helpId = nextHelpId
     this.detail.value = null
+    this.refreshErrorMessage.value = ''
+    this.lastSuccessfulAt.value = null
     this.errorMessage.value = nextHelpId ? '' : '缺少求助编号'
     if (!this.canRequest()) return
     await this.loadData()
-    if (this.detail.value) this.startPolling()
   }
 
   destroy(): void {
@@ -95,19 +124,22 @@ class RescueSessionDetailController {
     this.pause()
   }
 
-  private async requestDetail(showError: boolean): Promise<void> {
+  private async requestDetail(mode: RequestMode): Promise<void> {
     if (this.disposed) return
     const ticket = this.beginRequest()
     const controller = this.abortController
     if (!controller) return
     try {
-      const nextDetail = await this.fetchDetail(this.helpId, controller.signal)
+      const response = await this.options.fetchDetail(this.helpId, controller.signal)
       if (!this.canApply(ticket, controller)) return
+      const nextDetail = validateAdminRescueSessionDetail(response)
       this.detail.value = nextDetail
       this.errorMessage.value = ''
+      this.refreshErrorMessage.value = ''
+      this.lastSuccessfulAt.value = this.options.now()
       if (this.isClosed()) this.stopPollingLoop()
     } catch (error: unknown) {
-      this.handleRequestError(error, ticket, controller, showError)
+      this.handleRequestError({ error, ticket, controller, mode })
     } finally {
       this.finishRequest(ticket, controller)
     }
@@ -120,15 +152,18 @@ class RescueSessionDetailController {
     return ticket
   }
 
-  private handleRequestError(
-    error: unknown,
-    ticket: RequestTicket,
-    controller: AbortController,
-    showError: boolean,
-  ): void {
-    if (!this.canApply(ticket, controller) || !showError) return
-    console.error(error)
-    this.errorMessage.value = getApiErrorMessage(error, '加载急救会话失败')
+  private handleRequestError(context: RequestErrorContext): void {
+    if (!this.canApply(context.ticket, context.controller)) return
+    const fallback = context.error instanceof InvalidRescueSessionPayloadError
+      ? context.error.message
+      : '加载急救会话失败'
+    logApiError({ context: `rescue-session-detail.${context.mode}`, error: context.error, fallback })
+    const message = getApiErrorMessage(context.error, fallback)
+    if (this.detail.value) {
+      this.refreshErrorMessage.value = message
+      return
+    }
+    this.errorMessage.value = message
   }
 
   private finishRequest(ticket: RequestTicket, controller: AbortController): void {
@@ -176,7 +211,7 @@ class RescueSessionDetailController {
       this.pollTimer = null
       await this.pollData()
       this.schedulePolling(generation)
-    }, this.pollIntervalMs)
+    }, this.options.pollIntervalMs)
   }
 
   private stopPollingLoop(): void {
@@ -186,19 +221,21 @@ class RescueSessionDetailController {
 }
 
 export function useRescueSessionDetail(options: RescueSessionDetailOptions) {
-  const controller = new RescueSessionDetailController(
-    options.helpId,
-    options.fetchDetail ?? fetchDetailFromApi,
-    options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
-    options.initiallyVisible ?? true,
-  )
+  const controller = new RescueSessionDetailController({
+    helpId: options.helpId,
+    fetchDetail: options.fetchDetail ?? fetchDetailFromApi,
+    pollIntervalMs: options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
+    initiallyVisible: options.initiallyVisible ?? true,
+    now: options.now ?? (() => new Date().toISOString()),
+  })
   return {
     detail: controller.detail,
     loading: controller.loading,
     errorMessage: controller.errorMessage,
+    refreshErrorMessage: controller.refreshErrorMessage,
+    lastSuccessfulAt: controller.lastSuccessfulAt,
     loadData: controller.loadData.bind(controller),
     pollData: controller.pollData.bind(controller),
-    startPolling: controller.startPolling.bind(controller),
     setVisible: controller.setVisible.bind(controller),
     setHelpId: controller.setHelpId.bind(controller),
     destroy: controller.destroy.bind(controller),

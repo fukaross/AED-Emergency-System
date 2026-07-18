@@ -12,8 +12,8 @@ export interface RescueSessionListParams {
   pageSize?: number
 }
 
-export function getRescueSessions(params: RescueSessionListParams = {}) {
-  return client.get<ApiResponse<AdminRescueSessionListResponse>>('/rescue-sessions', { params })
+export function getRescueSessions(params: RescueSessionListParams = {}, signal?: AbortSignal) {
+  return client.get<ApiResponse<AdminRescueSessionListResponse>>('/rescue-sessions', { params, signal })
 }
 
 export function getRescueSessionDetail(helpId: string, signal?: AbortSignal) {

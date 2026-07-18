@@ -15,6 +15,15 @@
       </div>
 
       <template v-else-if="detail">
+        <el-alert
+          v-if="refreshErrorMessage"
+          class="refresh-alert"
+          type="warning"
+          show-icon
+          :closable="false"
+          :title="staleWarning"
+        />
+
         <div class="admin-card header-card">
           <div class="header-main">
             <h3 class="header-title">会话 {{ detail.requestNo }}</h3>
@@ -25,7 +34,7 @@
             <span>SOS：{{ detail.sos.address }}</span>
             <span>参与者：{{ detail.participants.length }} 人</span>
             <span v-if="detail.closedAt">
-              关闭于 {{ formatTime(detail.closedAt) }}<template v-if="detail.closeNote">（{{ detail.closeNote }}）</template>
+              关闭于 {{ formatCompactDateTime(detail.closedAt) }}<template v-if="detail.closeNote">（{{ detail.closeNote }}）</template>
             </span>
           </div>
         </div>
@@ -53,16 +62,18 @@
 
             <div class="admin-card messages-card">
               <h4 class="section-title">消息与状态时间线</h4>
-              <div v-if="!detail.messages.length" class="empty-line">暂无消息</div>
+              <div v-if="!messageViews.length" class="empty-line">暂无消息</div>
               <div v-else class="message-list">
                 <div
-                  v-for="message in detail.messages"
-                  :key="message.id"
+                  v-for="message in messageViews"
+                  :key="message.key"
                   class="message-row"
-                  :class="{ 'message-row--event': message.kind === 'status_event' }"
+                  :class="{ 'message-row--event': message.isStatusEvent }"
                 >
-                  <span class="message-text">{{ formatRescueMessageText(message) }}</span>
-                  <span class="message-time">{{ formatTime(message.createdAt) }}</span>
+                  <span class="message-text">{{ message.text }}</span>
+                  <span class="message-time">
+                    {{ message.createdAt ? formatCompactDateTime(message.createdAt) : '时间无效' }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -74,13 +85,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import adminLayout from '@/components/admin-layout.vue'
 import statusTag from '@/components/status-tag.vue'
 import rescueMap from '@/components/rescue-map.vue'
 import { useRescueSessionDetail } from '@/composables/use-rescue-session-detail'
-import { formatRescueMessageText, signalText } from '@/utils/rescue-session'
+import { formatCompactDateTime } from '@/utils/date-time'
+import { buildRescueMessageViews, signalText } from '@/utils/rescue-session'
 
 const route = useRoute()
 const router = useRouter()
@@ -90,8 +102,9 @@ const {
   detail,
   loading,
   errorMessage,
+  refreshErrorMessage,
+  lastSuccessfulAt,
   loadData,
-  startPolling,
   setVisible,
   setHelpId,
   destroy,
@@ -100,15 +113,11 @@ const {
   initiallyVisible: !document.hidden,
 })
 
-function formatTime(dateStr: string): string {
-  const date = new Date(dateStr)
-  if (isNaN(date.getTime())) return dateStr
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  const hh = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-  return `${mm}-${dd} ${hh}:${min}`
-}
+const staleWarning = computed(() => {
+  const lastUpdated = formatCompactDateTime(lastSuccessfulAt.value)
+  return `数据更新失败，当前显示 ${lastUpdated || '上次成功请求'} 的数据：${refreshErrorMessage.value}`
+})
+const messageViews = computed(() => buildRescueMessageViews(detail.value?.messages))
 
 function handleVisibilityChange(): void {
   void setVisible(!document.hidden)
@@ -120,7 +129,6 @@ function goBack(): void {
 
 async function retry(): Promise<void> {
   await loadData()
-  if (detail.value) startPolling()
 }
 
 watch(
@@ -135,7 +143,6 @@ onMounted(async () => {
     return
   }
   await loadData()
-  if (detail.value) startPolling()
 })
 
 onUnmounted(() => {
@@ -155,6 +162,10 @@ onUnmounted(() => {
 
 .state-card {
   padding: 24px;
+}
+
+.refresh-alert {
+  margin-bottom: 16px;
 }
 
 .header-card {

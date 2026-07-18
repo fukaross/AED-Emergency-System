@@ -1,49 +1,77 @@
 import { describe, expect, it } from 'vitest'
-import type { AdminRescueMessage } from '@/types/rescue-session'
+import type {
+  AdminRescueMessage,
+  AdminRescueStatusEventMessage,
+  AdminRescueTextMessage,
+} from '@/types/rescue-session'
 import {
-  computeSignal,
+  buildRescueMessageViews,
   formatRescueMessageText,
   participantMarkerMeta,
   signalText,
   SOS_MARKER_META,
 } from './rescue-session'
 
-function buildMessage(overrides: Partial<AdminRescueMessage>): AdminRescueMessage {
+const messageBase = {
+  id: 'msg-1',
+  seq: 1,
+  senderOpenId: 'openid-1',
+  senderName: '张急救',
+  createdAt: '2026-07-17T10:00:00.000Z',
+} as const
+
+function textMessage(text = '我到了'): AdminRescueTextMessage {
+  return { ...messageBase, kind: 'text', text, eventType: null, action: null }
+}
+
+function statusMessage(
+  overrides: Partial<AdminRescueStatusEventMessage> = {},
+): AdminRescueStatusEventMessage {
   return {
-    id: 'msg-1',
-    seq: 1,
+    ...messageBase,
     kind: 'status_event',
-    senderOpenId: 'openid-1',
-    senderName: '张急救',
     text: null,
-    eventType: null,
-    action: null,
-    createdAt: '2026-07-17T10:00:00.000Z',
+    eventType: 'joined',
+    action: 'mark',
     ...overrides,
   }
 }
 
-describe('computeSignal', () => {
-  const now = Date.parse('2026-07-17T10:00:00.000Z')
-  const reportedAt = (secondsAgo: number) => new Date(now - secondsAgo * 1000).toISOString()
-
-  it('uses location reported time for the inclusive 45s / 90s thresholds', () => {
-    expect(computeSignal(reportedAt(45), now)).toBe('ok')
-    expect(computeSignal(reportedAt(46), now)).toBe('lost')
-    expect(computeSignal(reportedAt(90), now)).toBe('lost')
-    expect(computeSignal(reportedAt(91), now)).toBe('gone')
-  })
-})
-
 describe('formatRescueMessageText', () => {
   it('attributes text messages to their sender', () => {
-    expect(formatRescueMessageText(buildMessage({ kind: 'text', text: '我到了' }))).toBe('张急救：我到了')
+    expect(formatRescueMessageText(textMessage())).toBe('张急救：我到了')
   })
 
   it('formats status events including revocations', () => {
-    expect(formatRescueMessageText(buildMessage({ eventType: 'joined', action: 'mark' }))).toBe('张急救 加入了会话')
-    expect(formatRescueMessageText(buildMessage({ eventType: 'taken_aed', action: 'mark' }))).toBe('张急救 已拿取 AED')
-    expect(formatRescueMessageText(buildMessage({ eventType: 'arrived', action: 'revoke' }))).toBe('张急救 撤销了「已到达现场」')
+    expect(formatRescueMessageText(statusMessage())).toBe('张急救 加入了会话')
+    expect(formatRescueMessageText(statusMessage({ eventType: 'taken_aed' }))).toBe('张急救 已拿取 AED')
+    expect(formatRescueMessageText(statusMessage({ eventType: 'arrived', action: 'revoke' })))
+      .toBe('张急救 撤销了「已到达现场」')
+  })
+
+  it('renders invalid external messages as visible warnings without crashing the detail', () => {
+    const missingEvent = { ...statusMessage(), eventType: null } as unknown as AdminRescueMessage
+    const revokedJoin = statusMessage({ action: 'revoke' })
+    const emptyText = textMessage('')
+    const unknownKind = { ...messageBase, kind: 'future_kind' } as unknown as AdminRescueMessage
+
+    expect(formatRescueMessageText(missingEvent)).toContain('状态事件字段无效')
+    expect(formatRescueMessageText(revokedJoin)).toContain('加入事件不可撤销')
+    expect(formatRescueMessageText(emptyText)).toContain('文字消息缺少正文')
+    expect(formatRescueMessageText(unknownKind)).toContain('不支持的消息类型')
+    expect(formatRescueMessageText(statusMessage({ eventType: 'constructor' as never })))
+      .toContain('状态事件字段无效')
+  })
+
+  it('projects null entries and malformed collections into visible warnings', () => {
+    const views = buildRescueMessageViews([null, undefined, textMessage()])
+
+    expect(views).toHaveLength(3)
+    expect(views[0]?.text).toContain('消息条目不是对象')
+    expect(views[0]?.createdAt).toBeNull()
+    expect(views[1]?.text).toContain('消息条目不是对象')
+    expect(views[2]?.text).toBe('张急救：我到了')
+    expect(buildRescueMessageViews(null)[0]?.text).toContain('消息列表不是数组')
   })
 })
 
@@ -57,7 +85,7 @@ describe('participantMarkerMeta', () => {
 })
 
 describe('signalText', () => {
-  it('maps signals to Chinese labels', () => {
+  it('maps server-owned signals to Chinese labels', () => {
     expect(signalText('ok')).toBe('在线')
     expect(signalText('lost')).toBe('信号丢失')
     expect(signalText('gone')).toBe('已离线')

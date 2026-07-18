@@ -91,6 +91,7 @@ import {
 } from '@/api/admins'
 import { useAdminStore } from '@/stores/admin'
 import { getApiErrorMessage } from '@/api/client'
+import { logApiError } from '@/utils/safe-api-error'
 
 const router = useRouter()
 const adminStore = useAdminStore()
@@ -129,7 +130,7 @@ async function fetchAdmins() {
     const res = await getAdmins()
     adminsList.value = res.data.data
   } catch (error: unknown) {
-    console.error(error)
+    logApiError({ context: 'admins.list', error, fallback: '获取管理员列表失败' })
     ElMessage.error(getApiErrorMessage(error, '获取管理员列表失败'))
   } finally {
     loading.value = false
@@ -153,7 +154,7 @@ function handleResetPassword(row: AdminAccountListItem) {
       await resetAdminPassword(row.id, { password: value })
       ElMessage.success('密码已重置')
     } catch (error: unknown) {
-      console.error(error)
+      logApiError({ context: 'admins.reset-password', error, fallback: '重置密码失败' })
       ElMessage.error(getApiErrorMessage(error, '重置密码失败'))
     } finally {
       resetLoadingId.value = null
@@ -181,7 +182,7 @@ function handleDelete(row: AdminAccountListItem) {
       ElMessage.success('管理员删除成功')
       fetchAdmins()
     } catch (error: unknown) {
-      console.error(error)
+      logApiError({ context: 'admins.delete', error, fallback: '删除管理员失败' })
       ElMessage.error(getApiErrorMessage(error, '删除管理员失败'))
     }
   }).catch(() => {})

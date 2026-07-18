@@ -1,13 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AdminRescueSessionDetail } from '@/types/rescue-session'
+import type { HelpRequestStatus } from '@/types/help'
 import { useRescueSessionDetail } from './use-rescue-session-detail'
 
 vi.mock('@/api/rescue-sessions', () => ({ getRescueSessionDetail: vi.fn() }))
 vi.mock('@/api/client', () => ({
   getApiErrorMessage: (_error: unknown, fallback: string) => fallback,
 }))
+vi.mock('@/utils/safe-api-error', () => ({ logApiError: vi.fn() }))
 
-function buildDetail(helpStatus = 'published', requestNo = 'SOS-NEW'): AdminRescueSessionDetail {
+function buildDetail(
+  helpStatus: HelpRequestStatus = 'published',
+  requestNo = 'SOS-NEW',
+): AdminRescueSessionDetail {
   return {
     helpId: 'help-1',
     requestNo,
@@ -102,7 +107,6 @@ describe('useRescueSessionDetail closure lifecycle', () => {
     })
 
     await state.loadData()
-    state.startPolling()
     await state.setVisible(false)
     await vi.advanceTimersByTimeAsync(2_000)
     expect(fetchDetail).toHaveBeenCalledTimes(1)
@@ -127,7 +131,6 @@ describe('useRescueSessionDetail initial visibility', () => {
     })
 
     await state.loadData()
-    state.startPolling()
     await vi.advanceTimersByTimeAsync(2_000)
     expect(fetchDetail).not.toHaveBeenCalled()
     await state.setVisible(true)
@@ -149,7 +152,6 @@ describe('useRescueSessionDetail polling generation', () => {
     })
 
     await state.loadData()
-    state.startPolling()
     vi.advanceTimersByTime(1_000)
     await Promise.resolve()
     await state.setVisible(false)
@@ -164,7 +166,75 @@ describe('useRescueSessionDetail polling generation', () => {
 })
 
 describe('useRescueSessionDetail error state', () => {
-  it('shows initial errors but keeps the last good detail on background failures', async () => {
+  it.each([
+    ['requester', null],
+    ['requester', { openId: null }],
+    ['sos', null],
+    ['sos', { lat: 'invalid', lng: 110.52, address: '教学楼' }],
+    ['participants', null],
+    ['participants', [null]],
+    ['messages', null],
+  ] as const)('rejects a malformed %s payload before it reaches rendering', async (field, value) => {
+    const malformed = { ...buildDetail(), [field]: value } as unknown as AdminRescueSessionDetail
+    const fetchDetail = vi.fn().mockResolvedValue(malformed)
+    const state = useRescueSessionDetail({ helpId: 'help-1', fetchDetail })
+
+    await state.loadData()
+
+    expect(state.detail.value).toBeNull()
+    expect(state.errorMessage.value).toContain(field)
+    state.destroy()
+  })
+
+  it('keeps the last valid detail when a refresh payload is malformed', async () => {
+    const malformed = {
+      ...buildDetail('responding'), participants: null,
+    } as unknown as AdminRescueSessionDetail
+    const fetchDetail = vi.fn()
+      .mockResolvedValueOnce(buildDetail())
+      .mockResolvedValueOnce(malformed)
+    const state = useRescueSessionDetail({
+      helpId: 'help-1', fetchDetail, pollIntervalMs: 1_000,
+    })
+
+    await state.loadData()
+    await vi.advanceTimersByTimeAsync(1_000)
+
+    expect(state.detail.value?.helpStatus).toBe('published')
+    expect(state.refreshErrorMessage.value).toContain('participants')
+    state.destroy()
+  })
+
+  it('continues polling after a successful initial detail load', async () => {
+    const fetchDetail = vi.fn().mockResolvedValue(buildDetail())
+    const state = useRescueSessionDetail({
+      helpId: 'help-1', fetchDetail, pollIntervalMs: 1_000,
+    })
+
+    await state.loadData()
+    await vi.advanceTimersByTimeAsync(1_000)
+
+    expect(fetchDetail).toHaveBeenCalledTimes(2)
+  })
+
+  it('automatically retries an initial failure while the detail stays visible', async () => {
+    const fetchDetail = vi.fn()
+      .mockRejectedValueOnce(new Error('initial failed'))
+      .mockResolvedValueOnce(buildDetail())
+    const state = useRescueSessionDetail({
+      helpId: 'help-1', fetchDetail, pollIntervalMs: 1_000,
+    })
+
+    await state.loadData()
+    expect(state.errorMessage.value).toBe('加载急救会话失败')
+    await vi.advanceTimersByTimeAsync(1_000)
+
+    expect(fetchDetail).toHaveBeenCalledTimes(2)
+    expect(state.detail.value?.requestNo).toBe('SOS-NEW')
+    expect(state.errorMessage.value).toBe('')
+  })
+
+  it('shows initial errors and marks the last good detail stale on background failures', async () => {
     const fetchDetail = vi.fn()
       .mockRejectedValueOnce(new Error('initial failed'))
       .mockResolvedValueOnce(buildDetail())
@@ -178,6 +248,8 @@ describe('useRescueSessionDetail error state', () => {
     await state.pollData()
     expect(state.detail.value?.requestNo).toBe('SOS-NEW')
     expect(state.errorMessage.value).toBe('')
+    expect(state.refreshErrorMessage.value).toBe('加载急救会话失败')
+    expect(state.lastSuccessfulAt.value).not.toBeNull()
   })
 })
 
@@ -193,6 +265,6 @@ describe('useRescueSessionDetail resume error', () => {
 
     expect(state.errorMessage.value).toBe('加载急救会话失败')
     await vi.advanceTimersByTimeAsync(2_000)
-    expect(fetchDetail).toHaveBeenCalledTimes(1)
+    expect(fetchDetail).toHaveBeenCalledTimes(3)
   })
 })

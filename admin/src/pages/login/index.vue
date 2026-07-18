@@ -111,6 +111,7 @@ import {
   getApiErrorStatus,
   isNetworkApiError,
 } from '@/api/client'
+import { logApiError } from '@/utils/safe-api-error'
 
 const router = useRouter()
 const store = useAdminStore()
@@ -174,7 +175,7 @@ async function handleSubmit() {
       // Redirect to dashboard
       await router.replace('/dashboard')
     } catch (error: unknown) {
-      console.error(error)
+      logApiError({ context: 'auth.submit', error, fallback: '登录失败' })
       handleErrorResponse(error)
     } finally {
       loading.value = false
@@ -203,22 +204,23 @@ function handleErrorResponse(error: unknown) {
     return
   }
 
-  // Handle invalid credentials
-  if (status === 400 || status === 401) {
-    if (isBootstrapMode.value) {
-      errorMessage.value = getApiErrorMessage(error, '管理密钥错误或配置失败')
-    } else {
-      errorMessage.value = '用户名或密码错误'
-    }
-    return
-  }
+  if (handleCredentialError(error, status)) return
+  errorMessage.value = resolveConnectionError(error, status)
+}
 
-  // Connectivity or server exceptions
+function handleCredentialError(error: unknown, status: number | undefined) {
+  if (status !== 400 && status !== 401) return false
+  errorMessage.value = isBootstrapMode.value
+    ? getApiErrorMessage(error, '管理密钥错误或配置失败')
+    : '用户名或密码错误'
+  return true
+}
+
+function resolveConnectionError(error: unknown, status: number | undefined) {
   if (isNetworkApiError(error) || !status) {
-    errorMessage.value = '网络连接失败，请检查网络后重试'
-  } else {
-    errorMessage.value = getApiErrorMessage(error, '服务器内部错误，请稍后重试')
+    return '网络连接失败，请检查网络后重试'
   }
+  return getApiErrorMessage(error, '服务器内部错误，请稍后重试')
 }
 
 async function detectBootstrapRequired() {
@@ -240,100 +242,4 @@ function toggleBootstrapMode() {
 }
 </script>
 
-<style scoped lang="scss">
-.login-wrapper {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background-color: #f0f2f5;
-  padding: 20px;
-}
-
-.login-card {
-  width: 400px;
-  max-width: calc(100% - 32px);
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  padding: 40px;
-  margin-bottom: 24px;
-
-  @media (max-width: 767px) {
-    padding: 24px 20px;
-  }
-}
-
-.logo-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 32px;
-  text-align: center;
-}
-
-.logo-box {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.red-logo-block {
-  width: 32px;
-  height: 32px;
-  background-color: #f56c6c;
-  border-radius: 6px;
-}
-
-.main-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0 0 6px 0;
-}
-
-.subtitle {
-  font-size: 13px;
-  color: #909399;
-  margin: 0;
-}
-
-.bootstrap-alert {
-  margin-bottom: 20px;
-}
-
-.login-input {
-  --el-input-height: 40px;
-  --el-input-border-radius: 4px;
-}
-
-.submit-item {
-  margin-top: 28px;
-  margin-bottom: 0;
-}
-
-.submit-button {
-  width: 100%;
-  height: 40px;
-  font-size: 14px;
-}
-
-.mode-switch {
-  display: block;
-  margin: 16px auto 0;
-}
-
-.error-alert {
-  margin-top: 16px;
-}
-
-.footer-copyright {
-  font-size: 12px;
-  color: #c0c4cc;
-  text-align: center;
-}
-</style>
+<style scoped lang="scss" src="./index.scss"></style>

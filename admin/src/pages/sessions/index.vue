@@ -76,6 +76,7 @@ import { getSessions, deleteSession, logout } from '@/api/auth'
 import { useAdminStore } from '@/stores/admin'
 import type { AdminSessionListItem } from '@/types/auth'
 import { getApiErrorMessage } from '@/api/client'
+import { logApiError } from '@/utils/safe-api-error'
 
 const router = useRouter()
 const adminStore = useAdminStore()
@@ -102,7 +103,7 @@ async function fetchSessions() {
     const res = await getSessions()
     sessions.value = res.data.data
   } catch (error: unknown) {
-    console.error(error)
+    logApiError({ context: 'admin-sessions.list', error, fallback: '获取会话列表失败' })
     ElMessage.error(getApiErrorMessage(error, '获取会话列表失败'))
   } finally {
     loading.value = false
@@ -124,7 +125,7 @@ function handleRevoke(session: AdminSessionListItem) {
       ElMessage.success('设备已强退')
       fetchSessions()
     } catch (error: unknown) {
-      console.error(error)
+      logApiError({ context: 'admin-sessions.revoke', error, fallback: '操作失败' })
       ElMessage.error(getApiErrorMessage(error, '操作失败'))
     }
   }).catch(() => {})
@@ -147,7 +148,7 @@ function handleLogout() {
       ElMessage.success('已安全退出登录')
       router.push('/login')
     } catch (error: unknown) {
-      console.error(error)
+      logApiError({ context: 'admin-sessions.logout', error, fallback: '登出失败' })
       ElMessage.error(getApiErrorMessage(error, '登出失败'))
     } finally {
       logoutLoading.value = false

@@ -81,6 +81,7 @@ import StatusTag from '@/components/status-tag.vue'
 import { getAdminDetail, resetAdminPassword, type AdminAccountDetail } from '@/api/admins'
 import { getApiErrorMessage } from '@/api/client'
 import { useAdminStore } from '@/stores/admin'
+import { logApiError } from '@/utils/safe-api-error'
 
 const route = useRoute()
 const router = useRouter()
@@ -114,7 +115,7 @@ async function fetchDetail() {
     const res = await getAdminDetail(adminId.value)
     detail.value = res.data.data
   } catch (error: unknown) {
-    console.error(error)
+    logApiError({ context: 'admins.detail', error, fallback: '获取管理员详情失败' })
     ElMessage.error(getApiErrorMessage(error, '获取管理员详情失败'))
   } finally {
     loading.value = false
@@ -148,7 +149,7 @@ async function resetPassword(password: string) {
     ElMessage.success('密码已重置')
     fetchDetail()
   } catch (error: unknown) {
-    console.error(error)
+    logApiError({ context: 'admins.reset-password', error, fallback: '重置密码失败' })
     ElMessage.error(getApiErrorMessage(error, '重置密码失败'))
   } finally {
     resetLoading.value = false

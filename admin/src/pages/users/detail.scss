@@ -1,0 +1,147 @@
+.detail-container {
+  padding: 24px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
+}
+
+.detail-header-action {
+  margin-bottom: 20px;
+}
+
+.detail-grid-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+
+  @media (max-width: 1023px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.left-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.right-panel {
+  flex-shrink: 0;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px dashed #ebeef5;
+  padding-bottom: 16px;
+}
+
+.profile-avatar {
+  flex-shrink: 0;
+}
+
+.profile-avatar-placeholder {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: #c0c4cc;
+  color: #ffffff;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.profile-title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.clickable-openid {
+  cursor: pointer;
+  color: #409eff;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    color: #73b8ff;
+    text-decoration: underline;
+  }
+
+  .copy-icon {
+    font-size: 12px;
+  }
+}
+
+.card-header-bar-custom {
+  padding: 16px 24px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.card-body-custom {
+  padding: 20px 24px;
+}
+
+.editor-card {
+  padding: 20px 24px;
+}
+
+.editor-title {
+  margin: 0 0 20px 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: #303133;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.save-form-item {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+.empty-section {
+  font-size: 14px;
+  color: #909399;
+  text-align: center;
+  padding: 12px 0;
+}
+
+.section-action {
+  margin-top: 16px;
+  text-align: right;
+}
+
+.mt-20 {
+  margin-top: 20px;
+}

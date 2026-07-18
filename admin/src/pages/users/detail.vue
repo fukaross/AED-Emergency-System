@@ -186,73 +186,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { CopyDocument } from '@element-plus/icons-vue'
 import adminLayout from '@/components/admin-layout.vue'
-import { getUserDetail, updateUser } from '@/api/users'
-import type { AdminUserDetail, AdminUserUpdatePayload, PrimaryRole, AccountStatus } from '@/types/user'
-import { getApiErrorMessage } from '@/api/client'
+import { useUserDetail } from './use-user-detail'
+import {
+  formatDateOnly,
+  formatTime,
+  getBindingStatusCn,
+  getBindingTagType,
+  getInitials,
+  getLevelCn,
+  getRoleCn,
+  maskCertNo,
+  maskPhone,
+  truncateOpenId,
+} from './user-detail-presentation'
 
 const route = useRoute()
 const router = useRouter()
 const openIdParam = route.params.openId as string
-
-const loading = ref(true)
-const saveLoading = ref(false)
-const detail = ref<AdminUserDetail | null>(null)
-const REFRESH_INTERVAL_MS = 10000
-let refreshTimer: number | null = null
-
-// Editing states matching Payload properties
-const editForm = reactive({
-  primaryRole: 'student' as PrimaryRole,
-  accountStatus: 'active' as AccountStatus,
-  adminRemark: '',
-})
-
-const roleMap: Record<string, string> = {
-  student: '学生',
-  teacher: '教师',
-  staff: '职工',
-  admin: '管理员',
-}
-
-const levelMap: Record<string, string> = {
-  honor: '荣誉',
-  trainee: '见习',
-  official: '正式',
-  core: '核心',
-}
-
-const bindingMap: Record<string, string> = {
-  pending: '待审核',
-  active: '已绑定',
-  rejected: '已拒绝',
-  replaced: '已替换',
-  unbound: '已解绑',
-}
-
-function getRoleCn(role: string) {
-  return roleMap[role] || role
-}
-
-function getLevelCn(level: string | null) {
-  if (!level) return '—'
-  return levelMap[level] || level
-}
-
-function getBindingStatusCn(status: string) {
-  return bindingMap[status] || status
-}
-
-function getBindingTagType(status: string) {
-  if (status === 'active') return 'success'
-  if (status === 'pending') return 'warning'
-  if (status === 'rejected' || status === 'unbound') return 'danger'
-  return 'info'
-}
+const {
+  copyOpenId,
+  destroy,
+  detail,
+  editForm,
+  handleSave,
+  initialize,
+  loading,
+  saveLoading,
+} = useUserDetail({ openId: openIdParam })
 
 function goBack() {
   router.push('/users')
@@ -262,322 +226,8 @@ function viewRescuer(id: string) {
   router.push(`/rescuers/${id}`)
 }
 
-// Convert UTC dates to formatting
-function formatTime(dateStr: string | null) {
-  if (!dateStr) return '—'
-  const date = new Date(dateStr)
-  if (isNaN(date.getTime())) return dateStr
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  const hh = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd} ${hh}:${min}`
-}
-
-function formatDateOnly(dateStr: string | null | undefined) {
-  if (!dateStr) return '—'
-  const date = new Date(dateStr)
-  if (isNaN(date.getTime())) return dateStr
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
-}
-
-function getInitials(name: string) {
-  if (!name) return 'U'
-  return name.charAt(0)
-}
-
-// Truncates long OpenID strings for clean listing view
-function truncateOpenId(id: string) {
-  if (!id) return ''
-  if (id.length <= 12) return id
-  return `${id.slice(0, 6)}...${id.slice(-6)}`
-}
-
-// Masks mobile phone digits
-function maskPhone(phone: string | null) {
-  if (!phone) return '—'
-  return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
-}
-
-// Masks certification records digits
-function maskCertNo(certNo: string | null | undefined) {
-  if (!certNo) return '—'
-  if (certNo.length <= 8) return certNo
-  return `${certNo.slice(0, 8)}****`
-}
-
-// Copy OpenID value
-function copyOpenId(text: string) {
-  if (!text) return
-  navigator.clipboard.writeText(text).then(() => {
-    ElMessage.success('OpenID 已成功复制到剪贴板')
-  }).catch((err) => {
-    console.error(err)
-    ElMessage.error('复制失败，请重试')
-  })
-}
-
-async function loadDetail(syncForm = true, silent = false) {
-  if (!silent) loading.value = true
-  try {
-    const res = await getUserDetail(openIdParam)
-    detail.value = res.data.data
-
-    if (syncForm) syncEditForm(res.data.data)
-  } catch (error: unknown) {
-    console.error(error)
-    if (!silent) ElMessage.error(getApiErrorMessage(error, '获取用户详情信息失败'))
-  } finally {
-    if (!silent) loading.value = false
-  }
-}
-
-function syncEditForm(data: AdminUserDetail) {
-  editForm.primaryRole = data.primaryRole
-  editForm.accountStatus = data.accountStatus
-  editForm.adminRemark = data.adminRemark || ''
-}
-
-function isEditDirty() {
-  if (!detail.value) return false
-  return editForm.primaryRole !== detail.value.primaryRole
-    || editForm.accountStatus !== detail.value.accountStatus
-    || editForm.adminRemark !== (detail.value.adminRemark || '')
-}
-
-function refreshNow() {
-  if (document.hidden) return
-  loadDetail(!isEditDirty(), true)
-}
-
-function startPolling() {
-  stopPolling()
-  refreshTimer = window.setInterval(refreshNow, REFRESH_INTERVAL_MS)
-}
-
-function stopPolling() {
-  if (refreshTimer === null) return
-  window.clearInterval(refreshTimer)
-  refreshTimer = null
-}
-
-function handleVisibilityChange() {
-  if (document.hidden) {
-    stopPolling()
-    return
-  }
-  refreshNow()
-  startPolling()
-}
-
-// Handles edits update submitting only modified parameters (delta check)
-async function handleSave() {
-  if (!detail.value) return
-
-  saveLoading.value = true
-  try {
-    const payload: AdminUserUpdatePayload = {}
-    let hasChanges = false
-
-    if (editForm.primaryRole !== detail.value.primaryRole) {
-      payload.primaryRole = editForm.primaryRole
-      hasChanges = true
-    }
-    if (editForm.accountStatus !== detail.value.accountStatus) {
-      payload.accountStatus = editForm.accountStatus
-      hasChanges = true
-    }
-    const currentRemark = detail.value.adminRemark || ''
-    if (editForm.adminRemark !== currentRemark) {
-      payload.adminRemark = editForm.adminRemark
-      hasChanges = true
-    }
-
-    if (!hasChanges) {
-      ElMessage.warning('内容未做任何修改')
-      saveLoading.value = false
-      return
-    }
-
-    await updateUser(openIdParam, payload)
-    ElMessage.success('保存修改成功')
-    await loadDetail() // Refresh info
-  } catch (error: unknown) {
-    console.error(error)
-    ElMessage.error(getApiErrorMessage(error, '更新用户信息失败'))
-  } finally {
-    saveLoading.value = false
-  }
-}
-
-onMounted(() => {
-  loadDetail()
-  startPolling()
-  document.addEventListener('visibilitychange', handleVisibilityChange)
-})
-
-onUnmounted(() => {
-  stopPolling()
-  document.removeEventListener('visibilitychange', handleVisibilityChange)
-})
+onMounted(initialize)
+onUnmounted(destroy)
 </script>
 
-<style scoped lang="scss">
-.detail-container {
-  padding: 24px;
-
-  @media (max-width: 767px) {
-    padding: 12px;
-  }
-}
-
-.detail-header-action {
-  margin-bottom: 20px;
-}
-
-// Two columns detail grid
-.detail-grid-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-
-  @media (max-width: 1023px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.left-panels {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.right-panel {
-  flex-shrink: 0;
-}
-
-// Profiles elements
-.profile-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  border-bottom: 1px dashed #ebeef5;
-  padding-bottom: 16px;
-}
-
-.profile-avatar {
-  flex-shrink: 0;
-}
-
-.profile-avatar-placeholder {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background-color: #c0c4cc;
-  color: #ffffff;
-  font-size: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-weight: 500;
-}
-
-.profile-title-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.profile-name {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.clickable-openid {
-  cursor: pointer;
-  color: #409eff;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-
-  &:hover {
-    color: #73b8ff;
-    text-decoration: underline;
-  }
-
-  .copy-icon {
-    font-size: 12px;
-  }
-}
-
-.card-header-bar-custom {
-  padding: 16px 24px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.card-title {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 500;
-  color: #303133;
-}
-
-.card-body-custom {
-  padding: 20px 24px;
-}
-
-.editor-card {
-  padding: 20px 24px;
-}
-
-.editor-title {
-  margin: 0 0 20px 0;
-  font-size: 15px;
-  font-weight: 500;
-  color: #303133;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.edit-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.full-width {
-  width: 100%;
-}
-
-.save-form-item {
-  margin-top: 12px;
-  margin-bottom: 0;
-}
-
-.empty-section {
-  font-size: 14px;
-  color: #909399;
-  text-align: center;
-  padding: 12px 0;
-}
-
-.section-action {
-  margin-top: 16px;
-  text-align: right;
-}
-
-.mt-20 {
-  margin-top: 20px;
-}
-
-.full-width {
-  width: 100%;
-}
-</style>
+<style scoped lang="scss" src="./detail.scss"></style>

@@ -2,12 +2,10 @@
   <admin-layout>
     <div class="page-content">
       <div class="admin-card no-padding">
-        <!-- Title bar -->
         <div class="card-header-bar">
           <h3 class="card-header-title">求助列表</h3>
         </div>
 
-        <!-- Filters section -->
         <div class="filter-bar filter-section">
           <el-select
             v-model="filterStatus"
@@ -38,7 +36,6 @@
           </el-button>
         </div>
 
-        <!-- Data table -->
         <div class="table-responsive">
           <el-table
             v-loading="loading"
@@ -46,7 +43,6 @@
             style="width: 100%;"
             class="data-table"
           >
-            <!-- Request No. Column -->
             <el-table-column
               prop="requestNo"
               label="编号"
@@ -54,7 +50,6 @@
               align="left"
             />
 
-            <!-- Content Column -->
             <el-table-column
               prop="content"
               label="内容"
@@ -63,7 +58,6 @@
               show-overflow-tooltip
             />
 
-            <!-- Channel Column -->
             <el-table-column
               prop="requestChannel"
               label="渠道"
@@ -75,7 +69,6 @@
               </template>
             </el-table-column>
 
-            <!-- Status Column -->
             <el-table-column
               prop="status"
               label="状态"
@@ -87,7 +80,6 @@
               </template>
             </el-table-column>
 
-            <!-- Address Column -->
             <el-table-column
               prop="address"
               label="位置"
@@ -107,7 +99,6 @@
               </template>
             </el-table-column>
 
-            <!-- Timestamp Column -->
             <el-table-column
               prop="createdAt"
               label="时间"
@@ -119,7 +110,6 @@
               </template>
             </el-table-column>
 
-            <!-- Operation Column -->
             <el-table-column
               label="操作"
               width="80"
@@ -139,7 +129,6 @@
           </el-table>
         </div>
 
-        <!-- Table pagination -->
         <div class="pagination-container">
           <el-pagination
             v-model:current-page="currentPage"
@@ -166,6 +155,8 @@ import { getHelpRequests } from '@/api/help'
 import type { AdminHelpListItem } from '@/types/help'
 import { getApiErrorMessage } from '@/api/client'
 import { createRequestSequencer } from '@/utils/request-sequencer'
+import { logApiError } from '@/utils/safe-api-error'
+import { formatCompactDateTime as formatTime } from '@/utils/date-time'
 
 const POLL_INTERVAL_MS = 10_000
 
@@ -185,14 +176,12 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 let isPolling = false
 const requestSequencer = createRequestSequencer()
 
-// Synchronize component state with route query params
 function syncFromRoute() {
   filterStatus.value = (route.query.status as string) || ''
   searchKeyword.value = (route.query.keyword as string) || ''
   currentPage.value = Number(route.query.page) || 1
 }
 
-// Push local filters to router query (drives the search flow)
 function updateRouteQuery(resetPage = false) {
   const query: LocationQueryRaw = {}
   if (filterStatus.value) query.status = filterStatus.value
@@ -205,12 +194,10 @@ function updateRouteQuery(resetPage = false) {
   })
 }
 
-// Triggered when search criteria changes
 function handleFilterChange() {
   updateRouteQuery(true)
 }
 
-// Triggered when changing page index
 function handlePageChange(page: number) {
   currentPage.value = page
   updateRouteQuery(false)
@@ -218,18 +205,6 @@ function handlePageChange(page: number) {
 
 function viewDetail(id: string) {
   router.push(`/help-requests/${id}`)
-}
-
-// Format UTC dates to MM-DD HH:mm format
-function formatTime(dateStr: string) {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  if (isNaN(date.getTime())) return dateStr
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  const hh = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-  return `${mm}-${dd} ${hh}:${min}`
 }
 
 async function loadData() {
@@ -247,7 +222,7 @@ async function loadData() {
     totalItems.value = res.data.data.total
   } catch (error: unknown) {
     if (!requestSequencer.isCurrent(ticket)) return
-    console.error(error)
+    logApiError({ context: 'help-requests.list', error, fallback: '加载求助列表数据失败' })
     ElMessage.error(getApiErrorMessage(error, '加载求助列表数据失败'))
   } finally {
     loading.value = false
@@ -268,7 +243,9 @@ async function pollData() {
     if (!requestSequencer.isCurrent(ticket)) return
     tableData.value = res.data.data.items
     totalItems.value = res.data.data.total
-  } catch { /* silently ignore poll errors */ }
+  } catch (error: unknown) {
+    logApiError({ context: 'help-requests.list.poll', error, fallback: '求助列表刷新失败' })
+  }
   finally { isPolling = false }
 }
 
@@ -291,7 +268,6 @@ function handleVisibilityChange() {
   }
 }
 
-// Listen to route query changes to load corresponding data
 watch(
   () => route.query,
   () => {
@@ -313,21 +289,4 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
-.page-content {
-  padding: 24px;
-
-  @media (max-width: 767px) {
-    padding: 12px;
-  }
-}
-
-.filter-section {
-  padding-top: 16px;
-  background-color: #ffffff;
-}
-
-.data-table {
-  border-top: 1px solid #ebeef5;
-}
-</style>
+<style scoped lang="scss" src="./index.scss"></style>

@@ -14,12 +14,12 @@ export interface UserListParams {
   primaryRole?: string
 }
 
-export function getUsers(params: UserListParams = {}) {
-  return client.get<ApiResponse<AdminUserListResponse>>('/users', { params })
+export function getUsers(params: UserListParams = {}, signal?: AbortSignal) {
+  return client.get<ApiResponse<AdminUserListResponse>>('/users', { params, signal })
 }
 
-export function getUserDetail(openId: string) {
-  return client.get<ApiResponse<AdminUserDetail>>(`/users/${openId}`)
+export function getUserDetail(openId: string, signal?: AbortSignal) {
+  return client.get<ApiResponse<AdminUserDetail>>(`/users/${openId}`, { signal })
 }
 
 export function updateUser(openId: string, data: AdminUserUpdatePayload) {

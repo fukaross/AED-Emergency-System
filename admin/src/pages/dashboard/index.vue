@@ -120,6 +120,7 @@ import { getDashboard } from '@/api/dashboard'
 import { useAdminStore } from '@/stores/admin'
 import type { AdminDashboardResponse } from '@/types/dashboard'
 import { getApiErrorMessage } from '@/api/client'
+import { logApiError } from '@/utils/safe-api-error'
 
 const POLL_INTERVAL_MS = 5_000
 const ACCENT = { user: '#409eff', help: '#17b3c4', pending: '#e6a23c', today: '#2bb47e' }
@@ -160,7 +161,7 @@ async function loadDashboardData() {
     const res = await getDashboard()
     data.value = res.data.data
   } catch (error: unknown) {
-    console.error(error)
+    logApiError({ context: 'dashboard.load', error, fallback: '获取仪表盘数据失败，请重试' })
     ElMessage.error(getApiErrorMessage(error, '获取仪表盘数据失败，请重试'))
   } finally {
     loading.value = false
@@ -173,8 +174,8 @@ async function pollDashboard() {
   try {
     const res = await getDashboard()
     data.value = res.data.data
-  } catch {
-    /* silently ignore poll errors */
+  } catch (error: unknown) {
+    logApiError({ context: 'dashboard.poll', error, fallback: '仪表盘刷新失败' })
   } finally {
     isPolling = false
   }
