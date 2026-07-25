@@ -761,6 +761,32 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /api/courses/{id}/views:
+    post:
+      summary: 课程阅读量计数（进入详情页即 +1，游客与重复访问均计数）
+      operationId: incrementCourseView
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CourseViewResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/quick-actions:
     get:
       summary: 获取关键步骤卡片列表
@@ -4883,6 +4909,13 @@ components:
         pageSize:
           type: integer
         totalPages:
+          type: integer
+
+    CourseViewResult:
+      type: object
+      required: [viewCount]
+      properties:
+        viewCount:
           type: integer
 
     QuickActionStep:

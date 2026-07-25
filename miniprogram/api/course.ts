@@ -1,13 +1,19 @@
 // 课程相关的接口 —— 列表、详情、关键步骤
-import { get } from '@/services/request'
+import { get, post } from '@/services/request'
 import type {
   CourseSummary,
   CourseDetail,
   CourseFilter,
+  CourseViewResult,
 } from '@/types/user'
 import type { PaginatedData } from '@/types/common'
 import type { QuickAction } from '@/types/knowledge'
-import { COURSE_DETAIL_MOCK_DATA, COURSE_MOCK_DATA } from '@/mock/course'
+import {
+  COURSE_DETAIL_MOCK_DATA,
+  COURSE_MOCK_DATA,
+  getMockCourseViewCount,
+  incrementMockCourseView,
+} from '@/mock/course'
 import { QUICK_ACTION_MOCK_DATA } from '@/mock/knowledge'
 import { USE_MOCK, CLASSROOM_BACKEND_READY } from '@/utils/runtime-env'
 
@@ -56,10 +62,23 @@ export function fetchCourseDetail(id: string): Promise<CourseDetail> {
     if (!found) {
       return Promise.reject(new Error('课程不存在'))
     }
-    return Promise.resolve(found)
+    return Promise.resolve({ ...found, viewCount: getMockCourseViewCount(id) })
   }
 
   return get<CourseDetail>(`/api/courses/${id}`)
+}
+
+/** 课程阅读量 +1（公开接口，游客与重复进入均计数），返回最新阅读量 */
+export function incrementCourseView(id: string): Promise<CourseViewResult> {
+  if (!CLASSROOM_BACKEND_READY && USE_MOCK) {
+    return Promise.resolve({ viewCount: incrementMockCourseView(id) })
+  }
+
+  return post<CourseViewResult>(
+    `/api/courses/${id}/views`,
+    undefined,
+    { skipErrorHandler: true, skipAuthRefresh: true },
+  )
 }
 
 /** 获取关键步骤快速操作卡片列表 */

@@ -67,7 +67,7 @@
       <view class="info-meta">
         <text class="info-date">{{ formatDate(course.createdAt) }}</text>
         <text class="info-divider">|</text>
-        <text class="info-views">阅读 {{ formatViews(course.viewCount) }}</text>
+        <text class="info-views">阅读 {{ formatViews(displayViewCount) }}</text>
       </view>
     </view>
 
@@ -117,7 +117,7 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useTheme } from '@/composables/useTheme'
-import { fetchCourseDetail } from '@/api/course'
+import { fetchCourseDetail, incrementCourseView } from '@/api/course'
 import { formatDate, formatViews } from '@/utils/format-course'
 import type { CourseDetail } from '@/types/user'
 
@@ -127,6 +127,12 @@ const course = ref<CourseDetail | null>(null)
 const currentVideoOrder = ref(1)
 const loading = ref(true)
 const errorText = ref<string | null>(null)
+const countedViewCount = ref<number | null>(null)
+
+/** 阅读量优先展示计数接口返回的最新值，计数失败时回退为详情里的阅读量 */
+const displayViewCount = computed(() => {
+  return countedViewCount.value ?? course.value?.viewCount ?? 0
+})
 
 const normalizedVideos = computed(() => {
   if (!course.value) return []
@@ -152,6 +158,7 @@ async function loadCourse() {
     return
   }
 
+  reportCourseView(id)
   loading.value = true
   errorText.value = null
   try {
@@ -168,6 +175,16 @@ async function loadCourse() {
 
 function previewImage(url: string) {
   uni.previewImage({ urls: [url], current: url })
+}
+
+/** 进入页面即上报一次阅读（允许重复计数）；计数失败不阻塞课程阅读 */
+async function reportCourseView(id: string) {
+  try {
+    const result = await incrementCourseView(id)
+    countedViewCount.value = result.viewCount
+  } catch (err) {
+    console.warn('课程阅读量计数失败', err)
+  }
 }
 
 function selectVideo(order: number) {

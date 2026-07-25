@@ -272,6 +272,10 @@ export interface CourseDetail extends CourseSummary {
   readonly steps: readonly CourseStep[]
 }
 
+export interface CourseViewResult {
+  readonly viewCount: number
+}
+
 export interface CourseVideo {
   readonly order: number
   readonly title: string

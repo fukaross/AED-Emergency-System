@@ -16,6 +16,7 @@ import {
   fetchCourseList,
   fetchQuickActionDetail,
   fetchQuickActions,
+  incrementCourseView,
 } from '@/api/course'
 
 describe('course api mock', () => {
@@ -54,5 +55,21 @@ describe('course api mock', () => {
     await expect(fetchQuickActionDetail('missing-action')).rejects.toThrow(
       '关键步骤不存在',
     )
+  })
+
+  it('counts each mock course view repeatedly and reflects it in detail', async () => {
+    const first = await incrementCourseView('course-heimlich')
+    const second = await incrementCourseView('course-heimlich')
+
+    expect(second.viewCount).toBe(first.viewCount + 1)
+
+    const detail = await fetchCourseDetail('course-heimlich')
+    expect(detail.viewCount).toBe(second.viewCount)
+  })
+
+  it('returns zero view count for unknown mock course', async () => {
+    const result = await incrementCourseView('missing-course')
+
+    expect(result.viewCount).toBe(0)
   })
 })
