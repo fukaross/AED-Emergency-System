@@ -187,6 +187,75 @@ public sealed class JsonCourseStoreTests
         }
     }
 
+    [Fact]
+    public async Task GetAllAsync_SeedsInitialViewCountsWithin9kTo10k()
+    {
+        var path = CreateTempFilePath();
+        var store = CreateStore(path);
+
+        try
+        {
+            var courses = await store.GetAllAsync(CancellationToken.None);
+
+            Assert.NotEmpty(courses);
+            Assert.All(courses, c => Assert.InRange(c.ViewCount, 9000, 10000));
+        }
+        finally
+        {
+            DeleteTempDirectory(path);
+        }
+    }
+
+    [Fact]
+    public async Task IncrementViewAsync_IncrementsAndReturnsNewValue()
+    {
+        var path = CreateTempFilePath();
+        await SeedAsync(path, new[]
+        {
+            Course("course-01", "A"),
+            Course("course-02", "B"),
+        });
+        var store = CreateStore(path);
+
+        try
+        {
+            var first = await store.IncrementViewAsync("course-01", CancellationToken.None);
+            var second = await store.IncrementViewAsync("course-01", CancellationToken.None);
+
+            Assert.Equal(1, first);
+            Assert.Equal(2, second);
+
+            var course = await store.FindByIdAsync("course-01", CancellationToken.None);
+            Assert.Equal(2, course!.ViewCount);
+
+            var other = await store.FindByIdAsync("course-02", CancellationToken.None);
+            Assert.Equal(0, other!.ViewCount);
+        }
+        finally
+        {
+            DeleteTempDirectory(path);
+        }
+    }
+
+    [Fact]
+    public async Task IncrementViewAsync_ReturnsNull_WhenCourseMissing()
+    {
+        var path = CreateTempFilePath();
+        await SeedAsync(path, new[] { Course("course-01", "A") });
+        var store = CreateStore(path);
+
+        try
+        {
+            var result = await store.IncrementViewAsync("course-99", CancellationToken.None);
+
+            Assert.Null(result);
+        }
+        finally
+        {
+            DeleteTempDirectory(path);
+        }
+    }
+
     private static JsonCourseStore CreateStore(string path)
     {
         return new JsonCourseStore(Options.Create(new WeChatOptions

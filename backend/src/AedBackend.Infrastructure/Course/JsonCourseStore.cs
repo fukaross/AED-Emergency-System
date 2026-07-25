@@ -96,6 +96,26 @@ public sealed class JsonCourseStore : ICourseStore
         }
     }
 
+    public async Task<int?> IncrementViewAsync(string id, CancellationToken ct)
+    {
+        await fileLock.WaitAsync(ct);
+        try
+        {
+            var courses = await ReadUnsafeAsync(ct);
+            var course = courses.FirstOrDefault(c =>
+                c.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+            if (course is null) return null;
+
+            course.ViewCount += 1;
+            await WriteUnsafeAsync(courses, ct);
+            return course.ViewCount;
+        }
+        finally
+        {
+            fileLock.Release();
+        }
+    }
+
     private async Task<List<CourseRecord>> LoadCoursesAsync(CancellationToken ct)
     {
         await fileLock.WaitAsync(ct);
@@ -175,6 +195,7 @@ public sealed class JsonCourseStore : ICourseStore
                 Content = "<p>确认环境安全，打开 AED，按语音提示贴放电极片。</p>",
                 Disclaimer = "急救内容仅用于校园培训与现场参考。",
                 Pinned = true, SortOrder = 1, IsEnabled = true,
+                ViewCount = 9520,
                 CreatedAt = "2026-01-01T00:00:00Z",
                 Steps = new List<CourseStepRecord>
                 {
@@ -195,6 +216,7 @@ public sealed class JsonCourseStore : ICourseStore
                 Content = "<p>判断意识和呼吸，呼叫帮助，持续进行胸外按压。</p>",
                 Disclaimer = "急救内容仅用于校园培训与现场参考。",
                 Pinned = true, SortOrder = 2, IsEnabled = true,
+                ViewCount = 9873,
                 CreatedAt = "2026-01-01T00:00:00Z",
                 Steps = new List<CourseStepRecord>
                 {
@@ -215,6 +237,7 @@ public sealed class JsonCourseStore : ICourseStore
                 Content = "<p>确认气道异物梗阻后，从背后环抱并向内上方冲击。</p>",
                 Disclaimer = "急救内容仅用于校园培训与现场参考。",
                 Pinned = false, SortOrder = 3, IsEnabled = true,
+                ViewCount = 9146,
                 CreatedAt = "2026-02-01T00:00:00Z",
                 Steps = new List<CourseStepRecord>()
             },
@@ -226,6 +249,7 @@ public sealed class JsonCourseStore : ICourseStore
                 Content = "<p>直接压迫止血，覆盖敷料，必要时寻求专业协助。</p>",
                 Disclaimer = "急救内容仅用于校园培训与现场参考。",
                 Pinned = false, SortOrder = 4, IsEnabled = true,
+                ViewCount = 9662,
                 CreatedAt = "2026-03-01T00:00:00Z",
                 Steps = new List<CourseStepRecord>()
             }

@@ -83,6 +83,32 @@ public sealed class ClassroomApiTests : AdminApiTestBase
     }
 
     [Fact]
+    public async Task IncrementCourseView_IncrementsAndReturnsNewCount()
+    {
+        var first = await Client.PostAsync("/api/courses/course-01/views", null);
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        var firstBody = await ReadAsync<ApiResponse<CourseViewResponse>>(first);
+        Assert.Equal(0, firstBody.Code);
+        Assert.NotNull(firstBody.Data);
+
+        var second = await Client.PostAsync("/api/courses/course-01/views", null);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        var secondBody = await ReadAsync<ApiResponse<CourseViewResponse>>(second);
+        Assert.Equal(firstBody.Data.ViewCount + 1, secondBody.Data!.ViewCount);
+
+        var detail = await Client.GetAsync("/api/courses/course-01");
+        var detailBody = await ReadAsync<ApiResponse<CourseDetailResponse>>(detail);
+        Assert.Equal(secondBody.Data.ViewCount, detailBody.Data!.ViewCount);
+    }
+
+    [Fact]
+    public async Task IncrementCourseView_Returns404_WhenNotFound()
+    {
+        var response = await Client.PostAsync("/api/courses/course-99/views", null);
+        await AssertErrorAsync(response, HttpStatusCode.NotFound, 2002);
+    }
+
+    [Fact]
     public async Task ListQuickActions_ReturnsSeededActions()
     {
         var response = await Client.GetAsync("/api/quick-actions");

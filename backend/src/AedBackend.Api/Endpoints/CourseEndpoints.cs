@@ -18,6 +18,7 @@ public static class CourseEndpoints
 
         group.MapGet("/", ListCoursesAsync).WithName("ListCourses");
         group.MapGet("/{id}", GetDetailAsync).WithName("GetCourseDetail");
+        group.MapPost("/{id}/views", IncrementViewAsync).WithName("IncrementCourseView");
 
         return app;
     }
@@ -80,6 +81,26 @@ public static class CourseEndpoints
         }
 
         return Results.Ok(ApiResponse.Ok(ToDetail(course)));
+    }
+
+    private static async Task<IResult> IncrementViewAsync(
+        string id,
+        ICourseStore store,
+        CancellationToken ct)
+    {
+        var course = await store.FindByIdAsync(id, ct);
+        if (course is null || !course.IsEnabled)
+        {
+            return Results.NotFound(ApiResponse.Fail(ErrorCodes.CourseNotFound, "课程不存在"));
+        }
+
+        var viewCount = await store.IncrementViewAsync(id, ct);
+        if (viewCount is null)
+        {
+            return Results.NotFound(ApiResponse.Fail(ErrorCodes.CourseNotFound, "课程不存在"));
+        }
+
+        return Results.Ok(ApiResponse.Ok(new CourseViewResponse(viewCount.Value)));
     }
 
     private static async Task<IResult> ListQuickActionsAsync(

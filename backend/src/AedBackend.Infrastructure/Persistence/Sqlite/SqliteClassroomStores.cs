@@ -65,6 +65,20 @@ internal sealed class SqliteCourseStore : ICourseStore
         return true;
     }
 
+    public async Task<int?> IncrementViewAsync(string id, CancellationToken ct)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var affected = await db.Courses
+            .Where(c => c.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.ViewCount, c => c.ViewCount + 1), ct);
+        if (affected == 0) return null;
+
+        return await db.Courses
+            .Where(c => c.Id == id)
+            .Select(c => c.ViewCount)
+            .FirstAsync(ct);
+    }
+
     private static CourseRecord Merge(CourseRecord existing, CourseRecord source)
     {
         existing.Title = source.Title; existing.Thumbnail = source.Thumbnail; existing.Type = source.Type;

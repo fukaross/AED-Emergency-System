@@ -49,6 +49,8 @@ public sealed record CourseListPage(
     int PageSize,
     int TotalPages);
 
+public sealed record CourseViewResponse(int ViewCount);
+
 public sealed record QuickActionStepResponse(
     int Order,
     string Title,

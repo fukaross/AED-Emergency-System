@@ -9,4 +9,6 @@ public interface ICourseStore
     Task<CourseRecord> AddAsync(CourseRecord course, CancellationToken ct);
     Task<CourseRecord?> UpdateAsync(string id, CourseRecord updated, CancellationToken ct);
     Task<bool> DeleteAsync(string id, CancellationToken ct);
+    /// <summary>阅读量 +1 并返回新值；课程不存在时返回 null。</summary>
+    Task<int?> IncrementViewAsync(string id, CancellationToken ct);
 }

@@ -2,6 +2,7 @@ using AedBackend.Tests.Admin;
 using AedBackend.Infrastructure.Persistence.Sqlite;
 using Microsoft.Data.Sqlite;
 using System.Net;
+using System.Text.Json;
 
 namespace AedBackend.Tests.Persistence;
 
@@ -157,6 +158,32 @@ public sealed class DataProviderStartupTests
         var response = await client.GetAsync("/api/admin/dashboard");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SqliteProvider_IncrementsCourseViewCount()
+    {
+        using var temp = new ProviderTempData();
+        await temp.WriteValidDataAsync();
+        await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
+
+        using var app = new AdminTestApplication(temp.Root, new Dictionary<string, string?>
+        {
+            ["Data:Provider"] = "Sqlite",
+            ["Data:SqlitePath"] = temp.DbPath
+        });
+        using var client = app.CreateClient();
+
+        var first = await client.PostAsync("/api/courses/course-01/views", null);
+        var second = await client.PostAsync("/api/courses/course-01/views", null);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        using var firstDoc = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
+        using var secondDoc = JsonDocument.Parse(await second.Content.ReadAsStringAsync());
+        var firstCount = firstDoc.RootElement.GetProperty("data").GetProperty("viewCount").GetInt32();
+        var secondCount = secondDoc.RootElement.GetProperty("data").GetProperty("viewCount").GetInt32();
+        Assert.Equal(firstCount + 1, secondCount);
     }
 
     private static async Task DropPhase7ColumnsAndTableAsync(string dbPath)
