@@ -5,10 +5,9 @@
 ## 仓库信息
 
 - 远程：`https://github.com/fukaross/REDACTED`（private，main 分支）
-- 本地路径：`D:\FrontPrograming\AED_miniprogram\AedBackend`
 - 相邻仓库：
   - `Design/` — 前端工程 + 设计/接口规格（`fukaross/REDACTED`）
-  - `Admin/` — 管理端 Web SPA（本地仓库）
+  - `Admin/` — 管理端 Web SPA（`fukaross/AED-Admin`，private）
 
 ## 技术栈
 
