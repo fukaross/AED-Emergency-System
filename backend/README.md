@@ -88,7 +88,7 @@ flowchart LR
 
 ### 环境要求
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)（需包含 .NET 10 运行时；低版本 SDK 无法编译 `net10.0`）
 
 ### 构建与运行
 
@@ -99,6 +99,12 @@ dotnet build
 # 本地启动（默认 JSON provider，首次运行自动生成 data/ 种子文件）
 dotnet run --project src/AedBackend.Api
 ```
+
+### 端口与本地开发密钥
+
+- `dotnet run` 使用 `launchSettings.json` 的 `http` profile：服务监听 **`http://localhost:5000`**（与前端 `app/.env.development` 的 `VITE_API_BASE_URL`、Admin 的 Vite 代理目标一致，三端默认即可联调）
+- `launchSettings.json` 已内置**本地占位密钥**（`AED_PUSH_ADMIN_KEY` / `AED_ADMIN_SESSION_HASH_SECRET`），因此本地 `dotnet run` 后即可直接完成 Admin 的 bootstrap 与登录
+- ⚠️ 以上为本地开发占位值，**生产部署必须通过环境变量注入真实密钥，不得复用**
 
 启动后可访问：
 
