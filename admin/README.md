@@ -5,7 +5,6 @@ Vue 3 + Vite + TypeScript 管理端 Web SPA，用于校园 AED 急救小程序�
 ## 仓库信息
 
 - 远程：`https://github.com/fukaross/AED-Admin`（private，master 分支）
-- 本地路径：`D:\FrontPrograming\AED_miniprogram\Admin`
 - 相邻仓库：
   - `Design/` — 前端工程 + 设计/接口规格（`fukaross/REDACTED`）
   - `AedBackend/` — 后端工程（`fukaross/REDACTED`，private）
