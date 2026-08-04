@@ -82,8 +82,8 @@ flowchart LR
 
 | 工具 | 版本 |
 |------|------|
-| Node.js | ≥ 18 |
-| pnpm | ≥ 10 |
+| Node.js | 18.0+ 或 20+ LTS（Vite 6 要求） |
+| pnpm | ≥ 10（推荐 corepack 按 `packageManager` 字段自动激活 10.17.1） |
 
 ### 安装与运行
 
@@ -101,7 +101,7 @@ pnpm build
 pnpm preview
 ```
 
-> 开发模式下需先本地运行 AedBackend（`dotnet run --project src/AedBackend.Api`），Vite 会将 `/api` 代理到 `http://localhost:5000`。
+> 开发模式下需先本地运行 AedBackend（`dotnet run --project src/AedBackend.Api`，默认监听 `http://localhost:5000`），Vite 会将 `/api` 代理到该地址，无需额外配置端口。
 
 ## 环境配置
 
