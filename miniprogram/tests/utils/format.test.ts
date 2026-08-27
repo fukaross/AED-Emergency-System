@@ -6,6 +6,7 @@ import {
   formatDate,
   formatChineseDateTime,
   formatRelativeTime,
+  formatMessageTime,
 } from '@/utils/format'
 
 describe('maskPhone', () => {
@@ -85,5 +86,29 @@ describe('formatRelativeTime', () => {
   it('returns minutes ago', () => {
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
     expect(formatRelativeTime(fiveMinAgo)).toBe('5分钟前')
+  })
+})
+
+describe('formatMessageTime', () => {
+  const now = new Date(2026, 4, 21, 12, 0, 0)
+
+  it('formats same day as HH:mm:ss', () => {
+    expect(formatMessageTime(new Date(2026, 4, 21, 9, 5, 7), now)).toBe('09:05:07')
+  })
+
+  it('formats yesterday with prefix', () => {
+    expect(formatMessageTime(new Date(2026, 4, 20, 23, 5, 7), now)).toBe('昨天 23:05:07')
+  })
+
+  it('formats same year as MM-DD HH:mm:ss', () => {
+    expect(formatMessageTime(new Date(2026, 3, 15, 9, 5, 7), now)).toBe('04-15 09:05:07')
+  })
+
+  it('formats other years with full date', () => {
+    expect(formatMessageTime(new Date(2025, 11, 31, 9, 5, 7), now)).toBe('2025-12-31 09:05:07')
+  })
+
+  it('returns empty string for invalid values', () => {
+    expect(formatMessageTime('not-a-date', now)).toBe('')
   })
 })

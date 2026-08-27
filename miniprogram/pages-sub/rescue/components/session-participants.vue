@@ -6,6 +6,10 @@
       class="participant-chip"
       :class="{ 'is-lost': participant.signal !== 'ok' }"
     >
+      <view
+        class="participant-dot"
+        :style="{ backgroundColor: participantColor(participant.openId) }"
+      />
       <text class="participant-name">{{ participant.displayName }}</text>
       <view class="participant-badges">
         <text v-if="participant.takenAed" class="badge badge--aed">拿了AED</text>
@@ -19,10 +23,16 @@
 
 <script setup lang="ts">
 import type { RescueParticipant } from '@/types/rescue-session'
+import type { ParticipantColor } from '../session-color'
 
-defineProps<{
+const props = defineProps<{
   participants: readonly RescueParticipant[]
+  colorMap: ReadonlyMap<string, ParticipantColor>
 }>()
+
+function participantColor(openId: string): string {
+  return props.colorMap.get(openId)?.accent ?? '#9e9e9e'
+}
 </script>
 
 <style lang="scss" scoped>
@@ -41,6 +51,13 @@ defineProps<{
   padding: $spacing-xs $spacing-sm;
   background: $background;
   border-radius: $radius-lg;
+}
+
+.participant-dot {
+  flex-shrink: 0;
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: $radius-full;
 }
 
 .participant-chip.is-lost {

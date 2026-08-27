@@ -34,11 +34,12 @@
           :pending="statusPending"
           @toggle="handleStatusToggle"
         />
-        <SessionParticipants :participants="snapshot?.participants ?? []" />
+        <SessionParticipants :participants="snapshot?.participants ?? []" :color-map="participantColorMap" />
         <view class="messages-wrap">
           <SessionMessages
             :messages="snapshot?.messages ?? []"
             :my-open-id="snapshot?.me.openId ?? ''"
+            :color-map="participantColorMap"
             :disabled="sessionClosed"
             :send-message="handleSendMessage"
           />
@@ -66,6 +67,10 @@ import SessionStatusBar from './components/session-status-bar.vue'
 import { SessionResumeController } from './session-resume-controller'
 import { useSessionMapResize } from './useSessionMapResize'
 import { canShowResultReport } from './session-result-report'
+import {
+  buildParticipantColorMap,
+  createSessionColorSeed,
+} from './session-color'
 const sessionStore = useRescueSessionStore()
 const authStore = useAuthStore()
 const { snapshot, sessionClosed, terminalHinted } = storeToRefs(sessionStore)
@@ -75,6 +80,10 @@ const helpId = ref('')
 const errorMessage = ref('')
 const joining = ref(true)
 const statusPending = ref(false)
+const sessionColorSeed = ref(createSessionColorSeed())
+const participantColorMap = computed(() =>
+  buildParticipantColorMap(snapshot.value?.participants ?? [], sessionColorSeed.value),
+)
 const reportButtonVisible = computed(() =>
   canShowResultReport(snapshot.value?.helpStatus, sessionClosed.value),
 )
@@ -140,6 +149,7 @@ onLoad((query = {}) => {
   }
   accessTerminated = false
   helpId.value = id
+  sessionColorSeed.value = createSessionColorSeed()
   void joinAndStart(lifecycleEpoch, id)
 })
 async function joinAndStart(epoch: number, id: string): Promise<void> {

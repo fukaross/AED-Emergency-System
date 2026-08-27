@@ -3,6 +3,8 @@ import type { RescueMessage } from '@/types/rescue-session'
 import {
   getMessageScrollAnchor,
   prepareMessageDraft,
+  shouldShowLatestButton,
+  shouldShowScrollTopButton,
 } from '@/pages-sub/rescue/components/session-message-state'
 import { MESSAGE_TEXT_MAX_LENGTH } from '@/utils/rescue-session-constants'
 
@@ -39,5 +41,17 @@ describe('session message input and scrolling', () => {
   it('trims a valid draft but preserves the caller-owned draft on rejection', () => {
     expect(prepareMessageDraft('  正在前往  ')).toBe('正在前往')
     expect(prepareMessageDraft('   ')).toBeNull()
+  })
+
+  it('shows top button only after scrolling past the threshold', () => {
+    expect(shouldShowScrollTopButton(0, 80)).toBe(false)
+    expect(shouldShowScrollTopButton(80, 80)).toBe(false)
+    expect(shouldShowScrollTopButton(81, 80)).toBe(true)
+  })
+
+  it('shows latest button only when not near the bottom', () => {
+    expect(shouldShowLatestButton(0, 1000, 400, 80)).toBe(true)
+    expect(shouldShowLatestButton(520, 1000, 400, 80)).toBe(false)
+    expect(shouldShowLatestButton(600, 1000, 400, 80)).toBe(false)
   })
 })

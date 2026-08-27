@@ -68,6 +68,29 @@ export function formatRelativeTime(isoString: string): string {
   return formatDate(isoString)
 }
 
+/** 会话消息/状态事件时间：同天显示 HH:mm:ss，跨天带日期前缀，精确到秒。 */
+export function formatMessageTime(
+  value: string | Date,
+  now: Date = new Date(),
+): string {
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const time = `${padDateUnit(date.getHours())}:${padDateUnit(date.getMinutes())}:${padDateUnit(date.getSeconds())}`
+  const startOfDay = (target: Date) =>
+    new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime()
+  const dayDiff = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000)
+
+  if (dayDiff === 0) return time
+  if (dayDiff === 1) return `昨天 ${time}`
+
+  const monthDay = `${padDateUnit(date.getMonth() + 1)}-${padDateUnit(date.getDate())}`
+  if (date.getFullYear() === now.getFullYear()) {
+    return `${monthDay} ${time}`
+  }
+  return `${date.getFullYear()}-${monthDay} ${time}`
+}
+
 function padDateUnit(value: number): string {
   return String(value).padStart(2, '0')
 }
