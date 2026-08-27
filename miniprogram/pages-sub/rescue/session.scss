@@ -26,8 +26,31 @@
 }
 
 .map-wrap {
+  position: relative;
   width: 100%;
   overflow: hidden;
+}
+
+.report-btn {
+  position: absolute;
+  left: $spacing-md;
+  bottom: $spacing-sm;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 160rpx;
+  height: 72rpx;
+  padding: 0 $spacing-md;
+  background: $primary;
+  border-radius: $radius-pill;
+  box-shadow: $shadow-md;
+}
+
+.report-btn-text {
+  color: $text-white;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
 }
 
 .drag-handle {

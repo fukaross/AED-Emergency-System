@@ -13,6 +13,13 @@
       <view class="map-wrap" :style="{ height: `${mapHeightVh}vh` }">
         <SessionMap :sos="snapshot?.sos ?? null" :participants="snapshot?.participants ?? []" />
         <SessionLocationHealth :health="locationHealth" @open-settings="openLocationSettings" />
+        <view
+          v-if="reportButtonVisible"
+          class="report-btn"
+          @click="openResultReport"
+        >
+          <text class="report-btn-text">结果汇报</text>
+        </view>
       </view>
       <view class="drag-handle" @touchstart="onDragStart" @touchmove="onDragMove">
         <view class="drag-bar" />
@@ -41,7 +48,7 @@
   </view>
 </template>
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import { storeToRefs } from 'pinia'
 import { useTheme } from '@/composables/useTheme'
@@ -58,6 +65,7 @@ import SessionParticipants from './components/session-participants.vue'
 import SessionStatusBar from './components/session-status-bar.vue'
 import { SessionResumeController } from './session-resume-controller'
 import { useSessionMapResize } from './useSessionMapResize'
+import { canShowResultReport } from './session-result-report'
 const sessionStore = useRescueSessionStore()
 const authStore = useAuthStore()
 const { snapshot, sessionClosed, terminalHinted } = storeToRefs(sessionStore)
@@ -67,6 +75,9 @@ const helpId = ref('')
 const errorMessage = ref('')
 const joining = ref(true)
 const statusPending = ref(false)
+const reportButtonVisible = computed(() =>
+  canShowResultReport(snapshot.value?.helpStatus, sessionClosed.value),
+)
 const { mapHeightVh, onDragStart, onDragMove } = useSessionMapResize()
 let lifecycleEpoch = 0
 let pageVisible = true
@@ -284,6 +295,11 @@ async function handleSendMessage(text: string): Promise<boolean> {
     return false
   }
 }
+function openResultReport(): void {
+  if (!helpId.value || !reportButtonVisible.value) return
+  uni.navigateTo({ url: `/pages-sub/help/detail?id=${helpId.value}&report=1` })
+}
+
 function goBack(): void {
   uni.navigateBack()
 }

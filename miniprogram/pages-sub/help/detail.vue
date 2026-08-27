@@ -94,6 +94,7 @@ const showReportSheet = ref(false)
 const submittingReport = ref(false)
 const userLocation = ref<GeoPoint | null>(null)
 let isPageVisible = false
+let autoOpenReport = false
 const {
   rescueView,
   rescueViewStale,
@@ -143,6 +144,7 @@ const includePoints = computed(() => {
 })
 onLoad((query = {}) => {
   const id = String(query.id || query.requestNo || '')
+  autoOpenReport = String(query.report || '') === '1'
   void loadDetail(id)
 })
 
@@ -153,6 +155,8 @@ async function loadDetail(id: string): Promise<void> {
     return
   }
 
+  const shouldAutoOpenReport = autoOpenReport
+  autoOpenReport = false
   loading.value = true
   try {
     await helpStore.loadDetail(id)
@@ -162,6 +166,13 @@ async function loadDetail(id: string): Promise<void> {
       const rescueResult = await refreshRescueView()
       startHelpPolling()
       if (rescueResult !== 'terminal') startRescuePolling()
+    }
+    if (shouldAutoOpenReport) {
+      if (canShowReportAction(detail.value)) {
+        openReport()
+      } else {
+        uni.showToast({ title: '当前不可提交报告', icon: 'none' })
+      }
     }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '求助加载失败'
