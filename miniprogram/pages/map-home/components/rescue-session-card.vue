@@ -63,7 +63,7 @@ const sessionListStyle = computed(() => ({
   z-index: 101;
   display: flex;
   width: calc(100vw - 64rpx);
-  max-width: 600rpx;
+  max-width: 540rpx;
   max-height: 336rpx;
   overflow: hidden;
   border-radius: $radius-lg;
