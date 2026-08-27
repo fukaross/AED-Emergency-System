@@ -113,6 +113,8 @@ pnpm preview
 | `VITE_AMAP_SECURITY_CODE` | 高德地图安全密钥 |
 
 > 未配置高德 Key 时，地图相关功能（AED 设备地图选点、急救会话多 marker 监控）会显式报错，其余功能不受影响。
+>
+> **⚠️ 构建期必填：`VITE_AMAP_KEY` / `VITE_AMAP_SECURITY_CODE` 是 Vite 构建期变量，运行时修改不生效。每次 `pnpm build` 都必须携带，否则产物会变成「Key 未配置」报错分支，部署后会覆盖线上原本可用的地图功能。**
 
 ## 页面与路由
 
@@ -147,10 +149,12 @@ pnpm build       # 类型检查 + Vite 构建
 
 ## 部署
 
-1. 配置 `.env`（高德 Key / 安全码）
+1. 配置 `.env`（高德 Key / 安全码；**构建期必填**，缺失会直接导致地图功能丢失）
 2. `pnpm build` — 产物输出到 `../AedBackend/src/AedBackend.Api/wwwroot/admin/`
 3. 部署 AedBackend（含 `wwwroot/admin/`），由后端 `/admin/` 静态托管
 4. 生产访问 `REDACTED/admin/`
+
+> **每次 Admin 构建必须注入 `VITE_AMAP_KEY` 和 `VITE_AMAP_SECURITY_CODE`**（通过 `.env` 或构建环境变量）。否则构建产物会包含「高德地图 Key 未配置」错误，部署上线后 AED 新增地图选点、急救会话地图监控都会不可用，并会覆盖线上带 Key 的静态资源。
 
 边界约定：
 
