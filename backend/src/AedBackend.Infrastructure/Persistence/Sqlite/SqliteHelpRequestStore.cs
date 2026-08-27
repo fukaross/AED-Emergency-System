@@ -70,18 +70,23 @@ internal sealed class SqliteHelpRequestStore : IHelpRequestStore
                     || record.Status == HelpStatuses.Responding
                     || record.Status == HelpStatuses.PendingReview);
         var total = await filtered.CountAsync(ct);
-        var page = filtered.OrderByDescending(record => record.CreatedAt).Skip(query.Offset);
+        // SQLite EF Core 不支持在 ORDER BY 中翻译 DateTimeOffset，先投影到内存再按 UTC 时间倒序分页。
+        var rows = await filtered
+            .Select(record => new HelpRequestOverviewRecord
+            {
+                Id = record.Id,
+                RequestNo = record.RequestNo,
+                Status = record.Status,
+                Type = record.Type,
+                Address = record.Address,
+                CreatedAt = record.CreatedAt
+            })
+            .ToArrayAsync(ct);
+        var page = rows
+            .OrderByDescending(record => record.CreatedAt)
+            .Skip(query.Offset);
         if (query.Limit is not null) page = page.Take(query.Limit.Value);
-        var items = await page.Select(record => new HelpRequestOverviewRecord
-        {
-            Id = record.Id,
-            RequestNo = record.RequestNo,
-            Status = record.Status,
-            Type = record.Type,
-            Address = record.Address,
-            CreatedAt = record.CreatedAt
-        }).ToArrayAsync(ct);
-        return new HelpRequestOverviewPage(items, total);
+        return new HelpRequestOverviewPage(page.ToArray(), total);
     }
 
     private async Task<bool> ActiveRequestExistsAsync(string userId, CancellationToken ct)
