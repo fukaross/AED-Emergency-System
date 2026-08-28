@@ -14,6 +14,8 @@ const EVENT_LABELS = {
   joined: '加入了会话',
   taken_aed: '已拿取 AED',
   arrived: '已到达现场',
+  offline: '已离线',
+  online: '已上线',
 } as const
 
 type MessageRecord = Readonly<Record<string, unknown>>
@@ -119,6 +121,9 @@ function requireEnum<T extends string>(
 export interface RescueMessageView {
   readonly key: string
   readonly isStatusEvent: boolean
+  readonly isImage: boolean
+  readonly imageUrl: string | null
+  readonly senderOpenId: string
   readonly text: string
   readonly createdAt: string | null
 }
@@ -136,6 +141,12 @@ export function formatRescueMessageText(message: unknown): string {
   const record = asMessageRecord(message)
   if (!record) return invalidMessageText('', '消息条目不是对象')
   if (record.kind === 'text') return formatTextMessage(record)
+
+  if (record.kind === 'image') {
+    return typeof record.imageUrl === 'string' && record.imageUrl.trim()
+      ? '图片消息'
+      : invalidMessageText(messageId(record), '图片消息缺少图片地址')
+  }
 
   if (record.kind !== 'status_event') {
     return invalidMessageText(messageId(record), '不支持的消息类型')
@@ -191,6 +202,11 @@ function buildRescueMessageView(message: unknown, index: number): RescueMessageV
   return {
     key: `${id || 'invalid'}:${index}`,
     isStatusEvent: record?.kind === 'status_event',
+    isImage: record?.kind === 'image',
+    imageUrl: record?.kind === 'image' && typeof record.imageUrl === 'string'
+      ? record.imageUrl
+      : null,
+    senderOpenId: typeof record?.senderOpenId === 'string' ? record.senderOpenId : '',
     text: formatRescueMessageText(message),
     createdAt: typeof record?.createdAt === 'string' && record.createdAt.trim()
       ? record.createdAt
@@ -202,6 +218,9 @@ function invalidMessageView(reason: string): RescueMessageView {
   return {
     key: 'invalid-message-list',
     isStatusEvent: false,
+    isImage: false,
+    imageUrl: null,
+    senderOpenId: '',
     text: invalidMessageText('', reason),
     createdAt: null,
   }

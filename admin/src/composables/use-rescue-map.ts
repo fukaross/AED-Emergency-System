@@ -3,6 +3,7 @@ import type { AMapModule, AmapMap, AmapMarker } from '@/types/amap'
 import type { AdminRescueParticipant, RescueSos } from '@/types/rescue-session'
 import { loadAmap } from '@/utils/amap-loader'
 import { participantMarkerMeta, SOS_MARKER_META, type RescueMarkerMeta } from '@/utils/rescue-session'
+import type { ParticipantColor } from '@/utils/rescue-session-color'
 
 const SOS_MARKER_KEY = '__sos__'
 const DEFAULT_CENTER: [number, number] = [110.51346, 19.976547]
@@ -11,6 +12,8 @@ const DEFAULT_ZOOM = 15
 interface MarkerTarget {
   readonly position: [number, number]
   readonly meta: RescueMarkerMeta
+  readonly avatarUrl: string
+  readonly accent: string
 }
 
 interface RescueMapOptions {
@@ -52,9 +55,13 @@ class RescueMapController {
   }
 
   /** 每个快照同时同步位置和视觉状态，避免 marker 状态滞后。 */
-  syncMarkers(sos: RescueSos, participants: readonly AdminRescueParticipant[]): void {
+  syncMarkers(
+    sos: RescueSos,
+    participants: readonly AdminRescueParticipant[],
+    colorMap: ReadonlyMap<string, ParticipantColor>,
+  ): void {
     if (!this.mapInstance || !this.AMapMod) return
-    const targets = this.createTargets(sos, participants)
+    const targets = this.createTargets(sos, participants, colorMap)
     this.removeStaleMarkers(targets)
     this.upsertMarkers(targets)
     this.fitFirstParticipants(targets)
@@ -73,14 +80,23 @@ class RescueMapController {
   private createTargets(
     sos: RescueSos,
     participants: readonly AdminRescueParticipant[],
+    colorMap: ReadonlyMap<string, ParticipantColor>,
   ): Map<string, MarkerTarget> {
     const targets = new Map<string, MarkerTarget>()
-    targets.set(SOS_MARKER_KEY, { position: [sos.lng, sos.lat], meta: SOS_MARKER_META })
+    targets.set(SOS_MARKER_KEY, {
+      position: [sos.lng, sos.lat],
+      meta: SOS_MARKER_META,
+      avatarUrl: '',
+      accent: SOS_MARKER_META.color,
+    })
     for (const participant of participants) {
       if (!participant.location || participant.signal === 'gone') continue
+      const color = colorMap.get(participant.openId)
       targets.set(participant.openId, {
         position: [participant.location.lng, participant.location.lat],
         meta: participantMarkerMeta(participant),
+        avatarUrl: participant.avatarUrl || '',
+        accent: color?.accent ?? participantMarkerMeta(participant).color,
       })
     }
     return targets
@@ -99,7 +115,7 @@ class RescueMapController {
     if (!this.mapInstance || !this.AMapMod) return
     for (const [key, target] of targets) {
       const existing = this.markers.get(key)
-      const content = buildMarkerContent(target.meta)
+      const content = buildMarkerContent(target)
       if (existing) {
         existing.setPosition(new this.AMapMod.LngLat(target.position[0], target.position[1]))
         existing.setContent(content)
@@ -118,8 +134,23 @@ class RescueMapController {
   }
 }
 
-function buildMarkerContent(meta: RescueMarkerMeta): string {
-  return `<div style="width:28px;height:28px;border-radius:50%;background:${meta.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)">${meta.label}</div>`
+function buildMarkerContent(target: MarkerTarget): string {
+  const size = 44
+  const ring = `border:4px solid ${target.accent}`
+  if (target.avatarUrl) {
+    const avatarUrl = escapeHtmlAttribute(target.avatarUrl)
+    const label = escapeHtmlAttribute(target.meta.label)
+    return `<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;background:${target.meta.color};color:#fff;${ring};box-shadow:0 1px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:16px"><span>${label}</span><img src="${avatarUrl}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block" /></div>`
+  }
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${target.meta.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;${ring};box-shadow:0 1px 4px rgba(0,0,0,.3)">${escapeHtmlAttribute(target.meta.label)}</div>`
+}
+
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }
 
 export function useRescueMap(options: RescueMapOptions = {}) {

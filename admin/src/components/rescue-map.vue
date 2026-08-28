@@ -9,11 +9,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch } from 'vue'
 import type { AdminRescueParticipant, RescueSos } from '@/types/rescue-session'
+import type { ParticipantColor } from '@/utils/rescue-session-color'
 import { useRescueMap } from '@/composables/use-rescue-map'
 
 const props = defineProps<{
   sos: RescueSos | null
   participants: readonly AdminRescueParticipant[]
+  colorMap: ReadonlyMap<string, ParticipantColor>
 }>()
 
 const mapId = `rescue-map-${Math.random().toString(36).slice(2, 8)}`
@@ -24,13 +26,13 @@ onMounted(async () => {
     ? [props.sos.lng, props.sos.lat]
     : undefined
   await initMap(mapId, center)
-  if (props.sos) syncMarkers(props.sos, props.participants)
+  if (props.sos) syncMarkers(props.sos, props.participants, props.colorMap)
 })
 
 watch(
-  () => [props.sos, props.participants] as const,
-  ([sos, participants]) => {
-    if (sos) syncMarkers(sos, participants)
+  () => [props.sos, props.participants, props.colorMap] as const,
+  ([sos, participants, colorMap]) => {
+    if (sos) syncMarkers(sos, participants, colorMap)
   },
   { deep: true },
 )

@@ -3,9 +3,9 @@ import type { HelpRequestStatus, HelpRequestType } from '@/types/help'
 
 export type RescueSignal = 'ok' | 'lost' | 'gone'
 
-export type RescueMessageKind = 'text' | 'status_event'
+export type RescueMessageKind = 'text' | 'status_event' | 'image'
 
-export type RescueEventType = 'joined' | 'taken_aed' | 'arrived'
+export type RescueEventType = 'joined' | 'taken_aed' | 'arrived' | 'offline' | 'online'
 
 export type RescueEventAction = 'mark' | 'revoke'
 
@@ -49,6 +49,7 @@ export interface AdminRescueRequester {
 export interface AdminRescueParticipant {
   readonly openId: string
   readonly displayName: string
+  readonly avatarUrl: string
   readonly joinedAt: string
   readonly takenAed: boolean
   readonly arrived: boolean
@@ -67,6 +68,15 @@ interface AdminRescueMessageBase {
 export interface AdminRescueTextMessage extends AdminRescueMessageBase {
   readonly kind: 'text'
   readonly text: string
+  readonly imageUrl: null
+  readonly eventType: null
+  readonly action: null
+}
+
+export interface AdminRescueImageMessage extends AdminRescueMessageBase {
+  readonly kind: 'image'
+  readonly text: null
+  readonly imageUrl: string
   readonly eventType: null
   readonly action: null
 }
@@ -74,11 +84,15 @@ export interface AdminRescueTextMessage extends AdminRescueMessageBase {
 export interface AdminRescueStatusEventMessage extends AdminRescueMessageBase {
   readonly kind: 'status_event'
   readonly text: null
+  readonly imageUrl: null
   readonly eventType: RescueEventType
   readonly action: RescueEventAction
 }
 
-export type AdminRescueMessage = AdminRescueTextMessage | AdminRescueStatusEventMessage
+export type AdminRescueMessage =
+  | AdminRescueTextMessage
+  | AdminRescueImageMessage
+  | AdminRescueStatusEventMessage
 
 export interface AdminRescueSessionDetail {
   readonly helpId: string

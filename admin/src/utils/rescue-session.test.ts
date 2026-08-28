@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type {
+  AdminRescueImageMessage,
   AdminRescueMessage,
   AdminRescueStatusEventMessage,
   AdminRescueTextMessage,
@@ -17,6 +18,7 @@ const messageBase = {
   seq: 1,
   senderOpenId: 'openid-1',
   senderName: '张急救',
+  imageUrl: null,
   createdAt: '2026-07-17T10:00:00.000Z',
 } as const
 
@@ -37,6 +39,17 @@ function statusMessage(
   }
 }
 
+function imageMessage(url = 'https://example.com/a.png'): AdminRescueImageMessage {
+  return {
+    ...messageBase,
+    kind: 'image',
+    text: null,
+    imageUrl: url,
+    eventType: null,
+    action: null,
+  }
+}
+
 describe('formatRescueMessageText', () => {
   it('attributes text messages to their sender', () => {
     expect(formatRescueMessageText(textMessage())).toBe('张急救：我到了')
@@ -47,6 +60,18 @@ describe('formatRescueMessageText', () => {
     expect(formatRescueMessageText(statusMessage({ eventType: 'taken_aed' }))).toBe('张急救 已拿取 AED')
     expect(formatRescueMessageText(statusMessage({ eventType: 'arrived', action: 'revoke' })))
       .toBe('张急救 撤销了「已到达现场」')
+  })
+
+  it('formats offline and online events', () => {
+    expect(formatRescueMessageText(statusMessage({ eventType: 'offline' }))).toBe('张急救 已离线')
+    expect(formatRescueMessageText(statusMessage({ eventType: 'online' }))).toBe('张急救 已上线')
+  })
+
+  it('projects image messages with preview url', () => {
+    const views = buildRescueMessageViews([imageMessage()])
+    expect(views[0]?.isImage).toBe(true)
+    expect(views[0]?.imageUrl).toBe('https://example.com/a.png')
+    expect(views[0]?.text).toBe('图片消息')
   })
 
   it('renders invalid external messages as visible warnings without crashing the detail', () => {

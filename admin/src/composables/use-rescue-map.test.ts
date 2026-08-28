@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AMapModule, AmapLngLat, AmapMap, AmapMarker } from '@/types/amap'
 import type { AdminRescueParticipant, RescueSos } from '@/types/rescue-session'
 import { useRescueMap } from './use-rescue-map'
+import type { ParticipantColor } from '@/utils/rescue-session-color'
+
+const noColors = new Map<string, ParticipantColor>()
 
 vi.mock('@/utils/amap-loader', () => ({ loadAmap: vi.fn() }))
 
@@ -35,6 +38,7 @@ function participant(overrides: Partial<AdminRescueParticipant> = {}): AdminResc
   return {
     openId: 'responder-1',
     displayName: '张急救',
+    avatarUrl: '',
     joinedAt: '2026-07-17T10:00:00Z',
     takenAed: false,
     arrived: false,
@@ -79,17 +83,17 @@ describe('useRescueMap marker updates', () => {
     const rescueMap = useRescueMap({ loadMap })
     await rescueMap.initMap('map')
 
-    rescueMap.syncMarkers(sos, [participant()])
+    rescueMap.syncMarkers(sos, [participant()], noColors)
     const participantMarker = markers[1]
     expect(participantMarker.options.content).toContain('#2196f3')
 
-    rescueMap.syncMarkers(sos, [participant({ takenAed: true })])
+    rescueMap.syncMarkers(sos, [participant({ takenAed: true })], noColors)
     expect(participantMarker.setContent).toHaveBeenLastCalledWith(expect.stringContaining('#4caf50'))
 
-    rescueMap.syncMarkers(sos, [participant({ takenAed: true, signal: 'lost' })])
+    rescueMap.syncMarkers(sos, [participant({ takenAed: true, signal: 'lost' })], noColors)
     expect(participantMarker.setContent).toHaveBeenLastCalledWith(expect.stringContaining('#909399'))
 
-    rescueMap.syncMarkers(sos, [participant({ signal: 'gone' })])
+    rescueMap.syncMarkers(sos, [participant({ signal: 'gone' })], noColors)
     expect(map.remove).toHaveBeenCalledWith(participantMarker)
   })
 })
@@ -99,13 +103,13 @@ describe('useRescueMap viewport fitting', () => {
     const rescueMap = useRescueMap({ loadMap: async () => createFakeAmap(map, markers) })
     await rescueMap.initMap('map')
 
-    rescueMap.syncMarkers(sos, [])
+    rescueMap.syncMarkers(sos, [], noColors)
     expect(map.setFitView).not.toHaveBeenCalled()
 
-    rescueMap.syncMarkers(sos, [participant()])
+    rescueMap.syncMarkers(sos, [participant()], noColors)
     expect(map.setFitView).toHaveBeenCalledTimes(1)
 
-    rescueMap.syncMarkers(sos, [participant({ takenAed: true })])
+    rescueMap.syncMarkers(sos, [participant({ takenAed: true })], noColors)
     expect(map.setFitView).toHaveBeenCalledTimes(1)
   })
 })
@@ -119,7 +123,7 @@ describe('useRescueMap lifecycle', () => {
     rescueMap.destroyMap()
     pendingModule.resolve(createFakeAmap(map, markers))
     await initialization
-    rescueMap.syncMarkers(sos, [participant()])
+    rescueMap.syncMarkers(sos, [participant()], noColors)
 
     expect(map.add).not.toHaveBeenCalled()
   })
