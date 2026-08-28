@@ -3,6 +3,7 @@ import {
   fetchMineRescueSessions,
   fetchRescueSession,
   joinRescueSession,
+  postRescueImageMessage,
   postRescueMessage,
   postRescueStatusEvent,
   reportRescueLocation,
@@ -17,6 +18,7 @@ const activeAdapter = {
   join: joinRescueSession,
   fetch: fetchRescueSession,
   postMessage: postRescueMessage,
+  postImage: postRescueImageMessage,
   postStatus: postRescueStatusEvent,
   reportLocation: reportRescueLocation,
 }
@@ -38,6 +40,7 @@ export const useRescueSessionStore = defineStore('rescueSession', () => {
     joinSession: (helpId: string) => active.join(helpId),
     refreshSession: (helpId: string) => active.refresh(helpId),
     sendMessage: (text: string) => active.sendMessage(text),
+    sendImage: (imageUrl: string) => active.sendImage(imageUrl),
     markStatus: active.markStatus.bind(active),
     revokeStatus: active.revokeStatus.bind(active),
     reportLocation: active.reportLocation.bind(active),

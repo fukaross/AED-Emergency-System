@@ -13,6 +13,7 @@ function buildMessage(overrides: Partial<RescueMessage>): RescueMessage {
     senderOpenId: 'openid-1',
     senderName: '张急救',
     text: null,
+    imageUrl: null,
     eventType: null,
     action: null,
     createdAt: '2026-07-17T10:00:00.000Z',
@@ -29,6 +30,11 @@ describe('rescue-format', () => {
     expect(formatRescueMessageText(buildMessage({ eventType: 'joined', action: 'mark' }))).toBe('张急救 加入了会话，正在赶来')
     expect(formatRescueMessageText(buildMessage({ eventType: 'taken_aed', action: 'mark' }))).toBe('张急救 已拿取 AED')
     expect(formatRescueMessageText(buildMessage({ eventType: 'arrived', action: 'mark' }))).toBe('张急救 已到达现场')
+  })
+
+  it('formats offline / online events', () => {
+    expect(formatRescueMessageText(buildMessage({ eventType: 'offline', action: 'mark' }))).toBe('张急救 已离线')
+    expect(formatRescueMessageText(buildMessage({ eventType: 'online', action: 'mark' }))).toBe('张急救 已上线')
   })
 
   it('formats revoke events as revocations', () => {

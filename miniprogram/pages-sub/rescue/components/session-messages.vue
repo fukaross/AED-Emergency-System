@@ -19,10 +19,9 @@
         }"
       >
         <view v-if="message.kind === 'status_event'" class="event-line">
-          <text
-            class="event-text"
-            :style="{ color: senderAccent(message.senderOpenId) }"
-          >{{ formatRescueMessageText(message) }}</text>
+          <text class="event-text" :style="{ color: senderAccent(message.senderOpenId) }">{{
+            formatRescueMessageText(message)
+          }}</text>
           <text class="event-time">{{ formatMessageTime(message.createdAt) }}</text>
         </view>
         <view v-else class="bubble" :style="bubbleStyle(message.senderOpenId)">
@@ -30,13 +29,22 @@
             v-if="message.senderOpenId !== myOpenId"
             class="bubble-sender"
             :style="{ color: senderAccent(message.senderOpenId) }"
-          >{{ message.senderName }}</text>
+            >{{ message.senderName }}</text
+          >
           <text
             v-else
             class="bubble-sender bubble-sender--me"
             :style="{ color: senderAccent(message.senderOpenId) }"
-          >我</text>
-          <text class="bubble-text">{{ message.text }}</text>
+            >我</text
+          >
+          <image
+            v-if="message.kind === 'image' && message.imageUrl"
+            class="message-image"
+            :src="message.imageUrl"
+            mode="widthFix"
+            @click="previewImage(message.imageUrl)"
+          />
+          <text v-else class="bubble-text">{{ message.text }}</text>
           <text class="bubble-time">{{ formatMessageTime(message.createdAt) }}</text>
         </view>
       </view>
@@ -44,23 +52,32 @@
     </scroll-view>
 
     <view v-if="showTopButton || showLatestButton" class="scroll-action-bar">
-      <view
-        v-if="showTopButton"
-        class="scroll-action"
-        @click="scrollToTop"
-      >
+      <view v-if="showTopButton" class="scroll-action" @click="scrollToTop">
         <text class="scroll-action-text">回顶部</text>
       </view>
-      <view
-        v-if="showLatestButton"
-        class="scroll-action"
-        @click="scrollToLatest"
-      >
+      <view v-if="showLatestButton" class="scroll-action" @click="scrollToLatest">
         <text class="scroll-action-text">最新</text>
       </view>
     </view>
 
     <view class="input-bar">
+      <view class="image-composer">
+        <view
+          class="image-add-btn"
+          :class="{ 'is-disabled': disabled || sendingImages }"
+          @click="toggleImageMenu"
+        >
+          <text class="image-add-text">+</text>
+        </view>
+        <view v-if="imageMenuVisible" class="image-menu">
+          <view class="image-menu-item" @click="chooseFrom('camera')">
+            <text class="image-menu-text">拍照</text>
+          </view>
+          <view class="image-menu-item" @click="chooseFrom('album')">
+            <text class="image-menu-text">相册</text>
+          </view>
+        </view>
+      </view>
       <input
         v-model="draft"
         class="message-input"
@@ -83,6 +100,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { uploadImage } from '@/api/common'
 import type { RescueMessage } from '@/types/rescue-session'
 import { formatMessageTime } from '@/utils/format'
 import { formatRescueMessageText } from '@/utils/rescue-format'
@@ -101,10 +119,14 @@ const props = defineProps<{
   colorMap: ReadonlyMap<string, ParticipantColor>
   disabled: boolean
   sendMessage: (text: string) => Promise<boolean>
+  sendImage: (imageUrl: string) => Promise<boolean>
 }>()
 
 const draft = ref('')
 const sending = ref(false)
+const imageMenuVisible = ref(false)
+const sendingImages = ref(false)
+const MAX_IMAGES_PER_SEND = 3
 const bottomAnchor = computed(() => getMessageScrollAnchor(props.messages))
 
 const SCROLL_BUTTON_THRESHOLD_PX = 80
@@ -125,9 +147,13 @@ const showLatestButton = computed(() =>
   ),
 )
 
-watch(bottomAnchor, (anchor) => {
-  scrollIntoViewTarget.value = anchor
-}, { immediate: true })
+watch(
+  bottomAnchor,
+  (anchor) => {
+    scrollIntoViewTarget.value = anchor
+  },
+  { immediate: true },
+)
 
 interface ScrollViewScrollEvent {
   readonly detail: {
@@ -154,6 +180,58 @@ function scrollToTop(): void {
 function scrollToLatest(): void {
   scrollTopTarget.value = null
   scrollIntoViewTarget.value = bottomAnchor.value
+}
+
+function toggleImageMenu(): void {
+  if (props.disabled || sendingImages.value) return
+  imageMenuVisible.value = !imageMenuVisible.value
+}
+
+async function chooseFrom(sourceType: 'camera' | 'album'): Promise<void> {
+  imageMenuVisible.value = false
+  if (props.disabled || sendingImages.value) return
+  try {
+    const result = await uni.chooseImage({
+      count: MAX_IMAGES_PER_SEND,
+      sourceType: [sourceType],
+      sizeType: ['compressed'],
+    })
+    const paths = Array.isArray(result.tempFilePaths)
+      ? result.tempFilePaths
+      : [result.tempFilePaths]
+    await sendImages(paths.slice(0, MAX_IMAGES_PER_SEND))
+  } catch (error) {
+    if (!String((error as { errMsg?: string })?.errMsg || error).includes('cancel')) {
+      uni.showToast({ title: '选择图片失败', icon: 'none' })
+    }
+  }
+}
+
+async function sendImages(paths: readonly string[]): Promise<void> {
+  if (!paths.length || props.disabled) return
+  sendingImages.value = true
+  try {
+    for (const path of paths) {
+      try {
+        const uploaded = await uploadImage(path, 'session')
+        const sent = await props.sendImage(uploaded.url)
+        if (!sent) break
+      } catch (error) {
+        uni.showToast({
+          title: error instanceof Error ? error.message : '图片发送失败',
+          icon: 'none',
+        })
+        break
+      }
+    }
+  } finally {
+    sendingImages.value = false
+  }
+}
+
+function previewImage(url: string): void {
+  if (!url) return
+  uni.previewImage({ urls: [url] })
 }
 
 const FALLBACK_COLOR: ParticipantColor = {
@@ -297,6 +375,76 @@ async function handleSend(): Promise<void> {
   color: $text-primary;
   font-size: 22rpx;
   font-weight: $font-weight-medium;
+}
+
+.image-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + $spacing-sm);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  min-width: 144rpx;
+  padding: $spacing-xs;
+  background: $background-white;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-md;
+}
+
+.image-composer {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.image-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64rpx;
+  padding: $spacing-xs $spacing-md;
+  border-radius: $radius-sm;
+  background: $background;
+  white-space: nowrap;
+}
+
+.image-menu-text {
+  color: $text-primary;
+  font-size: $font-size-sm;
+}
+
+.image-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: $radius-full;
+  background: $background;
+  color: $primary;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+}
+
+.image-add-btn.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.image-add-text {
+  color: $primary;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  line-height: 1;
+}
+
+.message-image {
+  display: block;
+  width: 320rpx;
+  max-width: 100%;
+  margin: $spacing-xs 0;
+  border-radius: $radius-md;
 }
 
 .input-bar {

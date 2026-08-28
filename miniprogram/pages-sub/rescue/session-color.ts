@@ -1,11 +1,15 @@
-/** 会话内临时颜色分配：同一场会话内同一 openId 颜色稳定，不同会话使用不同随机种子重新分配。 */
+/** 会话内临时颜色分配：同一场会话内同一 openId 颜色稳定，不同会话使用 helpId 派生不同种子。 */
 export interface ParticipantColor {
   readonly background: string
   readonly accent: string
 }
 
-export function createSessionColorSeed(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+export function createSessionColorSeed(helpId: string): string {
+  let hash = 5381
+  for (let i = 0; i < helpId.length; i += 1) {
+    hash = ((hash << 5) + hash) ^ helpId.charCodeAt(i)
+  }
+  return `help-${(hash >>> 0).toString(36)}`
 }
 
 function hashString(input: string): number {

@@ -11,7 +11,12 @@
     </view>
     <template v-else>
       <view class="map-wrap" :style="{ height: `${mapHeightVh}vh` }">
-        <SessionMap :sos="snapshot?.sos ?? null" :participants="snapshot?.participants ?? []" />
+        <SessionMap
+          :sos="snapshot?.sos ?? null"
+          :participants="snapshot?.participants ?? []"
+          :color-map="participantColorMap"
+          @sos-tap="handleSosTap"
+        />
         <SessionLocationHealth :health="locationHealth" @open-settings="openLocationSettings" />
         <view
           v-if="reportButtonVisible"
@@ -42,6 +47,7 @@
             :color-map="participantColorMap"
             :disabled="sessionClosed"
             :send-message="handleSendMessage"
+            :send-image="handleSendImage"
           />
         </view>
       </view>
@@ -57,6 +63,7 @@ import { useSessionLocationReporter } from '@/composables/useSessionLocationRepo
 import { useSessionRealtime } from '@/composables/useSessionRealtime'
 import { classifyRescueSessionTerminalError, useRescueSessionStore } from '@/store/rescue-session'
 import { useAuthStore } from '@/store/auth'
+import { openNativeNavigation } from '@/services/map-service'
 import type { GeoPoint } from '@/types/common'
 import type { RescueMutableEventType } from '@/types/rescue-session'
 import SessionMap from './components/session-map.vue'
@@ -80,7 +87,7 @@ const helpId = ref('')
 const errorMessage = ref('')
 const joining = ref(true)
 const statusPending = ref(false)
-const sessionColorSeed = ref(createSessionColorSeed())
+const sessionColorSeed = ref('')
 const participantColorMap = computed(() =>
   buildParticipantColorMap(snapshot.value?.participants ?? [], sessionColorSeed.value),
 )
@@ -149,7 +156,7 @@ onLoad((query = {}) => {
   }
   accessTerminated = false
   helpId.value = id
-  sessionColorSeed.value = createSessionColorSeed()
+  sessionColorSeed.value = createSessionColorSeed(id)
   void joinAndStart(lifecycleEpoch, id)
 })
 async function joinAndStart(epoch: number, id: string): Promise<void> {
@@ -305,9 +312,36 @@ async function handleSendMessage(text: string): Promise<boolean> {
     return false
   }
 }
+
+async function handleSendImage(imageUrl: string): Promise<boolean> {
+  try {
+    return await sessionStore.sendImage(imageUrl)
+  } catch (error) {
+    if (handleTerminalApiError(error, helpId.value)) return false
+    uni.showToast({
+      title: error instanceof Error ? error.message : '图片发送失败',
+      icon: 'none',
+    })
+    return false
+  }
+}
 function openResultReport(): void {
   if (!helpId.value || !reportButtonVisible.value) return
   uni.navigateTo({ url: `/pages-sub/help/detail?id=${helpId.value}&report=1` })
+}
+
+function handleSosTap(): void {
+  const sos = snapshot.value?.sos
+  if (!sos) return
+  uni.showModal({
+    title: '导航前往',
+    content: '是否导航前往求助地点？',
+    success: (result) => {
+      if (result.confirm) {
+        openNativeNavigation(sos.lat, sos.lng, '求助位置', sos.address)
+      }
+    },
+  })
 }
 
 function goBack(): void {

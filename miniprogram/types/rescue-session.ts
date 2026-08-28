@@ -2,9 +2,9 @@
 
 export type RescueSignal = 'ok' | 'lost' | 'gone'
 
-export type RescueMessageKind = 'text' | 'status_event'
+export type RescueMessageKind = 'text' | 'status_event' | 'image'
 
-export type RescueEventType = 'joined' | 'taken_aed' | 'arrived'
+export type RescueEventType = 'joined' | 'taken_aed' | 'arrived' | 'offline' | 'online'
 
 export type RescueMutableEventType = Exclude<RescueEventType, 'joined'>
 
@@ -31,6 +31,7 @@ export interface RescueTiming {
 export interface RescueParticipant {
   readonly openId: string
   readonly displayName: string
+  readonly avatarUrl: string
   readonly joinedAt: string
   readonly takenAed: boolean
   readonly arrived: boolean
@@ -52,6 +53,7 @@ export interface RescueMessage {
   readonly senderOpenId: string
   readonly senderName: string
   readonly text: string | null
+  readonly imageUrl: string | null
   readonly eventType: RescueEventType | null
   readonly action: RescueEventAction | null
   readonly createdAt: string

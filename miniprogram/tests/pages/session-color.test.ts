@@ -35,8 +35,9 @@ describe('session participant colors', () => {
     expect(color.accent).toMatch(/^hsl\(\d{1,3}, 70%, 42%\)$/)
   })
 
-  it('creates a non-empty random seed per session', () => {
-    expect(createSessionColorSeed().length).toBeGreaterThan(0)
-    expect(createSessionColorSeed()).not.toBe(createSessionColorSeed())
+  it('creates a deterministic seed per help id', () => {
+    expect(createSessionColorSeed('help-a').length).toBeGreaterThan(0)
+    expect(createSessionColorSeed('help-a')).toBe(createSessionColorSeed('help-a'))
+    expect(createSessionColorSeed('help-a')).not.toBe(createSessionColorSeed('help-b'))
   })
 })

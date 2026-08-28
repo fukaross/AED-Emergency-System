@@ -20,6 +20,7 @@ export interface ActiveRescueSessionAdapter {
   join(helpId: string): Promise<RescueSessionSnapshot>
   fetch(helpId: string, options: SessionFetchOptions): Promise<RescueSessionSnapshot>
   postMessage(helpId: string, text: string): Promise<RescueMessage>
+  postImage(helpId: string, imageUrl: string): Promise<RescueMessage>
   postStatus(
     helpId: string,
     eventType: RescueMutableEventType,
@@ -82,6 +83,15 @@ export class ActiveRescueSession {
     const context = this.currentContext()
     if (!context || this.closed.value) return false
     const message = await this.adapter.postMessage(context.helpId, text)
+    if (!this.ownsContext(context) || this.closed.value) return false
+    this.appendDisplayMessage(message)
+    return true
+  }
+
+  async sendImage(imageUrl: string): Promise<boolean> {
+    const context = this.currentContext()
+    if (!context || this.closed.value) return false
+    const message = await this.adapter.postImage(context.helpId, imageUrl)
     if (!this.ownsContext(context) || this.closed.value) return false
     this.appendDisplayMessage(message)
     return true

@@ -16,6 +16,7 @@ import {
   fetchMockRescueView,
   joinMockRescueSession,
   listMockMineRescueSessions,
+  postMockRescueImageMessage,
   postMockRescueMessage,
   postMockRescueStatusEvent,
   reportMockRescueLocation,
@@ -58,6 +59,17 @@ export function postRescueMessage(helpId: string, text: string): Promise<RescueM
     return Promise.resolve(postMockRescueMessage(helpId, text))
   }
   return post<RescueMessage>(`/api/help/${helpId}/session/messages`, { text })
+}
+
+/** 发送图片消息（imageUrl 来自上传接口，单条一条） */
+export function postRescueImageMessage(helpId: string, imageUrl: string): Promise<RescueMessage> {
+  if (USE_SESSION_MOCK) {
+    return Promise.resolve(postMockRescueImageMessage(helpId, imageUrl))
+  }
+  return post<RescueMessage>(`/api/help/${helpId}/session/messages`, {
+    kind: 'image',
+    imageUrl,
+  })
 }
 
 /** 发送 / 撤销状态事件（taken_aed / arrived；服务端幂等去抖） */

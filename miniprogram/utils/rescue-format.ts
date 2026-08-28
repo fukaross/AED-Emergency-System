@@ -5,6 +5,8 @@ const EVENT_LABELS = {
   joined: '加入了会话，正在赶来',
   taken_aed: '已拿取 AED',
   arrived: '已到达现场',
+  offline: '已离线',
+  online: '已上线',
 } as const
 
 /** 状态事件 → 消息流系统文案；文字消息返回原文 */
@@ -12,6 +14,7 @@ export function formatRescueMessageText(message: RescueMessage): string {
   if (message.kind === 'text') {
     return message.text ?? ''
   }
+  if (message.kind === 'image') return ''
   const label = EVENT_LABELS[message.eventType ?? 'joined']
   if (message.action === 'revoke') {
     return `${message.senderName} 撤销了「${label}」`

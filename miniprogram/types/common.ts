@@ -46,5 +46,5 @@ export interface UploadImageResponse {
   readonly fileId: string
 }
 
-export type UploadScene = 'avatar' | 'report' | 'help' | 'volunteer'
+export type UploadScene = 'avatar' | 'report' | 'help' | 'volunteer' | 'session'
 
