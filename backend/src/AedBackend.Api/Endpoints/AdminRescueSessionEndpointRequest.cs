@@ -50,5 +50,8 @@ internal sealed class AdminRescueSessionDetailEndpointRequest
     public IExperienceUserStore UserStore { get; init; } = default!;
 
     [FromServices]
+    public IResponderStore ResponderStore { get; init; } = default!;
+
+    [FromServices]
     public IAdminAuditLogStore AuditLogs { get; init; } = default!;
 }

@@ -28,7 +28,14 @@ internal sealed partial class SqliteRescueSessionStore
             var joined = participant is null
                 ? await AddParticipantAsync(db, command, ct)
                 : null;
-            if (participant is not null) participant.LastSeenAt = command.Now;
+            if (participant is not null)
+            {
+                participant.LastSeenAt = command.Now;
+                if (!string.IsNullOrWhiteSpace(command.DisplayName))
+                    participant.DisplayName = command.DisplayName;
+                if (!string.IsNullOrWhiteSpace(command.AvatarUrl))
+                    participant.AvatarUrl = command.AvatarUrl;
+            }
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             return new RescueSessionJoinResult(
@@ -67,6 +74,44 @@ internal sealed partial class SqliteRescueSessionStore
                 SenderOpenId = command.SenderOpenId,
                 SenderName = command.SenderName,
                 Text = command.Text,
+                CreatedAt = command.Now
+            };
+            db.RescueSessionMessages.Add(message);
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return SqliteMapper.ToRecord(message);
+        });
+    }
+
+    public async Task<RescueSessionMessageRecord> AppendImageMessageAsync(
+        RescueImageMessageCommand command,
+        CancellationToken ct)
+    {
+        return await WithWriteLockAsync(ct, async () =>
+        {
+            await using var db = await factory.CreateDbContextAsync(ct);
+            await using var transaction = await db.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                ct);
+            var session = await RequireOpenSessionAsync(db, command.HelpRequestId, ct);
+            var sender = await RequireParticipantAsync(
+                db,
+                new RescueSessionParticipantQuery
+                {
+                    HelpRequestId = command.HelpRequestId,
+                    OpenId = command.SenderOpenId
+                },
+                ct);
+            sender.LastSeenAt = command.Now;
+            var message = new RescueSessionMessageEntity
+            {
+                Id = NewMessageId(),
+                HelpRequestId = session.HelpRequestId,
+                Seq = await NextSeqAsync(db, session.HelpRequestId, ct),
+                Kind = RescueMessageKinds.Image,
+                SenderOpenId = command.SenderOpenId,
+                SenderName = command.SenderName,
+                ImageUrl = command.ImageUrl,
                 CreatedAt = command.Now
             };
             db.RescueSessionMessages.Add(message);
@@ -136,6 +181,7 @@ internal sealed partial class SqliteRescueSessionStore
             HelpRequestId = command.HelpRequestId,
             OpenId = command.OpenId,
             DisplayName = command.DisplayName,
+            AvatarUrl = command.AvatarUrl,
             JoinedAt = command.Now,
             LastSeenAt = command.Now
         });

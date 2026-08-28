@@ -10,12 +10,14 @@ namespace AedBackend.Api.Endpoints;
 public static class UploadEndpoints
 {
     private const long MaxFileSizeBytes = 5 * 1024 * 1024;
+    private const long MaxSessionImageBytes = 10 * 1024 * 1024;
     private const long MaxVideoSizeBytes = 100 * 1024 * 1024;
     private const long MaxVideoRequestBodyBytes = 110 * 1024 * 1024;
     private const int SignatureReadLength = 12;
     private const int Mp4SignatureReadLength = 12;
     private const string OctetStreamContentType = "application/octet-stream";
     private const string CourseScene = "course";
+    private const string SessionScene = "session";
     private const string Mp4ContentType = "video/mp4";
     private static readonly byte[] JpegSignature = [0xFF, 0xD8, 0xFF];
     private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47];
@@ -31,7 +33,8 @@ public static class UploadEndpoints
     private static readonly IReadOnlySet<string> AuthScenes = new HashSet<string>
     {
         "avatar",
-        "volunteer"
+        "volunteer",
+        SessionScene
     };
 
     private static readonly IReadOnlySet<string> AdminScenes = new HashSet<string>
@@ -94,7 +97,10 @@ public static class UploadEndpoints
         if (validationError is not null) return validationError;
 
         var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
-        var fileValidation = await ValidateFileAsync(file, cancellationToken);
+        var fileValidation = await ValidateFileAsync(
+            file,
+            scene == SessionScene ? MaxSessionImageBytes : MaxFileSizeBytes,
+            cancellationToken);
         if (fileValidation.Error is not null) return fileValidation.Error;
 
         var response = await storage.SaveAsync(
@@ -183,6 +189,7 @@ public static class UploadEndpoints
 
     private static async Task<FileValidationResult> ValidateFileAsync(
         IFormFile? file,
+        long maxFileSizeBytes,
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0)
@@ -191,7 +198,7 @@ public static class UploadEndpoints
                 EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "file 不能为空", 400));
         }
 
-        if (file.Length > MaxFileSizeBytes)
+        if (file.Length > maxFileSizeBytes)
         {
             return FileValidationResult.Fail(
                 EndpointFailures.JsonFailure(ErrorCodes.FileTooLarge, "文件超过大小限制", 400));

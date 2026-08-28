@@ -68,7 +68,8 @@ internal static class RescueSessionMapper
             message.Text,
             message.EventType,
             message.Action,
-            message.CreatedAt);
+            message.CreatedAt,
+            message.ImageUrl);
     }
 
     public static long LatestSeqOf(RescueSessionRecord session)
@@ -169,6 +170,7 @@ internal static class RescueSessionMapper
         return new RescueParticipantDto(
             input.Participant.OpenId,
             input.Participant.DisplayName,
+            input.Participant.AvatarUrl,
             input.Participant.JoinedAt,
             input.State.TakenAed,
             input.State.Arrived,

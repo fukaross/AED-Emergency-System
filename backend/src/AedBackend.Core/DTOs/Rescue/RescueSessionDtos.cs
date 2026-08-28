@@ -7,6 +7,7 @@ public sealed record RescueLocationDto(double Lat, double Lng, DateTimeOffset Re
 public sealed record RescueParticipantDto(
     string OpenId,
     string DisplayName,
+    string? AvatarUrl,
     DateTimeOffset JoinedAt,
     bool TakenAed,
     bool Arrived,
@@ -28,7 +29,8 @@ public sealed record RescueMessageDto(
     string? Text,
     string? EventType,
     string? Action,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? ImageUrl = null);
 
 public sealed record RescueTimingDto(
     int SignalLostAfterSeconds,
@@ -47,7 +49,7 @@ public sealed record RescueSessionSnapshotDto(
     RescueTimingDto Timing,
     DateTimeOffset ServerTime);
 
-public sealed record SendRescueMessageRequest(string? Text);
+public sealed record SendRescueMessageRequest(string? Kind, string? Text, string? ImageUrl);
 
 public sealed record SendRescueStatusEventRequest(string? EventType, string? Action);
 

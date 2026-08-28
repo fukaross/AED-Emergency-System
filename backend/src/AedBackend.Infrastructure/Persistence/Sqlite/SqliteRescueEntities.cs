@@ -15,6 +15,7 @@ internal sealed class RescueSessionParticipantEntity
     public string HelpRequestId { get; set; } = string.Empty;
     public string OpenId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
+    public string AvatarUrl { get; set; } = string.Empty;
     public DateTimeOffset JoinedAt { get; set; }
     public DateTimeOffset LastSeenAt { get; set; }
     public double? LastLat { get; set; }
@@ -32,6 +33,7 @@ internal sealed class RescueSessionMessageEntity
     public string SenderOpenId { get; set; } = string.Empty;
     public string SenderName { get; set; } = string.Empty;
     public string? Text { get; set; }
+    public string? ImageUrl { get; set; }
     public string? EventType { get; set; }
     public string? Action { get; set; }
     public DateTimeOffset CreatedAt { get; set; }

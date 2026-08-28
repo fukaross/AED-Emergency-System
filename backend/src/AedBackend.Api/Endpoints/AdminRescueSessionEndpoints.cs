@@ -125,10 +125,15 @@ internal static class AdminRescueSessionEndpoints
             await ResolveRequesterAsync(help, endpoint.UserStore, cancellationToken),
             help.ClosedAt,
             help.CloseNote,
-            session is null ? [] : RescueSessionMapper.ToParticipants(
-                session,
-                endpoint.RescueOptions.Value,
-                now),
+            session is null
+                ? []
+                : await ResolveParticipantsAsync(
+                    session,
+                    endpoint.RescueOptions.Value,
+                    now,
+                    endpoint.UserStore,
+                    endpoint.ResponderStore,
+                    cancellationToken),
             session?.Messages.Select(RescueSessionMapper.ToMessage).ToArray() ?? [],
             now);
         await endpoint.AuditLogs.AppendAsync(
@@ -167,6 +172,38 @@ internal static class AdminRescueSessionEndpoints
             ? null
             : await userStore.FindByOpenIdAsync(help.UserId, cancellationToken);
         return new AdminRescueRequesterDto(help.UserId, user?.Name ?? help.UserId ?? "未知用户");
+    }
+
+    private static async Task<IReadOnlyList<RescueParticipantDto>> ResolveParticipantsAsync(
+        RescueSessionRecord session,
+        RescueOptions options,
+        DateTimeOffset now,
+        IExperienceUserStore userStore,
+        IResponderStore responderStore,
+        CancellationToken cancellationToken)
+    {
+        var participants = RescueSessionMapper.ToParticipants(session, options, now);
+        var enriched = new List<RescueParticipantDto>(participants.Count);
+        foreach (var participant in participants)
+        {
+            if (!string.IsNullOrWhiteSpace(participant.AvatarUrl))
+            {
+                enriched.Add(participant);
+                continue;
+            }
+
+            var user = await userStore.FindByOpenIdAsync(participant.OpenId, cancellationToken);
+            var avatarUrl = user?.AvatarUrl;
+            if (string.IsNullOrWhiteSpace(avatarUrl))
+            {
+                var profile = await responderStore.FindByBoundOpenIdAsync(
+                    participant.OpenId,
+                    cancellationToken);
+                avatarUrl = profile?.AvatarUrl;
+            }
+            enriched.Add(participant with { AvatarUrl = avatarUrl ?? string.Empty });
+        }
+        return enriched;
     }
 
     private static Task<AdminAuthorizationResult> RequireAdminAsync(

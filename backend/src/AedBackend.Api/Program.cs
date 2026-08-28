@@ -46,6 +46,10 @@ builder.Services.AddSingleton(services => new HelpClosureDependencies
     Broadcaster = services.GetRequiredService<RescueSessionBroadcaster>(),
 });
 builder.Services.AddSingleton<HelpClosureApplication>();
+if (builder.Configuration.GetValue<bool>("Rescue:PresenceMonitorEnabled", true))
+{
+    builder.Services.AddHostedService<RescuePresenceMonitor>();
+}
 
 var app = builder.Build();
 await RuntimeDataInitializer.EnsureReadyAsync(app.Services, CancellationToken.None);

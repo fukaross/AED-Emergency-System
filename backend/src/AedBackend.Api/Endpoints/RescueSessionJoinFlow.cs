@@ -87,6 +87,7 @@ internal static class RescueSessionJoinFlow
                     HelpRequestId = help.Id,
                     OpenId = responder.User!.OpenId,
                     DisplayName = displayName,
+                    AvatarUrl = ResolveAvatarUrl(responder),
                     Now = now
                 },
                 input.CancellationToken));
@@ -104,6 +105,13 @@ internal static class RescueSessionJoinFlow
             Now = now,
             HelpStatusChanged = transition.Changed,
         }, null);
+    }
+
+    private static string ResolveAvatarUrl(CertifiedResponderResult responder)
+    {
+        if (!string.IsNullOrWhiteSpace(responder.User?.AvatarUrl))
+            return responder.User.AvatarUrl;
+        return responder.Profile?.AvatarUrl ?? string.Empty;
     }
 
     private static async Task BroadcastJoinedAsync(RescueSessionJoinInput input, RescueSessionJoinState state)

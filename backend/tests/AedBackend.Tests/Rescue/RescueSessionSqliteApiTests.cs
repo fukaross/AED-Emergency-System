@@ -219,6 +219,43 @@ public sealed class RescueSessionSqliteApiTests
         Assert.Equal(HttpStatusCode.Conflict, rejoin.StatusCode);
     }
 
+    [Fact]
+    public async Task StoreImageMessage_PersistsImageUrl()
+    {
+        using var temp = new ProviderTempData();
+        await temp.WriteValidDataAsync();
+        await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
+        using var app = CreateSqliteApplication(temp);
+        var store = app.Services.GetRequiredService<IRescueSessionStore>();
+        await store.JoinAsync(new RescueSessionJoinCommand
+        {
+            HelpRequestId = "help-01",
+            OpenId = "openid-1",
+            DisplayName = "急救员甲",
+            AvatarUrl = "https://example.com/avatar.png",
+            Now = BaseTime
+        }, CancellationToken.None);
+
+        var message = await store.AppendImageMessageAsync(
+            new RescueImageMessageCommand
+            {
+                HelpRequestId = "help-01",
+                SenderOpenId = "openid-1",
+                SenderName = "急救员甲",
+                ImageUrl = "https://example.com/photo.png",
+                Now = BaseTime.AddSeconds(1)
+            },
+            CancellationToken.None);
+
+        Assert.Equal(RescueMessageKinds.Image, message.Kind);
+        Assert.Equal("https://example.com/photo.png", message.ImageUrl);
+        var session = await store.FindByHelpIdAsync("help-01", CancellationToken.None);
+        Assert.NotNull(session);
+        Assert.Equal("https://example.com/avatar.png", Assert.Single(session.Participants).AvatarUrl);
+        Assert.Equal(2, session.Messages.Count);
+        Assert.Equal("https://example.com/photo.png", session.Messages[1].ImageUrl);
+    }
+
     private static long meSnapshotReadSeq(JsonElement snapshot)
     {
         return snapshot.GetProperty("me").GetProperty("lastReadSeq").GetInt64();

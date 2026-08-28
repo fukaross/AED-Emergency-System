@@ -12,6 +12,14 @@ internal static class SqliteRescueSchemaUpgrade
             await db.Database.ExecuteSqlRawAsync(
                 "ALTER TABLE rescue_sessions ADD COLUMN ClosedAt TEXT NULL;",
                 ct);
+        if (!await SqliteSchemaUpgrade.ColumnExistsAsync(db, "rescue_session_participants", "AvatarUrl", ct))
+            await db.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE rescue_session_participants ADD COLUMN AvatarUrl TEXT NOT NULL DEFAULT '';",
+                ct);
+        if (!await SqliteSchemaUpgrade.ColumnExistsAsync(db, "rescue_session_messages", "ImageUrl", ct))
+            await db.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE rescue_session_messages ADD COLUMN ImageUrl TEXT NULL;",
+                ct);
         await CreateIndexesAndGuardAsync(db, ct);
         await BackfillClosedSessionsAsync(db, ct);
         await EnsureIntegrityAsync(db, ct);
@@ -32,6 +40,7 @@ internal static class SqliteRescueSchemaUpgrade
                 HelpRequestId TEXT NOT NULL,
                 OpenId TEXT NOT NULL,
                 DisplayName TEXT NOT NULL,
+                AvatarUrl TEXT NOT NULL DEFAULT '',
                 JoinedAt TEXT NOT NULL,
                 LastSeenAt TEXT NOT NULL,
                 LastLat REAL NULL,
@@ -51,6 +60,7 @@ internal static class SqliteRescueSchemaUpgrade
                 SenderOpenId TEXT NOT NULL,
                 SenderName TEXT NOT NULL,
                 Text TEXT NULL,
+                ImageUrl TEXT NULL,
                 EventType TEXT NULL,
                 Action TEXT NULL,
                 CreatedAt TEXT NOT NULL,

@@ -98,6 +98,46 @@ public static class RescueSessionEndpoints
             cancellationToken);
         if (context.Failure is not null) return context.Failure;
 
+        var kind = string.IsNullOrWhiteSpace(request.Kind)
+            ? RescueMessageKinds.Text
+            : request.Kind.Trim().ToLowerInvariant();
+        if (kind == RescueMessageKinds.Image)
+        {
+            var imageUrl = request.ImageUrl?.Trim() ?? string.Empty;
+            if (!IsValidImageUrl(imageUrl))
+            {
+                return EndpointFailures.JsonFailure(
+                    ErrorCodes.ParameterInvalid,
+                    "imageUrl 需为有效的 http/https 图片地址",
+                    400);
+            }
+
+            var imageWrite = await RescueSessionWriteGuard.ExecuteActiveAsync(
+                new RescueSessionActiveWrite<RescueSessionMessageRecord>
+                {
+                    HelpId = context.Help!.Id,
+                    Services = services,
+                    Write = () => services.SessionStore.AppendImageMessageAsync(
+                        new RescueImageMessageCommand
+                        {
+                            HelpRequestId = context.Help.Id,
+                            SenderOpenId = context.User!.OpenId,
+                            SenderName = context.Participant!.DisplayName,
+                            ImageUrl = imageUrl,
+                            Now = DateTimeOffset.UtcNow
+                        },
+                        cancellationToken),
+                    CancellationToken = cancellationToken,
+                });
+            if (imageWrite.Failure is not null) return imageWrite.Failure;
+            var imageMessage = RescueSessionMapper.ToMessage(imageWrite.Value!);
+            await endpoint.Broadcaster.BroadcastAsync(
+                context.Help!.Id,
+                "message",
+                imageMessage);
+            return Results.Ok(ApiResponse.Ok(imageMessage));
+        }
+
         var text = request.Text?.Trim();
         if (string.IsNullOrWhiteSpace(text) || text.Length > MessageTextMaxLength)
         {
@@ -125,6 +165,12 @@ public static class RescueSessionEndpoints
         var message = RescueSessionMapper.ToMessage(write.Value!);
         await endpoint.Broadcaster.BroadcastAsync(context.Help!.Id, "message", message);
         return Results.Ok(ApiResponse.Ok(message));
+    }
+
+    private static bool IsValidImageUrl(string imageUrl)
+    {
+        return Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
     }
 
     private static async Task<IResult> PostStatusEventAsync(

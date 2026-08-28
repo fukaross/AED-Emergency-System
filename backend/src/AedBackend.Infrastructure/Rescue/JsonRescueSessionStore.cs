@@ -47,6 +47,11 @@ public sealed class JsonRescueSessionStore : IRescueSessionStore
         CancellationToken ct) =>
         WithUpdateAsync(database => JsonRescueSessionOperations.AppendMessage(database, command), ct);
 
+    public Task<RescueSessionMessageRecord> AppendImageMessageAsync(
+        RescueImageMessageCommand command,
+        CancellationToken ct) =>
+        WithUpdateAsync(database => JsonRescueSessionOperations.AppendImageMessage(database, command), ct);
+
     public Task<RescueSessionStatusAppendResult> AppendStatusEventAsync(
         RescueSessionStatusCommand command,
         CancellationToken ct) =>

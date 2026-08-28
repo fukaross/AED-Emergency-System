@@ -18,6 +18,10 @@ public interface IRescueSessionStore
         RescueTextMessageCommand command,
         CancellationToken ct);
 
+    Task<RescueSessionMessageRecord> AppendImageMessageAsync(
+        RescueImageMessageCommand command,
+        CancellationToken ct);
+
     Task<RescueSessionStatusAppendResult> AppendStatusEventAsync(
         RescueSessionStatusCommand command,
         CancellationToken ct);
@@ -59,6 +63,7 @@ public sealed record RescueSessionJoinCommand
     public required string HelpRequestId { get; init; }
     public required string OpenId { get; init; }
     public required string DisplayName { get; init; }
+    public string AvatarUrl { get; init; } = string.Empty;
     public required DateTimeOffset Now { get; init; }
 }
 
@@ -73,6 +78,15 @@ public sealed record RescueTextMessageCommand
     public required string SenderOpenId { get; init; }
     public required string SenderName { get; init; }
     public required string Text { get; init; }
+    public required DateTimeOffset Now { get; init; }
+}
+
+public sealed record RescueImageMessageCommand
+{
+    public required string HelpRequestId { get; init; }
+    public required string SenderOpenId { get; init; }
+    public required string SenderName { get; init; }
+    public required string ImageUrl { get; init; }
     public required DateTimeOffset Now { get; init; }
 }
 

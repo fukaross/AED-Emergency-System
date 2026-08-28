@@ -35,6 +35,7 @@ internal static partial class SqliteMapper
             HelpRequestId = helpRequestId,
             OpenId = item.OpenId,
             DisplayName = item.DisplayName,
+            AvatarUrl = item.AvatarUrl,
             JoinedAt = item.JoinedAt,
             LastSeenAt = item.LastSeenAt,
             LastLat = item.LastLat,
@@ -50,6 +51,7 @@ internal static partial class SqliteMapper
         {
             OpenId = item.OpenId,
             DisplayName = item.DisplayName,
+            AvatarUrl = item.AvatarUrl,
             JoinedAt = item.JoinedAt,
             LastSeenAt = item.LastSeenAt,
             LastLat = item.LastLat,
@@ -70,6 +72,7 @@ internal static partial class SqliteMapper
             SenderOpenId = item.SenderOpenId,
             SenderName = item.SenderName,
             Text = item.Text,
+            ImageUrl = item.ImageUrl,
             EventType = item.EventType,
             Action = item.Action,
             CreatedAt = item.CreatedAt
@@ -86,6 +89,7 @@ internal static partial class SqliteMapper
             SenderOpenId = item.SenderOpenId,
             SenderName = item.SenderName,
             Text = item.Text,
+            ImageUrl = item.ImageUrl,
             EventType = item.EventType,
             Action = item.Action,
             CreatedAt = item.CreatedAt

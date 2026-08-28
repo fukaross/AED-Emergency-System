@@ -7,10 +7,17 @@ internal static class SqliteRescueSessionWriteSupport
 {
     public static void ValidateStatus(RescueSessionStatusCommand command)
     {
-        if (command.EventType is not (RescueEventTypes.TakenAed or RescueEventTypes.Arrived))
+        var allowed = command.EventType is RescueEventTypes.TakenAed
+            or RescueEventTypes.Arrived
+            or RescueEventTypes.Offline
+            or RescueEventTypes.Online;
+        if (!allowed)
             throw new ArgumentException("不支持的急救状态事件", nameof(command));
         if (command.Action is not (RescueEventActions.Mark or RescueEventActions.Revoke))
             throw new ArgumentException("不支持的急救状态动作", nameof(command));
+        if (command.EventType is RescueEventTypes.Offline or RescueEventTypes.Online
+            && command.Action != RescueEventActions.Mark)
+            throw new ArgumentException("离线/上线事件不支持撤销", nameof(command));
     }
 
     public static void EnsureOpen(RescueSessionEntity session)

@@ -245,6 +245,7 @@ internal static class SqliteSchemaUpgrade
     private static string ValidateTableName(string table)
     {
         return table is "experience_users" or "responder_profiles" or "rescue_sessions"
+            or "rescue_session_participants" or "rescue_session_messages"
             or "school_person_profiles" or "school_binding_applications"
             or "responder_claim_applications"
             ? table

@@ -37,7 +37,7 @@ internal static class JsonRescueSessionOperations
         }
 
         return new RescueSessionJoinResult(
-            Replace(database, TouchParticipant(session, command.OpenId, command.Now)),
+            Replace(database, TouchParticipant(session, command)),
             false,
             null);
     }
@@ -54,6 +54,28 @@ internal static class JsonRescueSessionOperations
             SenderOpenId = command.SenderOpenId,
             SenderName = command.SenderName,
             Text = command.Text,
+            CreatedAt = command.Now
+        });
+        var next = TouchParticipant(
+            session with { Messages = [.. session.Messages, message] },
+            command.SenderOpenId,
+            command.Now);
+        Replace(database, next);
+        return message;
+    }
+
+    public static RescueSessionMessageRecord AppendImageMessage(
+        JsonRescueSessionDatabase database,
+        RescueImageMessageCommand command)
+    {
+        var session = RequireOpenSession(database, command.HelpRequestId);
+        RequireParticipant(session, command.SenderOpenId);
+        var message = CreateMessage(session, new JsonRescueMessageDraft
+        {
+            Kind = RescueMessageKinds.Image,
+            SenderOpenId = command.SenderOpenId,
+            SenderName = command.SenderName,
+            ImageUrl = command.ImageUrl,
             CreatedAt = command.Now
         });
         var next = TouchParticipant(
@@ -184,6 +206,7 @@ internal static class JsonRescueSessionOperations
         {
             OpenId = command.OpenId,
             DisplayName = command.DisplayName,
+            AvatarUrl = command.AvatarUrl,
             JoinedAt = command.Now,
             LastSeenAt = command.Now
         };
@@ -213,6 +236,7 @@ internal static class JsonRescueSessionOperations
             SenderOpenId = draft.SenderOpenId,
             SenderName = draft.SenderName,
             Text = draft.Text,
+            ImageUrl = draft.ImageUrl,
             EventType = draft.EventType,
             Action = draft.Action,
             CreatedAt = draft.CreatedAt
@@ -245,10 +269,17 @@ internal static class JsonRescueSessionOperations
 
     private static void ValidateStatus(RescueSessionStatusCommand command)
     {
-        if (command.EventType is not (RescueEventTypes.TakenAed or RescueEventTypes.Arrived))
+        var allowed = command.EventType is RescueEventTypes.TakenAed
+            or RescueEventTypes.Arrived
+            or RescueEventTypes.Offline
+            or RescueEventTypes.Online;
+        if (!allowed)
             throw new ArgumentException("不支持的急救状态事件", nameof(command));
         if (command.Action is not (RescueEventActions.Mark or RescueEventActions.Revoke))
             throw new ArgumentException("不支持的急救状态动作", nameof(command));
+        if (command.EventType is RescueEventTypes.Offline or RescueEventTypes.Online
+            && command.Action != RescueEventActions.Mark)
+            throw new ArgumentException("离线/上线事件不支持撤销", nameof(command));
     }
 
     private static RescueSessionRecord TouchParticipant(
@@ -258,6 +289,25 @@ internal static class JsonRescueSessionOperations
         {
             Participants = session.Participants.Select(participant =>
                 participant.OpenId == openId ? participant with { LastSeenAt = now } : participant).ToArray()
+        };
+
+    private static RescueSessionRecord TouchParticipant(
+        RescueSessionRecord session,
+        RescueSessionJoinCommand command) => session with
+        {
+            Participants = session.Participants.Select(participant =>
+                participant.OpenId == command.OpenId
+                    ? participant with
+                    {
+                        DisplayName = string.IsNullOrWhiteSpace(command.DisplayName)
+                            ? participant.DisplayName
+                            : command.DisplayName,
+                        AvatarUrl = string.IsNullOrWhiteSpace(command.AvatarUrl)
+                            ? participant.AvatarUrl
+                            : command.AvatarUrl,
+                        LastSeenAt = command.Now
+                    }
+                    : participant).ToArray()
         };
 
     private static RescueSessionRecord RequireOpenSession(
