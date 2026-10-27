@@ -60,17 +60,19 @@
             <el-table-column prop="lastMaintenance" label="上次维护" width="110" />
             <el-table-column label="操作" width="140" fixed="right">
               <template #default="{ row }">
-                <el-button text type="primary" size="small" @click="goDetail(row.id)">详情</el-button>
-                <el-popconfirm
-                  title="确定删除该设备？"
-                  confirm-button-text="删除"
-                  cancel-button-text="取消"
-                  @confirm="handleDelete(row)"
-                >
-                  <template #reference>
-                    <el-button text type="danger" size="small">删除</el-button>
-                  </template>
-                </el-popconfirm>
+                <div class="action-buttons">
+                  <el-button text type="primary" size="small" @click="goDetail(row.id)">详情</el-button>
+                  <el-popconfirm
+                    title="确定删除该设备？"
+                    confirm-button-text="删除"
+                    cancel-button-text="取消"
+                    @confirm="handleDelete(row)"
+                  >
+                    <template #reference>
+                      <el-button text type="danger" size="small">删除</el-button>
+                    </template>
+                  </el-popconfirm>
+                </div>
               </template>
             </el-table-column>
             <template #empty>
@@ -258,6 +260,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 .coord-text {
   font-size: 13px;
   color: #606266;

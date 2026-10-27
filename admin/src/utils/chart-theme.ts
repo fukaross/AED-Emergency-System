@@ -158,20 +158,14 @@ export function buildProcessingOption(points: AdminDashboardProcessingPoint[]): 
   }
 }
 
-/** 求助状态环形图：中心总数，绿为主体。 */
+/**
+ * 求助状态环形图：中心总数由组件用 DOM 覆盖层绘制（定位到饼图圆心），
+ * 因此这里不再配置 ECharts title，避免带图例布局下中心文字偏移。
+ */
 export function buildStatusOption(slices: AdminDashboardStatusSlice[]): EChartsCoreOption {
-  const total = slices.reduce((sum, slice) => sum + slice.count, 0)
   return {
     ...ANIMATION,
     tooltip: { ...TOOLTIP, trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    title: {
-      text: String(total),
-      subtext: '总求助',
-      left: '38%', top: '40%',
-      textAlign: 'center',
-      textStyle: { fontSize: 28, fontWeight: 600, color: COLORS.text },
-      subtextStyle: { fontSize: 12, color: COLORS.axisLabel },
-    },
     legend: {
       orient: 'vertical', right: 8, top: 'center',
       icon: 'circle', itemWidth: 8, itemHeight: 8,
