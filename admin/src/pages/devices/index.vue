@@ -263,8 +263,15 @@ onUnmounted(() => {
 .action-buttons {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
   white-space: nowrap;
+}
+
+/* 文字按钮自身有 11px 左右内边距，会让「详情」文字相对表头「操作」右移；
+   去掉横向内边距后，按钮文字左边缘与表头文字严格对齐。 */
+.action-buttons :deep(.el-button.is-text) {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .coord-text {
