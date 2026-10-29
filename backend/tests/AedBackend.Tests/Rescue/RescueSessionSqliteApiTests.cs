@@ -27,12 +27,13 @@ public sealed class RescueSessionSqliteApiTests
         await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
         using var app = CreateSqliteApplication(temp);
         var store = app.Services.GetRequiredService<IRescueSessionStore>();
+        var joinedAt = DateTimeOffset.UtcNow;
         var command = new RescueSessionJoinCommand
         {
             HelpRequestId = "help-01",
             OpenId = "openid-1",
             DisplayName = "急救员甲",
-            Now = BaseTime
+            Now = joinedAt
         };
 
         var results = await Task.WhenAll(
@@ -44,7 +45,9 @@ public sealed class RescueSessionSqliteApiTests
         var session = await store.FindByHelpIdAsync("help-01", CancellationToken.None);
         Assert.NotNull(session);
         Assert.Single(session.Participants);
-        Assert.Single(session.Messages);
+        Assert.Single(session.Messages, message =>
+            message.Kind == RescueMessageKinds.StatusEvent
+            && message.EventType == RescueEventTypes.Joined);
     }
 
     [Fact]

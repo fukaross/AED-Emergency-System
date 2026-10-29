@@ -6,6 +6,10 @@ using Microsoft.Extensions.Options;
 
 namespace AedBackend.Infrastructure.Knowledge;
 
+/**
+ * JSON provider 仅作为只读/回滚数据源：统计横幅来自既有 JSON 文件，不再内置旧部署的统计数字。
+ * 文件缺失时返回空横幅且不写盘；演示数值由 demo/data/knowledge-summary.json 导入 SQLite。
+ */
 public sealed class JsonKnowledgeStore : IKnowledgeStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -26,13 +30,6 @@ public sealed class JsonKnowledgeStore : IKnowledgeStore
         await fileLock.WaitAsync(ct);
         try
         {
-            if (!File.Exists(filePath))
-            {
-                var seed = DefaultSummary();
-                await WriteUnsafeAsync(seed, ct);
-                return WithSortedItems(seed);
-            }
-
             var summary = await ReadUnsafeAsync(ct);
             return WithSortedItems(summary);
         }
@@ -58,9 +55,11 @@ public sealed class JsonKnowledgeStore : IKnowledgeStore
 
     private async Task<KnowledgeSummary> ReadUnsafeAsync(CancellationToken ct)
     {
+        if (!File.Exists(filePath)) return new KnowledgeSummary();
+
         await using var stream = File.OpenRead(filePath);
         return await JsonSerializer.DeserializeAsync<KnowledgeSummary>(stream, JsonOptions, ct)
-               ?? DefaultSummary();
+               ?? new KnowledgeSummary();
     }
 
     private async Task WriteUnsafeAsync(KnowledgeSummary summary, CancellationToken ct)
@@ -77,20 +76,5 @@ public sealed class JsonKnowledgeStore : IKnowledgeStore
     {
         summary.Items = summary.Items.OrderBy(i => i.SortOrder).ToList();
         return summary;
-    }
-
-    internal static KnowledgeSummary DefaultSummary()
-    {
-        return new KnowledgeSummary
-        {
-            UpdatedAt = "2026-05-15T00:00:00+08:00",
-            Items = new List<KnowledgeStatItem>
-            {
-                new() { Key = "aed_count", Title = "AED数量", Value = 24, SortOrder = 1 },
-                new() { Key = "trained_people", Title = "培训人数", Value = 6392, SortOrder = 2 },
-                new() { Key = "certified_people", Title = "取证人数", Value = 2592, SortOrder = 3 },
-                new() { Key = "coverage_rate", Title = "覆盖率(%)", Value = 52.6, SortOrder = 4 },
-            }
-        };
     }
 }

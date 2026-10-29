@@ -26,7 +26,7 @@
         <view class="quick-btn" @click="quickCall120">
           <text class="quick-btn__text">找 120</text>
         </view>
-        <view class="quick-btn" @click="quickCallSchool">
+        <view v-if="rescuePhoneConfigured" class="quick-btn" @click="quickCallSchool">
           <text class="quick-btn__text">找校方</text>
         </view>
         <view class="quick-btn" @click="selectLocation">
@@ -190,6 +190,7 @@ const {
   phone,
   manualPhone,
   publishResult,
+  rescuePhoneConfigured,
   selectLocation,
   quickHelpHand,
   quickCall120,

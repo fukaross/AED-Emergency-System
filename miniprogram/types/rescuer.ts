@@ -1,16 +1,13 @@
 // 急救员中心相关的类型
-import type { GeoPoint } from '@/types/common'
 import type { RescuerLevel } from '@/types/user'
+import type { CampusCode } from '@/config/site-config'
 
-export type CampusCode = 'guilinyang' | 'fucheng'
+// 校区 code 由 config/site.json 派生（string），不是源码枚举；新增校区不用改类型。
+export type { CampusCode }
 
 export type RescuerAvailabilityStatus = 'online' | 'offline'
 
 export type RescuerSkillTag = 'cpr' | 'aed' | 'stb'
-
-export interface CampusCenter extends GeoPoint {
-  readonly name: string
-}
 
 export interface RescuerSkillFlags {
   readonly cpr: boolean

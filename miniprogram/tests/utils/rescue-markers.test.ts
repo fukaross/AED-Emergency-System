@@ -18,14 +18,14 @@ function buildParticipant(overrides: Partial<RescueParticipant> = {}): RescuePar
     takenAed: false,
     arrived: false,
     signal: 'ok',
-    location: { lat: 19.9745, lng: 110.5175, reportedAt: '2026-07-17T10:00:05.000Z' },
+    location: { lat: 31.2318, lng: 121.4768, reportedAt: '2026-07-17T10:00:05.000Z' },
     ...overrides,
   }
 }
 
 describe('rescue-markers', () => {
   it('builds the SOS marker with the emergency icon', () => {
-    const marker = buildSosMarker({ lat: 19.97, lng: 110.51, address: '测试点' })
+    const marker = buildSosMarker({ lat: 31.23, lng: 121.47, address: '测试点' })
     expect(marker.id).toBe(SOS_MARKER_ID)
     expect(marker.iconPath).toBe('/static/images/emergency-call.png')
     expect(marker.alpha).toBe(1)

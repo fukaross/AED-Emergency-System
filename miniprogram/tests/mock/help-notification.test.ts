@@ -25,9 +25,9 @@ function buildPayload(
   patch: Partial<PublishHelpPayload> = {},
 ): PublishHelpPayload {
   return {
-    lat: 19.9743,
-    lng: 110.5178,
-    address: 'REDACTED校区教学楼A',
+    lat: 31.2315,
+    lng: 121.4785,
+    address: '东区演示楼一层（合成位置）',
     content: '需要帮助',
     type: 'general',
     requestChannel: 'user',
@@ -46,10 +46,10 @@ function buildStoredHelpRecord(
     content: '需要帮助',
     type: 'general',
     status: 'published',
-    address: 'REDACTED校区教学楼A',
-    lat: 19.9743,
-    lng: 110.5178,
-    requesterPhone: 'REDACTED',
+    address: '东区演示楼一层（合成位置）',
+    lat: 31.2315,
+    lng: 121.4785,
+    requesterPhone: '13000000001',
     createdAt,
     images: [],
     requestChannel: 'user',
@@ -67,7 +67,7 @@ describe('mock help notifications', () => {
     vi.clearAllMocks()
   })
 
-  it('dispatches mock notifications for any published help type', () => {
+  it('records demo notifications without claiming real delivery', () => {
     const result = publishMockHelpRequest(buildPayload({ type: 'call_school' }))
     const records = listMockHelpNotifications(result.requestNo)
     const types = new Set(records.map((item) => item.recipientType))
@@ -76,9 +76,13 @@ describe('mock help notifications', () => {
     expect(types).toEqual(
       new Set(['clinic', 'counselor', 'rescuer', 'duty_teacher']),
     )
-    expect(records.every((item) => item.deliveryStatus === 'mock_delivered')).toBe(
-      true,
-    )
+    expect(
+      records.every(
+        (item) =>
+          item.deliveryStatus === 'demo_not_sent'
+          && item.deliveryChannel === 'demo_local',
+      ),
+    ).toBe(true)
   })
 
   it('does not include parent or guardian recipients', () => {
@@ -108,27 +112,27 @@ describe('mock help notifications', () => {
         id: 'target-1',
         type: 'rescuer',
         name: '同账号一',
-        phone: 'REDACTED',
+        phone: '13800000001',
         userId: 'user-duplicate',
       },
       {
         id: 'target-2',
         type: 'duty_teacher',
         name: '同账号二',
-        phone: 'REDACTED',
+        phone: '13800000002',
         userId: 'user-duplicate',
       },
       {
         id: 'target-3',
         type: 'clinic',
         name: '同电话一',
-        phone: 'REDACTED',
+        phone: '13800000003',
       },
       {
         id: 'target-4',
         type: 'counselor',
         name: '同电话二',
-        phone: 'REDACTED',
+        phone: '13800000003',
       },
     ])
 

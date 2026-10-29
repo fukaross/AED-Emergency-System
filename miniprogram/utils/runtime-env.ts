@@ -1,59 +1,88 @@
+// 运行档位与配置推导 —— 三档位：mock | local-demo | wechat
+//
+// 档位是唯一模式真源；原先逐模块的 VITE_*_BACKEND_READY / VITE_USE_MOCK /
+// VITE_USE_REAL_WECHAT_FLOW 全部由档位推导，不再手工同步，也不再根据
+// “示例 API 域名” 猜测模式（配置缺失或非法一律显式报错，不静默降级到 Mock）。
+import { RESCUE_PHONE } from '@/config/site-config'
+import {
+  AppConfigError,
+  resolveApiBaseUrl,
+  resolveAppMode,
+  type AppMode,
+} from '@/utils/app-mode'
+
+export { AppConfigError, resolveApiBaseUrl, resolveAppMode }
+export type { AppMode }
+
 export const APP_ENV = import.meta.env.VITE_APP_ENV || 'development'
 
-const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
-const rawUseMock = import.meta.env.VITE_USE_MOCK === 'true'
-const rawUsePublicDemoData =
-  import.meta.env.VITE_USE_PUBLIC_DEMO_DATA === 'true'
-const rawUseRealWeChatFlow =
-  import.meta.env.VITE_USE_REAL_WECHAT_FLOW === 'true'
-const rawRestoreAuthSession = import.meta.env.VITE_RESTORE_AUTH_SESSION
-const rawHelpBackendReady = import.meta.env.VITE_HELP_BACKEND_READY === 'true'
-const rawAedBackendReady = import.meta.env.VITE_AED_BACKEND_READY === 'true'
-const rawRescuerBackendReady =
-  import.meta.env.VITE_RESCUER_BACKEND_READY === 'true'
-const rawClassroomBackendReady =
-  import.meta.env.VITE_CLASSROOM_BACKEND_READY === 'true'
-const rawUserBackendReady = import.meta.env.VITE_USER_BACKEND_READY === 'true'
-const rawSessionBackendReady =
-  import.meta.env.VITE_SESSION_BACKEND_READY === 'true'
+export const APP_MODE: AppMode = resolveConfiguredAppMode()
 
-export const API_BASE_URL = rawApiBaseUrl
-export const IS_PLACEHOLDER_API_BASE_URL =
-  /^https?:\/\/api\.example\.com(?:\/|$)/i.test(rawApiBaseUrl)
+function resolveConfiguredAppMode(): AppMode {
+  const mode = resolveAppMode(import.meta.env.VITE_APP_MODE)
+  if (!import.meta.env.VITE_APP_MODE?.trim()) {
+    console.info(
+      '[runtime-env] 未设置 VITE_APP_MODE，按 mock（仅前端演示，不访问后端）运行',
+    )
+  }
+  return mode
+}
 
-export const USE_MOCK = rawUseMock || IS_PLACEHOLDER_API_BASE_URL
+export const API_BASE_URL = resolveApiBaseUrl(
+  APP_MODE,
+  import.meta.env.VITE_API_BASE_URL || '',
+)
 
-export const USE_PUBLIC_DEMO_DATA =
-  USE_MOCK || rawUsePublicDemoData
+// ===== 档位推导 =====
 
-export const HELP_BACKEND_READY = rawHelpBackendReady
+/** 纯前端演示档：只跑本地合成 Mock，不访问后端。 */
+export const USE_MOCK = APP_MODE === 'mock'
 
-export const AED_BACKEND_READY = rawAedBackendReady
+/** 本地演示档：真实后端 + 受限本地身份适配。 */
+export const IS_LOCAL_DEMO = APP_MODE === 'local-demo'
 
-export const RESCUER_BACKEND_READY = rawRescuerBackendReady
+/** 真实微信档：wx.login、真实业务 API 与部署配置。 */
+export const IS_WECHAT_MODE = APP_MODE === 'wechat'
 
-export const CLASSROOM_BACKEND_READY = rawClassroomBackendReady
+/** 演示档（mock / local-demo）：需要显示模式徽标、禁用真实外发副作用。 */
+export const IS_DEMO_MODE = USE_MOCK || IS_LOCAL_DEMO
 
-export const USER_BACKEND_READY = rawUserBackendReady
+const BACKEND_ENABLED = APP_MODE !== 'mock'
 
-export const SESSION_BACKEND_READY = rawSessionBackendReady
+export const HELP_BACKEND_READY = BACKEND_ENABLED
+export const AED_BACKEND_READY = BACKEND_ENABLED
+export const RESCUER_BACKEND_READY = BACKEND_ENABLED
+export const CLASSROOM_BACKEND_READY = BACKEND_ENABLED
+export const USER_BACKEND_READY = BACKEND_ENABLED
+export const SESSION_BACKEND_READY = BACKEND_ENABLED
 
-export const USE_REAL_WECHAT_FLOW =
-  !USE_MOCK || rawUseRealWeChatFlow
+/** Mock 档下公开只读内容全部来自 demo 合成数据。 */
+export const USE_PUBLIC_DEMO_DATA = USE_MOCK
 
-export const RESTORE_AUTH_SESSION =
-  rawRestoreAuthSession === 'true' ||
-  (rawRestoreAuthSession !== 'false' && APP_ENV === 'production')
+/** 只有真实微信档走 wx.login / 真实订阅消息。 */
+export const USE_REAL_WECHAT_FLOW = IS_WECHAT_MODE
 
-export const USE_REAL_LOCATION = import.meta.env.VITE_USE_REAL_LOCATION === 'true'
+/** 只有真实微信档使用真实 GPS；演示档使用合成位置并显式标识。 */
+export const USE_REAL_LOCATION = IS_WECHAT_MODE
+
+export const USE_SYNTHETIC_LOCATION = !USE_REAL_LOCATION
+
+/** 演示档不允许真实拨号；rescuePhone 为空时任何档位都不提供热线。 */
+export const RESCUE_PHONE_ENABLED = IS_WECHAT_MODE && RESCUE_PHONE !== ''
 
 export const USE_LOCAL_HELP_READ_MODEL = !HELP_BACKEND_READY
 
-export const AUTO_LOCATE_ON_INIT =
-  import.meta.env.VITE_AUTO_LOCATE_ON_INIT === 'true'
+export const RESTORE_AUTH_SESSION =
+  import.meta.env.VITE_RESTORE_AUTH_SESSION === 'true' ||
+  (import.meta.env.VITE_RESTORE_AUTH_SESSION !== 'false' &&
+    APP_ENV === 'production')
 
 export const IS_DEV_LIKE = APP_ENV === 'development' || APP_ENV === 'preview'
 
-export function shouldWarnPlaceholderApiBaseUrl(): boolean {
-  return IS_PLACEHOLDER_API_BASE_URL && !rawUseMock
+const MODE_LABELS: Readonly<Record<AppMode, string>> = {
+  mock: '演示模式 · 本地合成数据',
+  'local-demo': '本地演示 · 真实后端',
+  wechat: '真实微信模式',
 }
+
+export const MODE_LABEL = MODE_LABELS[APP_MODE]

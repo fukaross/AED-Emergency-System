@@ -1,10 +1,12 @@
 <template>
   <view class="map-home" :class="themeClass">
     <CustomNavbar
-      title="REDACTED地图"
+      :title="APP_TITLE"
       :transparent="true"
       title-align="left"
     />
+
+    <DemoModeBadge />
 
     <map
       id="aedMap"
@@ -76,8 +78,10 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { onHide, onShow } from '@dcloudio/uni-app'
 import AppTabBar from '@/components/app-tab-bar/index.vue'
 import CustomNavbar from '@/components/custom-navbar/index.vue'
+import DemoModeBadge from '@/components/demo-mode-badge/index.vue'
 import { useAedMap } from '@/composables/useAedMap'
 import { useTheme } from '@/composables/useTheme'
+import { APP_TITLE } from '@/config/site-config'
 import {
   createMapCtx,
   openNativeNavigation,

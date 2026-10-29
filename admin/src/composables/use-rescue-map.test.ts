@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AMapModule, AmapLngLat, AmapMap, AmapMarker } from '@/types/amap'
 import type { AdminRescueParticipant, RescueSos } from '@/types/rescue-session'
+import { siteConfig } from '@/config/site-config'
 import { useRescueMap } from './use-rescue-map'
 import type { ParticipantColor } from '@/utils/rescue-session-color'
 
@@ -24,6 +25,7 @@ class FakeMarker implements AmapMarker {
 }
 
 class FakeMap implements AmapMap {
+  options: { center?: [number, number]; zoom?: number } = {}
   readonly on = vi.fn()
   readonly setCenter = vi.fn()
   readonly setFitView = vi.fn()
@@ -32,7 +34,8 @@ class FakeMap implements AmapMap {
   readonly remove = vi.fn()
 }
 
-const sos: RescueSos = { lat: 19.98, lng: 110.52, address: '教学楼' }
+// 合成 SOS / 参与者坐标，不沿用任何旧站点点位。
+const sos: RescueSos = { lat: 31.246, lng: 121.503, address: '演示教学楼' }
 
 function participant(overrides: Partial<AdminRescueParticipant> = {}): AdminRescueParticipant {
   return {
@@ -43,14 +46,19 @@ function participant(overrides: Partial<AdminRescueParticipant> = {}): AdminResc
     takenAed: false,
     arrived: false,
     signal: 'ok',
-    location: { lat: 19.981, lng: 110.521, reportedAt: '2026-07-17T10:00:00Z' },
+    location: { lat: 31.2465, lng: 121.504, reportedAt: '2026-07-17T10:00:00Z' },
     ...overrides,
   }
 }
 
 function createFakeAmap(map: FakeMap, createdMarkers: FakeMarker[]): AMapModule {
   return {
-    Map: class { constructor() { return map } },
+    Map: class {
+      constructor(_container: string, options?: { center?: [number, number]; zoom?: number }) {
+        map.options = options ?? {}
+        return map
+      }
+    },
     Marker: class extends FakeMarker {
       constructor(options: { position: [number, number]; content?: string }) {
         super(options)
@@ -111,6 +119,18 @@ describe('useRescueMap viewport fitting', () => {
 
     rescueMap.syncMarkers(sos, [participant({ takenAed: true })], noColors)
     expect(map.setFitView).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useRescueMap 站点配置', () => {
+  it('未传入 SOS 中心时使用 config/site.json 的 map.center', async () => {
+    const rescueMap = useRescueMap({ loadMap: async () => createFakeAmap(map, markers) })
+    await rescueMap.initMap('map')
+
+    expect(map.options.center).toEqual([
+      siteConfig.mapCenter.longitude,
+      siteConfig.mapCenter.latitude,
+    ])
   })
 })
 

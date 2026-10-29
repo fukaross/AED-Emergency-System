@@ -27,14 +27,14 @@ async function flushPromises(): Promise<void> {
 
 const LIVE_LOCATION = {
   success: true,
-  point: { lat: 19.98, lng: 110.52 },
+  point: { lat: 31.24, lng: 121.48 },
   isDefault: false,
   showSystemLocation: true,
 } as const
 
 const DENIED_LOCATION = {
   success: false,
-  point: { lat: 19.97, lng: 110.51 },
+  point: { lat: 31.23, lng: 121.47 },
   isDefault: true,
   showSystemLocation: false,
   failureReason: 'permission_denied',

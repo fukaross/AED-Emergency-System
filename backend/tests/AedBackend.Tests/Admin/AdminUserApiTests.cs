@@ -15,7 +15,7 @@ public sealed class AdminUserApiTests : AdminApiTestBase
     [Fact]
     public async Task ListUsers_MergesExperienceUsersProfilesAndFilters()
     {
-        SeedExperienceUsers(("openid-1", "REDACTED"), ("openid-2", "REDACTED"));
+        SeedExperienceUsers(("openid-1", "13800138000"), ("openid-2", "13900139000"));
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var update = await Client.PutAsJsonAsync(
@@ -56,8 +56,8 @@ public sealed class AdminUserApiTests : AdminApiTestBase
     public async Task UserProfileNameAndAvatar_AreVisibleInAdminUsers()
     {
         SeedExperienceUsers(
-            ("openid-1", "REDACTED", "王小明", "/uploads/avatar/wang.jpg"),
-            ("openid-2", "REDACTED", null, null));
+            ("openid-1", "13800138000", "王小明", "/uploads/avatar/wang.jpg"),
+            ("openid-2", "13900139000", null, null));
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var list = await Client.GetAsync("/api/admin/users?keyword=王小明");
@@ -87,13 +87,13 @@ public sealed class AdminUserApiTests : AdminApiTestBase
             new
             {
                 name = "马希罗",
-                phone = "REDACTED",
+                phone = "13123231314",
                 avatarUrl = "/uploads/avatar/new.jpg"
             });
         Assert.Equal(HttpStatusCode.OK, updateProfile.StatusCode);
 
         fixture.UseAdminKey();
-        var list = await fixture.Client.GetAsync("/api/admin/users?keyword=REDACTED");
+        var list = await fixture.Client.GetAsync("/api/admin/users?keyword=13123231314");
         var listData = (await ReadAsync<ApiResponse<JsonElement>>(list)).Data;
         var detail = await fixture.Client.GetAsync("/api/admin/users/openid-1");
         var detailData = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
@@ -114,7 +114,7 @@ public sealed class AdminUserApiTests : AdminApiTestBase
     [Fact]
     public async Task UpdateUser_OnlyChangesProvidedFields()
     {
-        SeedExperienceUsers(("openid-1", "REDACTED"));
+        SeedExperienceUsers(("openid-1", "13800138000"));
         UseAdminKey(await BootstrapAndLoginAsync());
 
         Assert.Equal(HttpStatusCode.OK, (await Client.PutAsJsonAsync(
@@ -136,7 +136,7 @@ public sealed class AdminUserApiTests : AdminApiTestBase
     [Fact]
     public async Task UpdateUser_RejectsRescuerQualificationFields()
     {
-        SeedExperienceUsers(("openid-1", "REDACTED"));
+        SeedExperienceUsers(("openid-1", "13800138000"));
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var response = await Client.PutAsJsonAsync(
@@ -149,7 +149,7 @@ public sealed class AdminUserApiTests : AdminApiTestBase
     [Fact]
     public async Task Users_RejectInvalidEnumAndMissingUser()
     {
-        SeedExperienceUsers(("openid-1", "REDACTED"));
+        SeedExperienceUsers(("openid-1", "13800138000"));
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var invalidQuery = await Client.GetAsync("/api/admin/users?primaryRole=visitor");
@@ -185,7 +185,7 @@ public sealed class AdminUserApiTests : AdminApiTestBase
         {
             var temp = new ProviderTempData();
             await temp.WriteValidDataAsync();
-            await temp.WriteUserJsonAsync("openid-1", "REDACTED", DefaultUserToken);
+            await temp.WriteUserJsonAsync("openid-1", "13800138000", DefaultUserToken);
             if (responders is not null) await temp.WriteResponderJsonAsync(responders);
             await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
             return new UserProfileFixture(temp, new AdminTestApplication(temp.Root, SqliteConfig(temp)));

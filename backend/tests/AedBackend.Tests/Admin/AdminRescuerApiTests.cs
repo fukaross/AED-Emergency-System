@@ -8,9 +8,27 @@ namespace AedBackend.Tests.Admin;
 
 public sealed class AdminRescuerApiTests : AdminApiTestBase
 {
+    private const string SyntheticIdNumber = "990000200001010012";
+
+    private void SeedStandardRescuers()
+    {
+        SeedRescuers(
+            new RescuerSeed(
+                "rescuer-001", "演示急救员甲", "east", Level: "official", Phone: "13900000001",
+                CertificateNo: "TESTCERT12345678", CertificateNoMasked: "TEST****5678"),
+            new RescuerSeed(
+                "rescuer-002", "演示急救员乙", "east", Level: "core", Phone: "13900000002",
+                CertificateNo: "TESTCERT12345679", CertificateNoMasked: "TEST****5679"),
+            new RescuerSeed(
+                "rescuer-003", "演示急救员丙", "west", Level: "trainee", Phone: "13900000003",
+                Lat: 31.2188, Lng: 121.4536,
+                CertificateNo: "TESTCERT12345680", CertificateNoMasked: "TEST****5680"));
+    }
+
     [Fact]
     public async Task ListRescuers_RequiresAdminSessionAndRejectsLegacyKey()
     {
+        SeedStandardRescuers();
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await Client.GetAsync("/api/admin/rescuers")).StatusCode);
 
@@ -23,15 +41,16 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
         var data = (await ReadAsync<ApiResponse<JsonElement>>(response)).Data;
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(31, data.GetProperty("total").GetInt32());
-        Assert.Equal(31, data.GetProperty("items").GetArrayLength());
+        Assert.Equal(3, data.GetProperty("total").GetInt32());
+        Assert.Equal(3, data.GetProperty("items").GetArrayLength());
         Assert.Equal("rescuer-001", data.GetProperty("items")[0].GetProperty("id").GetString());
-        Assert.Equal("rescuer-031", data.GetProperty("items")[30].GetProperty("id").GetString());
+        Assert.Equal("rescuer-003", data.GetProperty("items")[2].GetProperty("id").GetString());
     }
 
     [Fact]
     public async Task ListRescuers_MasksPhoneAndExcludesIdNumber()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var response = await Client.GetAsync("/api/admin/rescuers?pageSize=100");
@@ -47,21 +66,22 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
     [Fact]
     public async Task ListRescuers_FiltersByCampus()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
-        var response = await Client.GetAsync("/api/admin/rescuers?campus=fucheng");
+        var response = await Client.GetAsync("/api/admin/rescuers?campus=west");
         var data = (await ReadAsync<ApiResponse<JsonElement>>(response)).Data;
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.All(data.GetProperty("items").EnumerateArray(),
-            item => Assert.Equal("fucheng", item.GetProperty("campus").GetString()));
-        Assert.True(data.GetProperty("total").GetInt32() > 0);
-        Assert.True(data.GetProperty("total").GetInt32() < 31);
+            item => Assert.Equal("west", item.GetProperty("campus").GetString()));
+        Assert.Equal(1, data.GetProperty("total").GetInt32());
     }
 
     [Fact]
     public async Task GetRescuerDetail_ReturnsMaskedSensitiveFields()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var response = await Client.GetAsync("/api/admin/rescuers/rescuer-001");
@@ -69,16 +89,16 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("rescuer-001", data.GetProperty("id").GetString());
-        Assert.Equal("REDACTED", data.GetProperty("name").GetString());
-        Assert.Equal("女", data.GetProperty("gender").GetString());
-        Assert.Equal("guilinyang", data.GetProperty("campus").GetString());
+        Assert.Equal("演示急救员甲", data.GetProperty("name").GetString());
+        Assert.Equal("female", data.GetProperty("gender").GetString());
+        Assert.Equal("east", data.GetProperty("campus").GetString());
         Assert.True(data.GetProperty("skillCpr").GetBoolean());
 
         var phoneMasked = data.GetProperty("phoneMasked").GetString();
         Assert.Contains("****", phoneMasked);
         var phone = data.GetProperty("phone").GetString();
         Assert.DoesNotContain("*", phone);
-        Assert.Equal("REDACTED", phone);
+        Assert.Equal("13900000001", phone);
         var idMasked = data.GetProperty("idNumberMasked").GetString();
         Assert.Contains("******", idMasked);
         var idNumber = data.GetProperty("idNumber").GetString();
@@ -90,6 +110,7 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
     [Fact]
     public async Task GetRescuerDetail_Returns404ForMissingRescuer()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var response = await Client.GetAsync("/api/admin/rescuers/rescuer-999");
@@ -99,11 +120,12 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
     [Fact]
     public async Task UpdateRescuer_UpdatesFieldsAndWritesAudit()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var updated = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-001", new
         {
-            name = "REDACTED(测试更新)",
+            name = "演示急救员甲（测试更新）",
             level = "official",
             qualificationStatus = "inactive",
             skillCpr = false
@@ -111,7 +133,7 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
         var item = (await ReadAsync<ApiResponse<JsonElement>>(updated)).Data;
 
         Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
-        Assert.Equal("REDACTED(测试更新)", item.GetProperty("name").GetString());
+        Assert.Equal("演示急救员甲（测试更新）", item.GetProperty("name").GetString());
         Assert.Equal("official", item.GetProperty("level").GetString());
         Assert.Equal("inactive", item.GetProperty("qualificationStatus").GetString());
         Assert.False(item.GetProperty("skillCpr").GetBoolean());
@@ -124,8 +146,10 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
     [Fact]
     public async Task UpdateRescuer_RejectsInvalidCampusLevelStatus()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
+        // 校区校验由 config/site.json 驱动：不在配置中的 code 仍是既有参数错误。
         var invalidCampus = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-001", new { campus = "beijing" });
         await AssertErrorAsync(invalidCampus, HttpStatusCode.BadRequest, ErrorCodes.ParameterInvalid);
 
@@ -137,27 +161,32 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
 
         var emptyName = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-001", new { name = "" });
         await AssertErrorAsync(emptyName, HttpStatusCode.BadRequest, ErrorCodes.ParameterInvalid);
+
+        var validCampus = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-001", new { campus = "west" });
+        Assert.Equal(HttpStatusCode.OK, validCampus.StatusCode);
     }
 
     [Fact]
     public async Task UpdateRescuer_RecalculatesCertificateNoMasked()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var updated = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-001", new
         {
-            certificateNo = "460000232004231009999"
+            certificateNo = "TESTCERT99998888"
         });
         var item = (await ReadAsync<ApiResponse<JsonElement>>(updated)).Data;
 
         Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
-        Assert.Equal("460000232004231009999", item.GetProperty("certificateNo").GetString());
-        Assert.Equal("4600****9999", item.GetProperty("certificateNoMasked").GetString());
+        Assert.Equal("TESTCERT99998888", item.GetProperty("certificateNo").GetString());
+        Assert.Equal("TEST****8888", item.GetProperty("certificateNoMasked").GetString());
     }
 
     [Fact]
     public async Task UpdateRescuer_ClearsNullableLevelAndCertificate()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var updated = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-001", new
@@ -176,23 +205,25 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
     [Fact]
     public async Task UpdateRescuer_ValidatesIdNumberFormat()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var tooShort = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-001", new { idNumber = "123" });
         await AssertErrorAsync(tooShort, HttpStatusCode.BadRequest, ErrorCodes.ParameterInvalid);
 
         var badChecksum = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-001",
-            new { idNumber = "REDACTED" });
+            new { idNumber = "990000200001010010" });
         await AssertErrorAsync(badChecksum, HttpStatusCode.BadRequest, ErrorCodes.ParameterInvalid);
 
         var valid = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-001",
-            new { idNumber = "REDACTED" });
+            new { idNumber = SyntheticIdNumber });
         Assert.Equal(HttpStatusCode.OK, valid.StatusCode);
     }
 
     [Fact]
     public async Task UpdateRescuer_ClearsAssessmentResults()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var updated = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-001", new
@@ -214,6 +245,7 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
     [Fact]
     public async Task UpdateRescuer_SetsAssessmentResults()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var updated = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-001", new
@@ -233,6 +265,7 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
     [Fact]
     public async Task UpdateRescuer_RejectsInvalidAssessmentResult()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var response = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-001", new
@@ -246,6 +279,7 @@ public sealed class AdminRescuerApiTests : AdminApiTestBase
     [Fact]
     public async Task UpdateRescuer_Returns404ForMissingRescuer()
     {
+        SeedStandardRescuers();
         UseAdminKey(await BootstrapAndLoginAsync());
 
         var response = await Client.PutAsJsonAsync("/api/admin/rescuers/rescuer-999", new { name = "不存在" });

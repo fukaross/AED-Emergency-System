@@ -21,8 +21,8 @@ const VALID_PARTICIPANT = {
   arrived: false,
   signal: 'ok',
   location: {
-    lat: 19.97,
-    lng: 110.51,
+    lat: 31.23,
+    lng: 121.47,
     reportedAt: '2026-07-18T10:00:00.000Z',
   },
 }
@@ -73,7 +73,7 @@ describe('parseRescueSocketFrame', () => {
 
   it('rejects non-finite coordinates produced by JSON number overflow', () => {
     const raw = frame('participant', VALID_PARTICIPANT)
-      .replace('19.97', '1e999')
+      .replace('31.23', '1e999')
 
     expect(parseRescueSocketFrame(raw)).toMatchObject({ ok: false })
   })

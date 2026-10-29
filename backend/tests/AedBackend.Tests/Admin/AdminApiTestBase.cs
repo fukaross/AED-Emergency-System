@@ -109,7 +109,7 @@ public abstract class AdminApiTestBase : IAsyncLifetime
 
     protected void SeedLoggedInExperienceUser(
         string openId = "openid-1",
-        string phone = "REDACTED",
+        string phone = "13800138000",
         string token = DefaultUserToken)
     {
         WriteExperienceUsers([
@@ -162,7 +162,7 @@ public abstract class AdminApiTestBase : IAsyncLifetime
         WriteExperienceUsers(
             users.Select(user => new ExperienceUserSeed(
                 user.OpenId,
-                "REDACTED",
+                "13800138000",
                 null,
                 null,
                 HashToken(user.Token),
@@ -173,18 +173,99 @@ public abstract class AdminApiTestBase : IAsyncLifetime
     /** 写入绑定用户与资格状态的急救员档案，用于急救会话准入测试。 */
     protected void SeedBoundResponders(params (string Id, string? BoundOpenId, string QualificationStatus, string Name)[] responders)
     {
-        var items = responders.Select(responder => $$"""
+        SeedRescuers(responders.Select(responder => new RescuerSeed(
+            responder.Id,
+            responder.Name,
+            Campus: "east",
+            QualificationStatus: responder.QualificationStatus,
+            BoundOpenId: responder.BoundOpenId)).ToArray());
+    }
+
+    /**
+     * 写入完整合成急救员档案（城市/校区/坐标均为本项目测试自有 fixture，不是真实档案）。
+     * 兼容 JSON provider 的公开急救员端点与 Admin 急救员端点。
+     */
+    protected void SeedRescuers(params RescuerSeed[] rescuers)
+    {
+        var items = rescuers.Select(responder => $$"""
             {
               "id": "{{responder.Id}}",
-              "recordId": "{{responder.Id}}",
+              "recordId": "{{responder.RecordId ?? responder.Id}}",
               "name": "{{responder.Name}}",
-              "phone": "REDACTED",
-              "campus": "guilinyang",
+              "gender": "female",
+              "birthDate": "1990-01-01",
+              "phone": "{{responder.Phone}}",
+              "idNumber": "990000199001010017",
+              "phoneMasked": false,
+              "idMasked": false,
+              "avatarUrl": "/static/images/avatar-default.png",
+              "campus": "{{responder.Campus}}",
+              "level": "{{responder.Level}}",
               "qualificationStatus": "{{responder.QualificationStatus}}",
-              "boundOpenId": {{JsonValue(responder.BoundOpenId)}}
+              "lat": {{responder.Lat.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}},
+              "lng": {{responder.Lng.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}},
+              "certificateNo": "{{responder.CertificateNo}}",
+              "certificateNoMasked": "{{responder.CertificateNoMasked}}",
+              "issuingAuthority": "演示培训中心（合成）",
+              "issueDate": "2026-04-18",
+              "workUnit": null,
+              "skillCpr": true,
+              "skillAed": true,
+              "skillStb": true,
+              "trainingYear": 2026,
+              "trainingProject": "演示急救培训项目",
+              "trainingSessionName": "演示培训·2026 春季班",
+              "theoryScore": 90,
+              "sourceFile": "tests/AedBackend.Tests/fixtures/rescuer-profiles.json",
+              "sourceSheet": "test-fixture",
+              "sourceRowNo": 1,
+              "sourceSeqNo": "{{responder.Id}}",
+              "remark": "合成测试 fixture",
+              "boundOpenId": {{JsonValue(responder.BoundOpenId)}},
+              "source": "seed",
+              "sourceApplicationId": null
             }
         """);
         WriteDataFile("rescuer-profiles.json", $$"""
+        [
+        {{string.Join(",\n", items)}}
+        ]
+        """);
+    }
+
+    protected sealed record RescuerSeed(
+        string Id,
+        string Name,
+        string Campus,
+        string Level = "official",
+        string QualificationStatus = "active",
+        double Lat = 31.2459,
+        double Lng = 121.5061,
+        string? BoundOpenId = null,
+        string Phone = "13900000001",
+        string CertificateNo = "TEST-CERT-0001",
+        string CertificateNoMasked = "TEST****0001",
+        string? RecordId = null);
+
+    /** 写入合成 AED 设备（JSON provider 不再内置真实设备种子）。 */
+    protected void SeedDevices(params (string Id, string Name, string Status, string? StatusNote)[] devices)
+    {
+        var items = devices.Select(device => $$"""
+            {
+              "id": "{{device.Id}}",
+              "name": "{{device.Name}}",
+              "lat": 31.2459,
+              "lng": 121.5061,
+              "status": "{{device.Status}}",
+              "statusNote": {{JsonValue(device.StatusNote)}},
+              "image": "/static/images/aed-placeholder.png",
+              "address": "示范园区合成点位（测试 fixture）",
+              "lastMaintenance": "2026-09-01",
+              "nextMaintenance": "2027-03-01",
+              "maintainer": "演示维护组"
+            }
+        """);
+        WriteDataFile("aed-devices.json", $$"""
         [
         {{string.Join(",\n", items)}}
         ]
@@ -292,7 +373,7 @@ public abstract class AdminApiTestBase : IAsyncLifetime
               "createdAt": "{{request.CreatedAt:O}}",
               "closedAt": {{JsonValue(request.ClosedAt)}},
               "closeNote": null,
-              "requesterPhone": "REDACTED",
+              "requesterPhone": "13800138000",
               "images": ["/uploads/help/a.jpg"],
               "responders": [],
               "timeline": [],

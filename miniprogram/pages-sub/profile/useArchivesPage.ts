@@ -4,6 +4,7 @@ import { auditCallResponder, auditViewArchivePhone } from '@/api/audit'
 import { fetchArchivePhone, fetchArchives } from '@/api/user'
 import { useAuthStore } from '@/store/auth'
 import type { ArchiveItem, ArchiveListResponse } from '@/types/user'
+import { dialPhone } from '@/utils/dial'
 
 interface FilterTag {
   readonly label: string
@@ -150,9 +151,8 @@ export function useArchivesPage() {
   function handleCall() {
     if (phoneLoading.value || !fullPhone.value || !selectedArchive.value) return
     auditCallResponder(selectedArchive.value.id)
-    uni.makePhoneCall({
-      phoneNumber: fullPhone.value,
-      fail: () => uni.showToast({ title: '拨号失败', icon: 'none' }),
+    dialPhone(fullPhone.value, {
+      onFail: () => uni.showToast({ title: '拨号失败', icon: 'none' }),
     })
   }
 

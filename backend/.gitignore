@@ -7,3 +7,4 @@ riderModule.iml
 data/
 publish/
 src/AedBackend.Api/wwwroot/admin/
+src/AedBackend.Api/appsettings.Development.local.json

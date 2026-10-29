@@ -1,7 +1,8 @@
-// 定位、授权、距离计算 —— 全程使用 GCJ-02 坐标，别自己瞎转
+// 定位、授权、距离计算 —— 全程使用 GCJ-02 坐标，别自己瞎转。
+// 演示档（mock / local-demo）不读真实 GPS，使用配置地图中心的合成位置并显式标识。
 import type { GeoPoint } from '@/types/common'
-import { MAP_CENTER } from '@/utils/constants'
-import { APP_ENV, USE_MOCK, USE_REAL_LOCATION } from '@/utils/runtime-env'
+import { MAP_CENTER } from '@/config/site-config'
+import { USE_SYNTHETIC_LOCATION } from '@/utils/runtime-env'
 
 export { calculateDistance, findNearestOnlineAed } from '@/services/geo-distance'
 
@@ -10,6 +11,10 @@ const LOCATION_SCOPE = 'scope.userLocation'
 const LOCATION_TIMEOUT_MS = 10000
 type GetCurrentLocationMode = 'auto' | 'interactive'
 let hasShownLocationPermissionGuide = false
+
+/** 演示档合成位置的公开提示文案（页面必须可见展示）。 */
+export const SYNTHETIC_LOCATION_NOTICE =
+  '演示模式：当前使用配置地图中心的合成位置，非真实 GPS'
 
 interface DeviceInfoLike {
   readonly platform?: string
@@ -24,23 +29,6 @@ type GetLocationWithAccuracyOptions = UniApp.GetLocationOptions & {
   readonly highAccuracyExpireTime?: number
 }
 
-export function shouldUseDefaultLocation(
-  appEnv: string,
-  useMock: boolean,
-  useRealLocation: boolean,
-): boolean {
-  return appEnv === 'preview' && useMock && !useRealLocation
-}
-
-export function shouldSkipInitialRealLocation(
-  appEnv: string,
-  useMock: boolean,
-  useRealLocation: boolean,
-  autoLocateOnInit: boolean,
-): boolean {
-  return appEnv === 'preview' && useMock && useRealLocation && !autoLocateOnInit
-}
-
 export function isWechatDevtoolsPlatform(platform: string): boolean {
   return platform === DEVTOOLS_PLATFORM
 }
@@ -52,12 +40,12 @@ export function shouldUseManualLocationPicker(
   return isWechatDevtoolsPlatform(platform) && mode === 'interactive'
 }
 
-const SHOULD_USE_DEFAULT_LOCATION = shouldUseDefaultLocation(APP_ENV, USE_MOCK, USE_REAL_LOCATION)
-
 export interface LocationResult {
   readonly success: boolean
   readonly point: GeoPoint
   readonly isDefault: boolean
+  /** true 表示坐标来自演示合成位置，不是 GPS 实测。 */
+  readonly isSynthetic: boolean
   readonly showSystemLocation: boolean
   readonly failureReason?: LocationFailureReason
   readonly address?: string
@@ -75,15 +63,21 @@ interface GetCurrentLocationOptions {
 function createDefaultLocation(
   errorMessage: string,
   failureReason: LocationFailureReason = 'unavailable',
+  isSynthetic = false,
 ): LocationResult {
   return {
     success: false,
-    point: { lat: MAP_CENTER.latitude, lng: MAP_CENTER.longitude },
+    point: MAP_CENTER,
     isDefault: true,
+    isSynthetic,
     showSystemLocation: false,
     failureReason,
     errorMessage,
   }
+}
+
+function createSyntheticLocation(): LocationResult {
+  return createDefaultLocation(SYNTHETIC_LOCATION_NOTICE, 'unavailable', true)
 }
 
 function getRuntimePlatform(): string {
@@ -176,6 +170,7 @@ async function requestCurrentLocation(
       success: true,
       point: { lat: res.latitude, lng: res.longitude },
       isDefault: false,
+      isSynthetic: false,
       showSystemLocation: true,
     }
   } catch (err) {
@@ -197,14 +192,15 @@ async function requestCurrentLocation(
 export async function chooseLocationPoint(center?: GeoPoint): Promise<LocationResult> {
   try {
     const res = await uni.chooseLocation({
-      latitude: center?.lat ?? MAP_CENTER.latitude,
-      longitude: center?.lng ?? MAP_CENTER.longitude,
+      latitude: center?.lat ?? MAP_CENTER.lat,
+      longitude: center?.lng ?? MAP_CENTER.lng,
     })
 
     return {
       success: true,
       point: { lat: res.latitude, lng: res.longitude },
       isDefault: false,
+      isSynthetic: false,
       showSystemLocation: false,
       address: res.address,
       name: res.name,
@@ -229,12 +225,12 @@ export async function chooseLocationPoint(center?: GeoPoint): Promise<LocationRe
   }
 }
 
-/** 获取当前位置 (GCJ-02)；失败结果携带校园中心占位坐标，由调用方决定是否使用。 */
+/** 获取当前位置 (GCJ-02)；演示档返回带标识的合成位置，由调用方决定是否使用。 */
 export async function getCurrentLocation(
   options: GetCurrentLocationOptions = {},
 ): Promise<LocationResult> {
-  if (SHOULD_USE_DEFAULT_LOCATION) {
-    return createDefaultLocation('预览模式未启用真实定位，已使用校园中心点')
+  if (USE_SYNTHETIC_LOCATION) {
+    return createSyntheticLocation()
   }
 
   const mode = options.mode || 'auto'

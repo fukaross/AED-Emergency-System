@@ -1,0 +1,76 @@
+[
+  {
+    "id": "demo-quick-cpr",
+    "title": "心肺复苏（演示卡片）",
+    "icon": "/static/icons/guide-aed.svg",
+    "summary": "演示关键步骤卡片：正式要点需培训人员审核后填入。",
+    "sortOrder": 1,
+    "isEnabled": true,
+    "steps": [
+      {
+        "order": 1,
+        "title": "演示步骤一：内容占位",
+        "description": "演示描述占位。正式步骤说明需由培训人员审核后填入。",
+        "image": "/static/images/course-cover-cpr.png",
+        "keyPoints": [
+          "演示要点占位（待审核）"
+        ]
+      },
+      {
+        "order": 2,
+        "title": "演示步骤二：内容占位",
+        "description": "演示描述占位。正式步骤说明需由培训人员审核后填入。",
+        "image": "/static/images/course-cover-cpr.png",
+        "keyPoints": [
+          "演示要点占位（待审核）"
+        ]
+      },
+      {
+        "order": 3,
+        "title": "演示步骤三：内容占位",
+        "description": "演示描述占位。正式步骤说明需由培训人员审核后填入。",
+        "image": "/static/images/course-cover-cpr.png",
+        "keyPoints": [
+          "演示要点占位（待审核）"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "demo-quick-airway",
+    "title": "气道异物处理（演示卡片）",
+    "icon": "/static/icons/guide-aed.svg",
+    "summary": "演示关键步骤卡片：正式要点需培训人员审核后填入。",
+    "sortOrder": 2,
+    "isEnabled": true,
+    "steps": [
+      {
+        "order": 1,
+        "title": "演示步骤一：内容占位",
+        "description": "演示描述占位。正式步骤说明需由培训人员审核后填入。",
+        "image": "/static/images/course-cover-airway.png",
+        "keyPoints": [
+          "演示要点占位（待审核）"
+        ]
+      },
+      {
+        "order": 2,
+        "title": "演示步骤二：内容占位",
+        "description": "演示描述占位。正式步骤说明需由培训人员审核后填入。",
+        "image": "/static/images/course-cover-airway.png",
+        "keyPoints": [
+          "演示要点占位（待审核）"
+        ]
+      },
+      {
+        "order": 3,
+        "title": "演示步骤三：内容占位",
+        "description": "演示描述占位。正式步骤说明需由培训人员审核后填入。",
+        "image": "/static/images/course-cover-airway.png",
+        "keyPoints": [
+          "演示要点占位（待审核）"
+        ]
+      }
+    ]
+  }
+]

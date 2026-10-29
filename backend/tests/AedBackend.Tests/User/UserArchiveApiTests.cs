@@ -40,9 +40,9 @@ public sealed class UserArchiveApiTests
         using var fixture = await ArchiveFixture.CreateSqliteAsync(
             Responders(
                 ProviderTempData.Responder("rescuer-self", "本人", "core", boundOpenId: OpenId),
-                ProviderTempData.Responder("rescuer-001", "REDACTED", "trainee"),
-                ProviderTempData.Responder("rescuer-002", "REDACTED", "core"),
-                ProviderTempData.Responder("rescuer-off", "离线", "core", "inactive")));
+                ProviderTempData.Responder("rescuer-001", "演示档案甲", "trainee"),
+                ProviderTempData.Responder("rescuer-002", "演示档案乙", "core"),
+                ProviderTempData.Responder("rescuer-off", "离线演示档案", "core", "inactive")));
         fixture.UseUserToken();
 
         var response = await fixture.Client.GetAsync("/api/user/archives?level=core&page=1&pageSize=1");
@@ -56,6 +56,8 @@ public sealed class UserArchiveApiTests
         Assert.Equal("rescuer-self", data.GetProperty("selfArchive").GetProperty("id").GetString());
         Assert.Equal("rescuer-002", item.GetProperty("id").GetString());
         Assert.Equal("138****8000", item.GetProperty("phone").GetString());
+        // 校区显示名来自 config/site.json（east → 东区），不再是源码分支。
+        Assert.Equal("东区", item.GetProperty("college").GetString());
         Assert.False(item.TryGetProperty("idNumber", out _));
     }
 
@@ -64,15 +66,15 @@ public sealed class UserArchiveApiTests
     {
         using var fixture = await ArchiveFixture.CreateSqliteAsync(
             Responders(
-                ProviderTempData.Responder("rescuer-001", "REDACTED"),
-                ProviderTempData.Responder("rescuer-002", "REDACTED")));
+                ProviderTempData.Responder("rescuer-001", "演示档案甲"),
+                ProviderTempData.Responder("rescuer-002", "演示档案乙")));
         fixture.UseUserToken();
 
-        var search = await fixture.Client.GetAsync("/api/user/archives?keyword=陈&page=1&pageSize=20");
+        var search = await fixture.Client.GetAsync("/api/user/archives?keyword=演示档案乙&page=1&pageSize=20");
         var data = (await ReadAsync<ApiResponse<JsonElement>>(search)).Data;
 
         Assert.Equal(1, data.GetProperty("total").GetInt32());
-        Assert.Equal("REDACTED", data.GetProperty("items")[0].GetProperty("name").GetString());
+        Assert.Equal("演示档案乙", data.GetProperty("items")[0].GetProperty("name").GetString());
         await AssertErrorAsync(
             await fixture.Client.GetAsync("/api/user/archives?page=0"),
             HttpStatusCode.BadRequest,
@@ -96,13 +98,13 @@ public sealed class UserArchiveApiTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("rescuer-001", data.GetProperty("id").GetString());
-        Assert.Equal("male", profile.GetProperty("gender").GetString());
+        Assert.Equal("female", profile.GetProperty("gender").GetString());
         Assert.Equal("138****8000", profile.GetProperty("phoneMasked").GetString());
         Assert.Contains("******", profile.GetProperty("idMasked").GetString());
         Assert.False(profile.TryGetProperty("phone", out _));
         Assert.False(profile.TryGetProperty("idNumber", out _));
-        Assert.Equal("JZR-1", certificate.GetProperty("id").GetString());
-        Assert.Equal("CERT20260001", certificate.GetProperty("certificateNo").GetString());
+        Assert.Equal("FIXTURE-001", certificate.GetProperty("id").GetString());
+        Assert.Equal("TESTCERT0001", certificate.GetProperty("certificateNo").GetString());
         Assert.True(certificate.GetProperty("isCurrent").GetBoolean());
     }
 
@@ -132,7 +134,7 @@ public sealed class UserArchiveApiTests
         var data = (await ReadAsync<ApiResponse<JsonElement>>(response)).Data;
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("REDACTED", data.GetProperty("phone").GetString());
+        Assert.Equal("13800138000", data.GetProperty("phone").GetString());
 
         fixture.UseAdminKey();
         var logs = await fixture.Client.GetAsync(
@@ -143,7 +145,7 @@ public sealed class UserArchiveApiTests
         Assert.Equal(1, logData.GetProperty("total").GetInt32());
         Assert.Equal("archive", log.GetProperty("eventType").GetString());
         Assert.Equal(OpenId, log.GetProperty("actorId").GetString());
-        Assert.DoesNotContain("REDACTED", log.GetRawText());
+        Assert.DoesNotContain("13800138000", log.GetRawText());
     }
 
     private static ResponderProfileRecord[] Responders(params ResponderProfileRecord[] items) => items;
@@ -183,7 +185,7 @@ public sealed class UserArchiveApiTests
         {
             var temp = new ProviderTempData();
             await temp.WriteValidDataAsync();
-            await temp.WriteUserJsonAsync(OpenId, "REDACTED", UserToken);
+            await temp.WriteUserJsonAsync(OpenId, "13800138000", UserToken);
             if (responders is not null) await temp.WriteResponderJsonAsync(responders);
             await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
             return new ArchiveFixture(temp, new AdminTestApplication(temp.Root, SqliteConfig(temp)));
@@ -193,7 +195,7 @@ public sealed class UserArchiveApiTests
         {
             var temp = new ProviderTempData();
             await temp.WriteValidDataAsync();
-            await temp.WriteUserJsonAsync(OpenId, "REDACTED", UserToken);
+            await temp.WriteUserJsonAsync(OpenId, "13800138000", UserToken);
             return new ArchiveFixture(temp, new AdminTestApplication(temp.Root));
         }
 

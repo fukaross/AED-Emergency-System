@@ -86,7 +86,7 @@ public sealed class AdminVolunteerApplicationApiTests
 
         var response = await fixture.Client.PutAsJsonAsync(
             $"/api/admin/volunteer-applications/{id}/approve",
-            new { campus = "guilinyang", lat = REDACTED, lng = REDACTED });
+            new { campus = "east", lat = 31.245, lng = 121.505 });
         var data = (await ReadAsync<ApiResponse<JsonElement>>(response)).Data;
         var rescuerId = data.GetProperty("createdRescuerId").GetString();
         var detail = await fixture.Client.GetAsync($"/api/admin/rescuers/{rescuerId}");
@@ -116,8 +116,8 @@ public sealed class AdminVolunteerApplicationApiTests
         var logData = (await ReadAsync<ApiResponse<JsonElement>>(logs)).Data;
         var logText = logData.ToString();
         Assert.Equal(1, logData.GetProperty("total").GetInt32());
-        Assert.DoesNotContain("REDACTED", logText);
-        Assert.DoesNotContain("REDACTED", logText);
+        Assert.DoesNotContain("13800138000", logText);
+        Assert.DoesNotContain("990000199001010017", logText);
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public sealed class AdminVolunteerApplicationApiTests
             new { reviewNote = "材料不完整" });
         var repeated = await fixture.Client.PutAsJsonAsync(
             $"/api/admin/volunteer-applications/{id}/approve",
-            new { campus = "guilinyang", lat = REDACTED, lng = REDACTED });
+            new { campus = "east", lat = 31.245, lng = 121.505 });
         var data = (await ReadAsync<ApiResponse<JsonElement>>(rejected)).Data;
 
         Assert.Equal(HttpStatusCode.OK, rejected.StatusCode);
@@ -155,7 +155,7 @@ public sealed class AdminVolunteerApplicationApiTests
 
         var response = await fixture.Client.PutAsJsonAsync(
             $"/api/admin/volunteer-applications/{id}/approve",
-            new { campus = "guilinyang", lat = REDACTED, lng = REDACTED });
+            new { campus = "east", lat = 31.245, lng = 121.505 });
         var detail = await fixture.Client.GetAsync($"/api/admin/volunteer-applications/{id}");
         var data = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
 
@@ -183,20 +183,20 @@ public sealed class AdminVolunteerApplicationApiTests
             name = "王小明",
             gender = "male",
             birthDate = "2000-01-01",
-            phone = "REDACTED",
+            phone = "13800138000",
             email = "user@example.com",
             politicalStatus = "群众",
             education = "本科",
             occupation = "学生",
             professionalTitle = "无",
             emergencyContactName = "李老师",
-            emergencyContactPhone = "REDACTED",
+            emergencyContactPhone = "13900139000",
             qualificationImages = new[] { Attachment("/uploads/volunteer/qualification.jpg") },
             volunteerCertificateImages = new[] { Attachment("/uploads/volunteer/cert.jpg") },
-            idNumber = "REDACTED",
+            idNumber = "990000199001010017",
             idCardFront = Attachment("/uploads/volunteer/id-front.jpg"),
             idCardBack = Attachment("/uploads/volunteer/id-back.jpg"),
-            homeAddress = "海南省海口市",
+            homeAddress = "演示市演示区",
             personalResume = "参加过校园急救培训",
             joinReason,
             commitmentAccepted = true
@@ -242,7 +242,7 @@ public sealed class AdminVolunteerApplicationApiTests
         {
             var temp = new ProviderTempData();
             await temp.WriteValidDataAsync();
-            await temp.WriteUserJsonAsync(OpenId, "REDACTED", UserToken);
+            await temp.WriteUserJsonAsync(OpenId, "13800138000", UserToken);
             await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
             var app = new AdminTestApplication(temp.Root, SqliteConfig(temp));
             var fixture = new Fixture(temp, app);
@@ -254,7 +254,7 @@ public sealed class AdminVolunteerApplicationApiTests
         {
             var temp = new ProviderTempData();
             await temp.WriteValidDataAsync();
-            await temp.WriteUserJsonAsync(OpenId, "REDACTED", UserToken);
+            await temp.WriteUserJsonAsync(OpenId, "13800138000", UserToken);
             await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
             var config = SqliteConfig(temp);
             config["Test:ForcedResponderId"] = responderId;

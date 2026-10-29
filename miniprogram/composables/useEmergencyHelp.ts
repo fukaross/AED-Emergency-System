@@ -1,5 +1,5 @@
 // 求助发布流程 —— 选点 → 填写 → 上传图片 → 发布（支持游客匿名会话）
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useHelpStore } from '@/store/help'
 import { useAuthStore } from '@/store/auth'
 import { requestAlertSubscribe } from '@/api/wechat-subscribe'
@@ -11,7 +11,9 @@ import { chooseLocationPoint, getCurrentLocation } from '@/services/geo-service'
 import { mergeLocationText } from '@/services/location-address-service'
 import { uploadImage } from '@/api/common'
 import type { PublishHelpPayload, PublishHelpResponse } from '@/types/help'
-import { MAX_HELP_IMAGES, SCHOOL_EMERGENCY_PHONE } from '@/utils/constants'
+import { MAX_HELP_IMAGES } from '@/utils/constants'
+import { RESCUE_PHONE } from '@/config/site-config'
+import { dialPhone } from '@/utils/dial'
 import { USE_REAL_WECHAT_FLOW } from '@/utils/runtime-env'
 
 export type HelpType = 'help_hand' | 'call_120' | 'call_school' | 'general'
@@ -38,6 +40,7 @@ export function useEmergencyHelp() {
   const phone = ref('')
   const manualPhone = ref('')
   const publishResult = ref<PublishHelpResponse | null>(null)
+  const rescuePhoneConfigured = computed(() => RESCUE_PHONE !== '')
 
   /** 选择求助发生位置 */
   async function selectLocation(): Promise<void> {
@@ -77,12 +80,16 @@ export function useEmergencyHelp() {
 
   /** 快捷操作：找 120 */
   function quickCall120(): void {
-    uni.makePhoneCall({ phoneNumber: '120' })
+    dialPhone('120')
   }
 
-  /** 快捷操作：找校方 */
+  /** 快捷操作：找校方 —— 热线来自 config/site.json，未配置时不提供 */
   function quickCallSchool(): void {
-    uni.makePhoneCall({ phoneNumber: SCHOOL_EMERGENCY_PHONE })
+    if (!rescuePhoneConfigured.value) {
+      uni.showToast({ title: '未配置校方急救热线', icon: 'none' })
+      return
+    }
+    dialPhone(RESCUE_PHONE)
   }
 
   /** 选择并上传图片 */
@@ -226,6 +233,12 @@ export function useEmergencyHelp() {
   async function requestSubscribeBeforePublish(): Promise<void> {
     if (!authStore.isLoggedIn) return
 
+    if (!USE_REAL_WECHAT_FLOW) {
+      // 演示档不得调用真实订阅消息；明确告知未发送，不伪造“通知已开启”
+      uni.showToast({ title: '演示模式：求助通知未真实发送', icon: 'none' })
+      return
+    }
+
     try {
       uni.showToast({ title: '请点允许通知', icon: 'none' })
       const status = await requestAlertSubscribe()
@@ -260,6 +273,7 @@ export function useEmergencyHelp() {
     phone,
     manualPhone,
     publishResult,
+    rescuePhoneConfigured,
     selectLocation,
     quickHelpHand,
     quickCall120,

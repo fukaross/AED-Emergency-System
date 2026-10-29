@@ -1,7 +1,6 @@
 using AedBackend.Core.Models.Help;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using AedBackend.Infrastructure.Help;
 
 namespace AedBackend.Infrastructure.Persistence.Sqlite;
 
@@ -24,7 +23,6 @@ internal static class SqliteSchemaUpgrade
         await CreateSchoolIdentityTablesAsync(db, ct);
         await CreateHelpRequestIndexesAsync(db, ct);
         await SqliteRescueSchemaUpgrade.EnsureAsync(db, ct);
-        await InsertMissingAedDeviceSeedsAsync(db, ct);
     }
 
     private static async Task AddExperienceUserColumnsAsync(AedDbContext db, CancellationToken ct)
@@ -205,23 +203,6 @@ internal static class SqliteSchemaUpgrade
             由运维与业务负责人逐条确认真实状态并明确处理冲突；只读 SQL 返回 0 行后方可重启服务。
             """;
         return new InvalidOperationException(message, innerException);
-    }
-
-    private static async Task InsertMissingAedDeviceSeedsAsync(AedDbContext db, CancellationToken ct)
-    {
-        var existingIds = await db.AedDevices.Select(d => d.Id).ToArrayAsync(ct);
-        var existingNames = await db.AedDevices.Select(d => d.Name).ToArrayAsync(ct);
-        var idSet = existingIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var nameSet = existingNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var missingSeeds = AedDeviceSeedData.Devices
-            .Where(d => !idSet.Contains(d.Id) && !nameSet.Contains(d.Name))
-            .Select(SqliteMapper.ToEntity)
-            .ToArray();
-        if (missingSeeds.Length == 0) return;
-
-        db.AedDevices.AddRange(missingSeeds);
-        await db.SaveChangesAsync(ct);
     }
 
     private static async Task CreateIdentityIndexesAsync(AedDbContext db, CancellationToken ct)

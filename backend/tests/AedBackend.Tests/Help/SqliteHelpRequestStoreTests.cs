@@ -86,7 +86,7 @@ public sealed class SqliteHelpRequestStoreTests
             Content = "有人晕倒需要协助",
             Type = "help_hand",
             CreatedAt = createdAt,
-            RequesterPhone = "REDACTED",
+            RequesterPhone = "13800138000",
             Timeline = [new HelpTimelineRecord(
             HelpStatuses.Published,
             createdAt,

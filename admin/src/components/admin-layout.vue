@@ -6,7 +6,7 @@
         <div class="logo-icon-box">
           <div class="red-block-logo" />
         </div>
-        <span class="logo-text">AED 管理端</span>
+        <span class="logo-text">{{ siteConfig.adminTitle }}</span>
       </div>
 
       <admin-navigation
@@ -38,7 +38,7 @@
         <div class="logo-icon-box">
           <div class="red-block-logo" />
         </div>
-        <span class="logo-text">AED 管理端</span>
+        <span class="logo-text">{{ siteConfig.adminTitle }}</span>
       </div>
 
       <admin-navigation
@@ -86,6 +86,7 @@ import { logout } from '@/api/auth'
 import AdminNavigation from '@/components/admin-navigation.vue'
 import { useAdminStore } from '@/stores/admin'
 import { logApiError } from '@/utils/safe-api-error'
+import { siteConfig } from '@/config/site-config'
 
 const BREAKPOINT_TABLET = 1024
 const ACTIVE_MENU_PREFIXES = [

@@ -47,6 +47,8 @@
     <!-- 选项列表 -->
     <ProfileMenuList @select="handleMenuClick" />
 
+    <DemoModeBadge />
+
     <view class="pf-spacer" />
 
     <AppTabBar current-path="/pages/profile/index" />
@@ -62,6 +64,7 @@ import { useAuthStore } from '@/store/auth'
 import { useUserStore } from '@/store/user'
 import { uploadImage } from '@/api/common'
 import AppTabBar from '@/components/app-tab-bar/index.vue'
+import DemoModeBadge from '@/components/demo-mode-badge/index.vue'
 import LevelBadge from '@/components/level-badge/index.vue'
 import ProfileMenuList from './components/profile-menu-list.vue'
 

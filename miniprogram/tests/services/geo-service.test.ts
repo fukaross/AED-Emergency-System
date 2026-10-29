@@ -1,47 +1,40 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
+import { MAP_CENTER, CAMPUSES } from '@/config/site-config'
+import { DEMO_AED_DEVICES } from '@/mock/generated/demo-aed-devices.generated'
 import {
+  SYNTHETIC_LOCATION_NOTICE,
   calculateDistance,
   chooseLocationPoint,
   getCurrentLocation,
   isWechatDevtoolsPlatform,
-  shouldSkipInitialRealLocation,
   shouldUseManualLocationPicker,
-  shouldUseDefaultLocation,
 } from '@/services/geo-service'
 
 afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('shouldUseDefaultLocation', () => {
-  it('uses campus center in preview mock mode when real location is disabled', () => {
-    expect(shouldUseDefaultLocation('preview', true, false)).toBe(true)
+describe('synthetic location (mock / local-demo modes)', () => {
+  it('returns a config-center synthetic point with a visible notice', async () => {
+    const result = await getCurrentLocation()
+
+    expect(result.success).toBe(false)
+    expect(result.isSynthetic).toBe(true)
+    expect(result.isDefault).toBe(true)
+    expect(result.showSystemLocation).toBe(false)
+    expect(result.point).toEqual(MAP_CENTER)
+    expect(result.errorMessage).toBe(SYNTHETIC_LOCATION_NOTICE)
+    expect(result.errorMessage).toContain('合成位置')
   })
 
-  it('allows real location in preview mock mode when enabled explicitly', () => {
-    expect(shouldUseDefaultLocation('preview', true, true)).toBe(false)
-  })
+  it('never reports real GPS even for interactive location mode', async () => {
+    const getLocation = vi.fn()
+    vi.stubGlobal('uni', { getLocation })
 
-  it('does not force default location outside preview mock mode', () => {
-    expect(shouldUseDefaultLocation('development', true, false)).toBe(false)
-    expect(shouldUseDefaultLocation('preview', false, false)).toBe(false)
-    expect(shouldUseDefaultLocation('production', false, false)).toBe(false)
-  })
-})
+    const result = await getCurrentLocation({ mode: 'interactive' })
 
-describe('shouldSkipInitialRealLocation', () => {
-  it('skips initial real location only in preview mock mode when auto locate is disabled', () => {
-    expect(shouldSkipInitialRealLocation('preview', true, true, false)).toBe(true)
-  })
-
-  it('does not skip initial real location when auto locate is enabled', () => {
-    expect(shouldSkipInitialRealLocation('preview', true, true, true)).toBe(false)
-  })
-
-  it('does not skip initial real location outside preview real-location mode', () => {
-    expect(shouldSkipInitialRealLocation('development', true, true, false)).toBe(false)
-    expect(shouldSkipInitialRealLocation('preview', true, false, false)).toBe(false)
-    expect(shouldSkipInitialRealLocation('preview', false, true, false)).toBe(false)
+    expect(result.isSynthetic).toBe(true)
+    expect(getLocation).not.toHaveBeenCalled()
   })
 })
 
@@ -59,133 +52,94 @@ describe('devtools location routing', () => {
 })
 
 describe('chooseLocationPoint', () => {
-  it('returns the selected map point and place text', async () => {
+  it('opens the map at the configured map center by default', async () => {
     const chooseLocation = vi.fn().mockResolvedValue({
-      latitude: 19.976547,
-      longitude: 110.51346,
-      name: '理科楼',
-      address: 'REDACTED',
+      latitude: 31.2315,
+      longitude: 121.4785,
+      name: '演示选点',
+      address: '示范园区（合成点位）',
     })
     vi.stubGlobal('uni', { chooseLocation })
 
     const result = await chooseLocationPoint()
 
     expect(chooseLocation).toHaveBeenCalledWith({
-      latitude: 19.976547,
-      longitude: 110.51346,
+      latitude: MAP_CENTER.lat,
+      longitude: MAP_CENTER.lng,
     })
     expect(result).toMatchObject({
       success: true,
-      point: { lat: 19.976547, lng: 110.51346 },
-      address: 'REDACTED',
-      name: '理科楼',
+      point: { lat: 31.2315, lng: 121.4785 },
+      address: '示范园区（合成点位）',
+      name: '演示选点',
+      isSynthetic: false,
     })
   })
 
   it('uses the provided center coordinate for initial map view', async () => {
     const chooseLocation = vi.fn().mockResolvedValue({
-      latitude: 19.98,
-      longitude: 110.52,
-      name: '三号宿舍楼',
-      address: 'REDACTED三号宿舍楼',
+      latitude: 31.24,
+      longitude: 121.5,
+      name: '演示楼',
+      address: '示范园区东区演示楼',
     })
     vi.stubGlobal('uni', { chooseLocation })
 
-    const result = await chooseLocationPoint({ lat: 19.98, lng: 110.52 })
+    const result = await chooseLocationPoint({ lat: 31.24, lng: 121.5 })
 
     expect(chooseLocation).toHaveBeenCalledWith({
-      latitude: 19.98,
-      longitude: 110.52,
+      latitude: 31.24,
+      longitude: 121.5,
     })
     expect(result).toMatchObject({
       success: true,
-      point: { lat: 19.98, lng: 110.52 },
-      name: '三号宿舍楼',
+      point: { lat: 31.24, lng: 121.5 },
+      name: '演示楼',
     })
   })
-})
 
-describe('location permission handling', () => {
-  it('does not claim that every caller applied the campus fallback', async () => {
-    vi.stubGlobal('uni', {
-      getDeviceInfo: () => ({ platform: 'windows' }),
-      getSetting: vi.fn().mockResolvedValue({ authSetting: { 'scope.userLocation': false } }),
-      authorize: vi.fn(),
-      showModal: vi.fn(),
-      openSetting: vi.fn(),
-    })
+  it('surfaces a cancelled pick without pretending success', async () => {
+    const chooseLocation = vi.fn().mockRejectedValue({ errMsg: 'chooseLocation:fail cancel' })
+    vi.stubGlobal('uni', { chooseLocation })
 
-    const result = await getCurrentLocation()
+    const result = await chooseLocationPoint()
 
-    expect(result.errorMessage).toBe('定位权限被拒绝，请开启定位权限后重试')
-    expect(result.errorMessage).not.toContain('已使用校园中心点')
-  })
-
-  it('shows the settings guide at most once after a persisted denial', async () => {
-    const showModal = vi.fn()
-    const authorize = vi.fn()
-    vi.stubGlobal('uni', {
-      getDeviceInfo: () => ({ platform: 'windows' }),
-      getSetting: vi.fn().mockResolvedValue({ authSetting: { 'scope.userLocation': false } }),
-      authorize,
-      showModal,
-      openSetting: vi.fn(),
-    })
-
-    await getCurrentLocation({ mode: 'interactive' })
-    await getCurrentLocation({ mode: 'interactive' })
-
-    expect(authorize).not.toHaveBeenCalled()
-    expect(showModal).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not log exact coordinates after a successful location request', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
-    vi.stubGlobal('uni', {
-      getDeviceInfo: () => ({ platform: 'windows' }),
-      getSetting: vi.fn().mockResolvedValue({ authSetting: { 'scope.userLocation': true } }),
-      getLocation: vi.fn().mockResolvedValue({ latitude: 19.97, longitude: 110.51 }),
-    })
-
-    const result = await getCurrentLocation()
-
-    expect(result.success).toBe(true)
-    expect(logSpy).not.toHaveBeenCalled()
+    expect(result.success).toBe(false)
+    expect(result.failureReason).toBe('cancelled')
+    expect(result.errorMessage).toBe('未选择位置，请重试')
   })
 })
 
 describe('calculateDistance (Haversine)', () => {
   it('returns 0 for same point', () => {
-    const d = calculateDistance(
-      { lat: 19.976547, lng: 110.51346 },
-      { lat: 19.976547, lng: 110.51346 },
-    )
-    expect(d).toBe(0)
+    expect(calculateDistance(MAP_CENTER, MAP_CENTER)).toBe(0)
   })
 
-  it('calculates distance between two campus AEDs', () => {
-    // AED-01 to AED-02 (roughly 140m)
-    const d = calculateDistance(
-      { lat: 19.974447, lng: 110.517041 },
-      { lat: 19.975735, lng: 110.517149 },
+  it('calculates a plausible distance between two demo AED devices', () => {
+    const first = DEMO_AED_DEVICES[0]
+    const second = DEMO_AED_DEVICES[1]
+    const distance = calculateDistance(
+      { lat: first.lat, lng: first.lng },
+      { lat: second.lat, lng: second.lng },
     )
-    expect(d).toBeGreaterThan(100)
-    expect(d).toBeLessThan(200)
+
+    expect(distance).toBeGreaterThan(150)
+    expect(distance).toBeLessThan(500)
   })
 
-  it('calculates reasonable distance for campus diagonal', () => {
-    // AED-09 (south) to AED-12 (north-east), roughly 300m
-    const d = calculateDistance(
-      { lat: 19.972782, lng: 110.517886 },
-      { lat: 19.975272, lng: 110.518919 },
-    )
-    expect(d).toBeGreaterThan(250)
-    expect(d).toBeLessThan(400)
+  it('roughly matches the configured distance between map center and east campus', () => {
+    const distance = calculateDistance(MAP_CENTER, CAMPUSES[0].center)
+
+    expect(distance).toBeGreaterThan(2000)
+    expect(distance).toBeLessThan(4000)
   })
 
   it('is symmetric', () => {
-    const a = { lat: 19.974447, lng: 110.517041 }
-    const b = { lat: 19.975735, lng: 110.517149 }
+    const first = DEMO_AED_DEVICES[0]
+    const second = DEMO_AED_DEVICES[1]
+    const a = { lat: first.lat, lng: first.lng }
+    const b = { lat: second.lat, lng: second.lng }
+
     expect(calculateDistance(a, b)).toBeCloseTo(calculateDistance(b, a), 2)
   })
 })

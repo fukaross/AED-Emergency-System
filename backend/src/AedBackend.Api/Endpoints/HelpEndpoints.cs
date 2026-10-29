@@ -203,7 +203,8 @@ public static class HelpEndpoints
         var validationError = HelpPublishFlow.ValidatePublishRequest(
             endpoint.Body,
             endpoint.Options.Value,
-            current.User);
+            current.User,
+            endpoint.DemoOptions.Value.Enabled);
         if (validationError is not null)
         {
             return new HelpPublishPreparation(

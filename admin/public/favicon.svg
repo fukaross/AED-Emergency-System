@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  admin/public/favicon.svg — 本项目自建图标（TASK-005）。
+  全部为本仓手写的简单几何图形（圆角方块 + 心形 + 闪电），
+  不是第三方图标集或任何品牌素材的复制/改绘；无字体、无位图、无外部引用。
+  仅用于本地演示模板的浏览器标签页图标。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="AED 演示图标">
+  <rect width="64" height="64" rx="14" fill="#c62f2f"/>
+  <path d="M32 52C20 43 11 35 11 25A10.5 10.5 0 0 1 32 25A10.5 10.5 0 0 1 53 25C53 35 44 43 32 52Z" fill="#ffffff"/>
+  <path d="M34 20L25 36H31L29 46L41 30H35Z" fill="#f6b73c"/>
+</svg>

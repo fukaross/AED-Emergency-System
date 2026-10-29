@@ -1,0 +1,128 @@
+[
+  {
+    "id": "demo-course-aed",
+    "title": "AED 使用演示课程",
+    "thumbnail": "/static/images/course-cover-aed.png",
+    "type": "article",
+    "category": "emergency",
+    "content": "<p>本课程为演示占位内容，仅用于验证课程列表、详情与阅读量交互。</p><p>正式急救教学内容须由具备资质的培训人员审核后填入；模板不提供未经审核的急救指导。</p>",
+    "videoUrl": null,
+    "videos": [],
+    "disclaimer": "演示内容，不构成急救指导；正式培训内容需由具备资质的机构审核。",
+    "pinned": true,
+    "sortOrder": 1,
+    "isEnabled": true,
+    "cacheVersion": "demo-v1",
+    "estimatedTime": "3 分钟",
+    "viewCount": 128,
+    "createdAt": "2026-09-01T09:00:00+08:00",
+    "steps": [
+      {
+        "order": 1,
+        "title": "演示步骤一：内容占位",
+        "description": "演示描述占位。正式步骤说明需由培训人员审核后填入。",
+        "image": "/static/images/course-cover-aed.png",
+        "keyPoints": [
+          "演示要点占位（待审核）",
+          "演示要点占位（待审核）"
+        ]
+      },
+      {
+        "order": 2,
+        "title": "演示步骤二：内容占位",
+        "description": "演示描述占位。正式步骤说明需由培训人员审核后填入。",
+        "image": "/static/images/course-cover-aed.png",
+        "keyPoints": [
+          "演示要点占位（待审核）"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "demo-course-cpr",
+    "title": "心肺复苏演示课程",
+    "thumbnail": "/static/images/course-cover-cpr.png",
+    "type": "article",
+    "category": "emergency",
+    "content": "<p>本课程为演示占位内容，仅用于验证课程列表、详情与阅读量交互。</p><p>正式急救教学内容须由具备资质的培训人员审核后填入。</p>",
+    "videoUrl": null,
+    "videos": [],
+    "disclaimer": "演示内容，不构成急救指导；正式培训内容需由具备资质的机构审核。",
+    "pinned": false,
+    "sortOrder": 2,
+    "isEnabled": true,
+    "cacheVersion": "demo-v1",
+    "estimatedTime": "4 分钟",
+    "viewCount": 96,
+    "createdAt": "2026-09-02T09:00:00+08:00",
+    "steps": [
+      {
+        "order": 1,
+        "title": "演示步骤一：内容占位",
+        "description": "演示描述占位。正式步骤说明需由培训人员审核后填入。",
+        "image": "/static/images/course-cover-cpr.png",
+        "keyPoints": [
+          "演示要点占位（待审核）"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "demo-course-airway",
+    "title": "气道异物处理演示课程",
+    "thumbnail": "/static/images/course-cover-airway.png",
+    "type": "article",
+    "category": "emergency",
+    "content": "<p>本课程为演示占位内容，仅用于验证课程列表与详情结构。</p><p>正式急救教学内容须由具备资质的培训人员审核后填入。</p>",
+    "videoUrl": null,
+    "videos": [],
+    "disclaimer": "演示内容，不构成急救指导；正式培训内容需由具备资质的机构审核。",
+    "pinned": false,
+    "sortOrder": 3,
+    "isEnabled": true,
+    "cacheVersion": "demo-v1",
+    "estimatedTime": "3 分钟",
+    "viewCount": 64,
+    "createdAt": "2026-09-03T09:00:00+08:00",
+    "steps": [
+      {
+        "order": 1,
+        "title": "演示步骤一：内容占位",
+        "description": "演示描述占位。正式步骤说明需由培训人员审核后填入。",
+        "image": "/static/images/course-cover-airway.png",
+        "keyPoints": [
+          "演示要点占位（待审核）"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "demo-course-wound",
+    "title": "外伤处置演示课程",
+    "thumbnail": "/static/images/course-cover-wound.png",
+    "type": "article",
+    "category": "first-aid",
+    "content": "<p>本课程为演示占位内容，用于验证非紧急分类的课程筛选与阅读。</p><p>正式急救教学内容须由具备资质的培训人员审核后填入。</p>",
+    "videoUrl": null,
+    "videos": [],
+    "disclaimer": "演示内容，不构成急救指导；正式培训内容需由具备资质的机构审核。",
+    "pinned": false,
+    "sortOrder": 4,
+    "isEnabled": true,
+    "cacheVersion": "demo-v1",
+    "estimatedTime": "5 分钟",
+    "viewCount": 41,
+    "createdAt": "2026-09-04T09:00:00+08:00",
+    "steps": [
+      {
+        "order": 1,
+        "title": "演示步骤一：内容占位",
+        "description": "演示描述占位。正式步骤说明需由培训人员审核后填入。",
+        "image": "/static/images/course-cover-wound.png",
+        "keyPoints": [
+          "演示要点占位（待审核）"
+        ]
+      }
+    ]
+  }
+]

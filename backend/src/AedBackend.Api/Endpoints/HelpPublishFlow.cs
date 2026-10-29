@@ -47,9 +47,12 @@ internal static class HelpPublishFlow
     public static string? ValidatePublishRequest(
         PublishHelpRequest request,
         WeChatOptions options,
-        ExperienceUserRecord? currentUser)
+        ExperienceUserRecord? currentUser,
+        bool demoMode)
     {
-        if (string.IsNullOrWhiteSpace(options.SubscribeTemplateId)) return "缺少订阅模板配置";
+        // 演示模式不发送真实订阅消息（见 DemoAwareSubscribeMessageSender），
+        // 因此不要求真实订阅模板；真实模式缺模板仍必须明确失败。
+        if (!demoMode && string.IsNullOrWhiteSpace(options.SubscribeTemplateId)) return "缺少订阅模板配置";
         if (currentUser is null) return "请先登录";
         if (string.IsNullOrWhiteSpace(currentUser.Phone)) return "请先授权联系电话";
         if (request.Images?.Count > MaxHelpImageCount) return "images 最多 3 项";

@@ -35,7 +35,7 @@ public sealed class UserApiTests
         Assert.Equal("微信用户 abc123", data.GetProperty("name").GetString());
         Assert.Equal(string.Empty, data.GetProperty("avatarUrl").GetString());
         Assert.Equal("unknown", data.GetProperty("gender").GetString());
-        Assert.Equal("REDACTED", data.GetProperty("phone").GetString());
+        Assert.Equal("13800138000", data.GetProperty("phone").GetString());
         Assert.Equal("student", data.GetProperty("primaryRole").GetString());
         Assert.False(data.GetProperty("certified").GetBoolean());
         Assert.Equal(JsonValueKind.Null, data.GetProperty("schoolProfile").ValueKind);
@@ -74,7 +74,7 @@ public sealed class UserApiTests
         await AssertErrorAsync(
             await fixture.Client.PostAsJsonAsync(
                 "/api/auth/wechat-phone",
-                new { phone = "REDACTED" }),
+                new { phone = "13900139000" }),
             HttpStatusCode.Forbidden,
             ErrorCodes.AccountDisabled);
         await AssertErrorAsync(
@@ -152,7 +152,7 @@ public sealed class UserApiTests
             name = "  王小明  ",
             avatarUrl = "/uploads/avatar/a.jpg",
             gender = "male",
-            phone = "REDACTED"
+            phone = "13900139000"
         });
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
 
@@ -161,7 +161,7 @@ public sealed class UserApiTests
         Assert.Equal("王小明", data.GetProperty("name").GetString());
         Assert.Equal("/uploads/avatar/a.jpg", data.GetProperty("avatarUrl").GetString());
         Assert.Equal("male", data.GetProperty("gender").GetString());
-        Assert.Equal("REDACTED", data.GetProperty("phone").GetString());
+        Assert.Equal("13900139000", data.GetProperty("phone").GetString());
     }
 
     [Fact]
@@ -299,20 +299,20 @@ public sealed class UserApiTests
             name,
             gender = "male",
             birthDate = "2000-01-01",
-            phone = "REDACTED",
+            phone = "13800138000",
             email = "user@example.com",
             politicalStatus = "群众",
             education = "本科",
             occupation = "学生",
             professionalTitle = "无",
             emergencyContactName = "李老师",
-            emergencyContactPhone = "REDACTED",
+            emergencyContactPhone = "13900139000",
             qualificationImages = new[] { Attachment("/uploads/volunteer/qualification.jpg") },
             volunteerCertificateImages = new[] { Attachment("/uploads/volunteer/cert.jpg") },
-            idNumber = "REDACTED",
+            idNumber = "990000199001010017",
             idCardFront = Attachment("/uploads/volunteer/id-front.jpg"),
             idCardBack = Attachment("/uploads/volunteer/id-back.jpg"),
-            homeAddress = "海南省海口市",
+            homeAddress = "演示市演示区",
             personalResume = "参加过校园急救培训",
             joinReason,
             commitmentAccepted = true,
@@ -359,7 +359,7 @@ public sealed class UserApiTests
         {
             var temp = new ProviderTempData();
             await temp.WriteValidDataAsync();
-            await temp.WriteUserJsonAsync(OpenId, "REDACTED", UserToken);
+            await temp.WriteUserJsonAsync(OpenId, "13800138000", UserToken);
             await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
             var app = new AdminTestApplication(
                 temp.Root,
@@ -372,7 +372,7 @@ public sealed class UserApiTests
         {
             var temp = new ProviderTempData();
             await temp.WriteMinimalJsonAsync();
-            await temp.WriteUserJsonAsync(OpenId, "REDACTED", UserToken);
+            await temp.WriteUserJsonAsync(OpenId, "13800138000", UserToken);
             return new UserApiFixture(temp, new AdminTestApplication(temp.Root));
         }
 

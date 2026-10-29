@@ -1,12 +1,12 @@
 {
-  "name": "REDACTED",
+  "name": "AED 急救协作",
   "appid": "__UNI__PLACEHOLDER",
-  "description": "REDACTED",
+  "description": "AED 急救协作小程序迁移模板，演示数据均为合成数据",
   "versionName": "0.1.0",
   "versionCode": "100",
   "transformPx": false,
   "mp-weixin": {
-    "appid": "REDACTED",
+    "appid": "touristappid",
     "setting": {
       "urlCheck": false,
       "minified": true,

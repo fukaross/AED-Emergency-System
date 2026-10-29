@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { CAMPUSES, MAP_CENTER, SERVICE_RADIUS_METERS } from '@/config/site-config'
+import { DEMO_RESCUER_PROFILES } from '@/mock/generated/demo-rescuer-profiles.generated'
+import { setActiveDemoRole, resetActiveDemoRole } from '@/mock/demo-role'
 import {
   __resetMockRescuerState,
   __setMockRescuerNow,
@@ -8,150 +11,164 @@ import {
   updateMockMyRescuerAvailability,
 } from '@/mock/rescuer'
 import { MOCK_RESCUERS } from '@/mock/rescuer-fixtures'
-import {
-  FEATURED_MOCK_RESCUER_ID,
-  resolveCampusCodeFromSource,
-} from '@/mock/rescuer-qualification-fixtures'
-import { SOURCE_RESCUER_ARCHIVE_ROWS } from '@/mock/rescuer-source-rows'
 
-describe('mock rescuers', () => {
+const storage = new Map<string, string>()
+
+vi.stubGlobal('uni', {
+  getStorageSync: vi.fn((key: string) => storage.get(key) ?? ''),
+  setStorageSync: vi.fn((key: string, value: string) => {
+    storage.set(key, value)
+  }),
+  removeStorageSync: vi.fn((key: string) => {
+    storage.delete(key)
+  }),
+})
+
+const EAST = CAMPUSES[0]
+const WEST = CAMPUSES[1]
+const ACTIVE_RESCUER_PROFILE_ID = 'DEMO-RSP-001'
+
+function queryAt(campus: { center: { lat: number; lng: number } }) {
+  return queryMockNearbyRescuers({ lat: campus.center.lat, lng: campus.center.lng })
+}
+
+describe('mock rescuers (demo-v1 synthetic profiles)', () => {
   beforeEach(() => {
+    storage.clear()
+    resetActiveDemoRole()
     __resetMockRescuerState()
   })
 
-  it('filters list by nearest campus and sorts online first', () => {
-    const result = queryMockNearbyRescuers({
-      lat: 19.9743,
-      lng: 110.5178,
-    })
+  it('projects every demo profile one-to-one without inventing extra records', () => {
+    expect(MOCK_RESCUERS).toHaveLength(DEMO_RESCUER_PROFILES.length)
+    expect(MOCK_RESCUERS.map((item) => item.profileId)).toEqual(
+      DEMO_RESCUER_PROFILES.map((profile) => profile.id),
+    )
+  })
 
-    expect(result.campus).toBe('guilinyang')
-    expect(result.items.every((item) => item.campus === 'guilinyang')).toBe(true)
+  it('filters list by nearest configured campus and sorts online first', () => {
+    const result = queryAt(EAST)
+
+    expect(result.campus).toBe(EAST.code)
+    expect(result.campusName).toBe(EAST.name)
+    expect(result.items.every((item) => item.campus === EAST.code)).toBe(true)
     expect(result.items[0]?.availabilityStatus).toBe('online')
     expect(result.items.at(-1)?.availabilityStatus).toBe('offline')
+    expect(result.autoOfflineRadius).toBe(SERVICE_RADIUS_METERS)
+  })
+
+  it('resolves the viewer campus by config order, not by a hardcoded pair', () => {
+    for (const campus of CAMPUSES) {
+      const result = queryAt(campus)
+      expect(result.campus).toBe(campus.code)
+      expect(result.viewerCampusDistance).toBe(0)
+    }
   })
 
   it('returns full contact in rescuer detail for login-only scene', () => {
-    const detail = getMockRescuerDetail('rescuer-001')
+    const detail = getMockRescuerDetail(`rescuer-${ACTIVE_RESCUER_PROFILE_ID}`)
 
-    expect(detail?.name).toBe('REDACTED')
-    expect(detail?.phone).toBe('REDACTED')
-    expect(detail?.phoneMasked).toBe('182****7261')
+    expect(detail?.name).toBe('演示乙（急救员·东区）')
+    expect(detail?.phone).toBe('13000000002')
+    expect(detail?.phoneMasked).toBe('130****0002')
     expect(detail?.skills.stb).toBe(true)
   })
 
-  it('pins the featured new rescuer online in Guilinyang campus', () => {
-    const result = queryMockNearbyRescuers({
-      lat: 19.9743,
-      lng: 110.5178,
-    })
-    const detail = getMockRescuerDetail(FEATURED_MOCK_RESCUER_ID)
-
-    expect(result.items[0]?.id).toBe(FEATURED_MOCK_RESCUER_ID)
-    expect(result.items[0]?.name).toBe('REDACTED')
-    expect(result.items[0]?.level).toBe('honor')
-    expect(result.items[0]?.availabilityStatus).toBe('online')
-    expect(detail?.campus).toBe('guilinyang')
-  })
-
-  it('derives skill flags from source assessment results', () => {
-    expect(MOCK_RESCUERS).toHaveLength(SOURCE_RESCUER_ARCHIVE_ROWS.length)
-
+  it('derives skill flags from demo profile booleans', () => {
     MOCK_RESCUERS.forEach((record, index) => {
-      const row = SOURCE_RESCUER_ARCHIVE_ROWS[index]
-      const cprAedPassed = row.cprAedCombinedResult === '合格'
-
+      const profile = DEMO_RESCUER_PROFILES[index]
       expect(record.skills).toEqual({
-        cpr: row.cprAssessmentResult === '合格' || cprAedPassed,
-        aed: row.aedAssessmentResult === '合格' || cprAedPassed,
-        stb: row.traumaAssessmentResult === '合格',
+        cpr: profile.skillCpr,
+        aed: profile.skillAed,
+        stb: profile.skillStb,
       })
     })
   })
 
-  it('derives campus from source training session instead of array position', () => {
+  it('uses the demo campus field instead of guessing from training text', () => {
     MOCK_RESCUERS.forEach((record, index) => {
-      expect(record.campus).toBe(
-        resolveCampusCodeFromSource(SOURCE_RESCUER_ARCHIVE_ROWS[index]),
-      )
+      expect(record.campus).toBe(DEMO_RESCUER_PROFILES[index].campus)
     })
   })
 
-  it('returns empty state list when viewer is outside both campus service radii', () => {
-    const result = queryMockNearbyRescuers({
-      lat: 20.45,
-      lng: 110.9,
-    })
+  it('returns empty state list when viewer is outside every campus service radius', () => {
+    const result = queryMockNearbyRescuers({ lat: 0, lng: 0 })
 
-    expect(result.viewerCampusDistance).toBeGreaterThan(30000)
+    expect(result.viewerCampusDistance).toBeGreaterThan(SERVICE_RADIUS_METERS)
     expect(result.items).toHaveLength(0)
   })
 
   it('keeps availability runtime status separate from qualification status', () => {
-    const detail = getMockRescuerDetail('rescuer-025')
+    // DEMO-RSP-004 资格有效但距校区中心 36 km，应自动离线
+    const detail = getMockRescuerDetail('rescuer-DEMO-RSP-004')
 
     expect(detail?.qualificationStatus).toBe('active')
     expect(detail?.availabilityStatus).toBe('offline')
+    expect(detail?.campus).toBe('east')
   })
 
-  it('matches campus split and online-offline ratio after featured override', () => {
-    const guilinyang = queryMockNearbyRescuers({
-      lat: 19.9743,
-      lng: 110.5178,
-    })
-    const fucheng = queryMockNearbyRescuers({
-      lat: 19.9988,
-      lng: 110.358,
-    })
+  it('matches campus split and online-offline counts of the demo data', () => {
+    const east = queryAt(EAST)
+    const west = queryAt(WEST)
+    const countStatus = (items: typeof east.items, status: 'online' | 'offline') =>
+      items.filter((item) => item.availabilityStatus === status).length
 
-    const guilinyangOnline = guilinyang.items.filter(
-      (item) => item.availabilityStatus === 'online',
-    ).length
-    const guilinyangOffline = guilinyang.items.filter(
-      (item) => item.availabilityStatus === 'offline',
-    ).length
-    const fuchengOnline = fucheng.items.filter(
-      (item) => item.availabilityStatus === 'online',
-    ).length
-    const fuchengOffline = fucheng.items.filter(
-      (item) => item.availabilityStatus === 'offline',
-    ).length
+    // 东区有效资格档案：001/003/004/005/007（002 资格失效被过滤）
+    expect(east.items).toHaveLength(5)
+    expect(countStatus(east.items, 'online')).toBe(4)
+    expect(countStatus(east.items, 'offline')).toBe(1)
 
-    expect(guilinyang.items).toHaveLength(22)
-    expect(fucheng.items).toHaveLength(9)
-    expect(guilinyangOnline).toBe(17)
-    expect(guilinyangOffline).toBe(5)
-    expect(fuchengOnline).toBe(8)
-    expect(fuchengOffline).toBe(1)
+    // 西区只有 DEMO-RSP-006
+    expect(west.items).toHaveLength(1)
+    expect(west.items[0]?.id).toBe('rescuer-DEMO-RSP-006')
+    expect(west.items[0]?.availabilityStatus).toBe('online')
   })
 
-  it('supports manual offline window within 10 hours', () => {
-    __setMockRescuerNow('2026-04-22T10:00:00.000Z')
+  it('supports manual offline window within 10 hours for the current rescuer', () => {
+    setActiveDemoRole('demo-rescuer')
+    __setMockRescuerNow('2026-10-26T10:00:00.000Z')
 
     const updated = updateMockMyRescuerAvailability({
-      manualOfflineUntil: '2026-04-22T18:00:00.000Z',
+      manualOfflineUntil: '2026-10-26T18:00:00.000Z',
     })
 
     expect(updated.availabilityStatus).toBe('offline')
-    expect(updated.manualOfflineUntil).toBe('2026-04-22T18:00:00.000Z')
+    expect(updated.manualOfflineUntil).toBe('2026-10-26T18:00:00.000Z')
   })
 
   it('rejects manual offline window longer than 10 hours', () => {
-    __setMockRescuerNow('2026-04-22T10:00:00.000Z')
+    setActiveDemoRole('demo-rescuer')
+    __setMockRescuerNow('2026-10-26T10:00:00.000Z')
 
     expect(() =>
       updateMockMyRescuerAvailability({
-        manualOfflineUntil: '2026-04-22T21:00:00.000Z',
+        manualOfflineUntil: '2026-10-26T21:00:00.000Z',
       }),
     ).toThrow('单次离线时长不能超过 10 小时')
   })
 
-  it('auto recovers to online after manual offline expiry', () => {
-    __setMockRescuerNow('2026-04-22T13:00:00.000Z')
+  it('auto recovers to online after the manual offline window expires', () => {
+    setActiveDemoRole('demo-rescuer')
+    __setMockRescuerNow('2026-10-26T10:00:00.000Z')
+    updateMockMyRescuerAvailability({
+      manualOfflineUntil: '2026-10-26T12:00:00.000Z',
+    })
 
+    __setMockRescuerNow('2026-10-26T13:00:00.000Z')
     const availability = getMockMyRescuerAvailability()
 
-    expect(availability.manualOfflineUntil).toBe('2026-04-22T12:00:00.000Z')
+    expect(availability.manualOfflineUntil).toBe('2026-10-26T12:00:00.000Z')
     expect(availability.availabilityStatus).toBe('online')
+  })
+
+  it('reports unavailable availability settings for non-rescuer demo roles', () => {
+    setActiveDemoRole('demo-requester')
+
+    expect(() => getMockMyRescuerAvailability()).toThrow('当前演示角色不是急救员')
+  })
+
+  it('exposes the demo map center from config for mock defaults', () => {
+    expect(MAP_CENTER.lat).toBe(31.2315)
+    expect(MAP_CENTER.lng).toBe(121.4785)
   })
 })

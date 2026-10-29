@@ -60,7 +60,8 @@ import { useHelpStore } from '@/store/help'
 import type { AedItem } from '@/types/aed'
 import type { GeoPoint } from '@/types/common'
 import type { HelpRequestDetail, SubmitHelpReportPayload } from '@/types/help'
-import { MAP_CENTER } from '@/utils/constants'
+import { MAP_CENTER } from '@/config/site-config'
+import { dialPhone } from '@/utils/dial'
 import { buildViewParticipantMarker } from '@/utils/rescue-markers'
 import {
   canShowReportAction,
@@ -116,7 +117,7 @@ const {
 const mapCenter = computed(() => {
   return detail.value
     ? { lat: detail.value.lat, lng: detail.value.lng }
-    : { lat: MAP_CENTER.latitude, lng: MAP_CENTER.longitude }
+    : { lat: MAP_CENTER.lat, lng: MAP_CENTER.lng }
 })
 
 const markers = computed<MapMarker[]>(() => {
@@ -244,7 +245,7 @@ function navigateToRequester(): void {
 
 function callRequester(): void {
   if (!detail.value?.requesterPhone) return
-  uni.makePhoneCall({ phoneNumber: detail.value.requesterPhone })
+  dialPhone(detail.value.requesterPhone)
 }
 
 function previewScene(index: number): void {

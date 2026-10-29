@@ -6,22 +6,15 @@ using AedBackend.Core.Models.Responder;
 using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.WeChat;
+using AedBackend.Infrastructure.Site;
 
 namespace AedBackend.Api.Endpoints;
 
 public static class RescuerEndpoints
 {
-    private const int AutoOfflineRadiusMeters = 30000;
-    private const double EarthRadiusMeters = 6371000;
     private const string ActiveStatus = "active";
     private const string OnlineStatus = "online";
     private const string OfflineStatus = "offline";
-
-    private static readonly CampusInfo[] Campuses =
-    [
-        new("guilinyang", "REDACTED校区", new GeoPoint(REDACTED, REDACTED)),
-        new("fucheng", "府城校区", new GeoPoint(REDACTED, REDACTED))
-    ];
 
     public static IEndpointRouteBuilder MapRescuerEndpoints(this IEndpointRouteBuilder app)
     {
@@ -41,6 +34,7 @@ public static class RescuerEndpoints
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
         IUserAccountStatusService accountStatus,
+        SiteOptions site,
         CancellationToken ct)
     {
         var currentUser = await EndpointUsers.RequireActiveUserAsync(
@@ -54,23 +48,24 @@ public static class RescuerEndpoints
             return EndpointFailures.JsonFailure(
                 ErrorCodes.ParameterInvalid, viewerPoint.Error, 400);
 
-        var viewerCampus = ResolveViewerCampus(viewerPoint.Point);
+        var (viewerCampus, viewerCampusDistance) = site.ResolveNearestCampus(viewerPoint.Point);
+        var serviceRadiusMeters = site.ServiceRadiusMeters;
         var profiles = await store.GetAllAsync(ct);
-        var items = viewerCampus.Distance > AutoOfflineRadiusMeters
+        var items = viewerCampusDistance > serviceRadiusMeters
             ? []
             : profiles
-                .Where(p => IsActiveInCampus(p, viewerCampus.Campus.Code))
-                .Select(p => ToProfileDistance(p, viewerPoint.Point))
+                .Where(p => IsActiveInCampus(p, viewerCampus.Code))
+                .Select(p => ToProfileDistance(p, viewerPoint.Point, site))
                 .OrderBy(p => p.AvailabilityStatus == OnlineStatus ? 0 : 1)
                 .ThenBy(p => p.Distance)
-                .Select(ToPublicListItem)
+                .Select(item => ToPublicListItem(item, site))
                 .ToArray();
 
         var response = new RescuerListResponse(
-            viewerCampus.Campus.Code,
-            viewerCampus.Campus.Name,
-            viewerCampus.Distance,
-            AutoOfflineRadiusMeters,
+            viewerCampus.Code,
+            viewerCampus.Name,
+            viewerCampusDistance,
+            serviceRadiusMeters,
             items);
 
         return Results.Ok(ApiResponse.Ok(response));
@@ -82,7 +77,7 @@ public static class RescuerEndpoints
             && profile.Campus.Equals(campus, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static (GeoPoint Point, string? Error) ParseViewerPoint(
+    private static (SiteGeoPoint Point, string? Error) ParseViewerPoint(
         string? lat,
         string? lng)
     {
@@ -92,7 +87,7 @@ public static class RescuerEndpoints
         if (parsedLat is < -90 or > 90) return (default, "lat 不合法");
         return parsedLng is < -180 or > 180
             ? (default, "lng 不合法")
-            : (new GeoPoint(parsedLat, parsedLng), null);
+            : (new SiteGeoPoint(parsedLat, parsedLng), null);
     }
 
     private static bool TryParseCoordinate(string? value, out double result)
@@ -104,55 +99,35 @@ public static class RescuerEndpoints
             out result);
     }
 
-    private static (CampusInfo Campus, int Distance) ResolveViewerCampus(GeoPoint viewer)
-    {
-        return Campuses
-            .Select(campus => (Campus: campus, Distance: DistanceMeters(viewer, campus.Point)))
-            .OrderBy(item => item.Distance)
-            .First();
-    }
-
     private static ProfileDistance ToProfileDistance(
         ResponderProfileRecord profile,
-        GeoPoint viewer)
+        SiteGeoPoint viewer,
+        SiteOptions site)
     {
         return new ProfileDistance(
             profile,
-            DistanceMeters(viewer, new GeoPoint(profile.Lat, profile.Lng)),
-            ResolveAvailabilityStatus(profile));
+            SiteOptions.DistanceMeters(viewer, new SiteGeoPoint(profile.Lat, profile.Lng)),
+            ResolveAvailabilityStatus(profile, site));
     }
 
-    private static string ResolveAvailabilityStatus(ResponderProfileRecord profile)
+    /**
+     * 在线判定沿用既有语义：资格 active 且到所属校区中心不超过服务半径才算在线
+     * （等于半径不判离线）。半径来自站点配置 serviceRadiusKm。
+     * 站点配置已不包含该校区 code 的历史档案没有可比较的中心点，按离线保守处理且不回落到默认校区。
+     */
+    private static string ResolveAvailabilityStatus(ResponderProfileRecord profile, SiteOptions site)
     {
         if (profile.QualificationStatus != ActiveStatus) return OfflineStatus;
 
-        var campus = Campuses.First(item => item.Code == profile.Campus);
-        var profilePoint = new GeoPoint(profile.Lat, profile.Lng);
-        return DistanceMeters(profilePoint, campus.Point) > AutoOfflineRadiusMeters
+        var campus = site.FindCampus(profile.Campus);
+        if (campus is null) return OfflineStatus;
+        var profilePoint = new SiteGeoPoint(profile.Lat, profile.Lng);
+        return SiteOptions.DistanceMeters(profilePoint, campus.Center) > site.ServiceRadiusMeters
             ? OfflineStatus
             : OnlineStatus;
     }
 
-    private static int DistanceMeters(GeoPoint left, GeoPoint right)
-    {
-        var lat1 = ToRadians(left.Lat);
-        var lat2 = ToRadians(right.Lat);
-        var latDelta = ToRadians(right.Lat - left.Lat);
-        var lngDelta = ToRadians(right.Lng - left.Lng);
-
-        var a = Math.Sin(latDelta / 2) * Math.Sin(latDelta / 2)
-            + Math.Cos(lat1) * Math.Cos(lat2)
-            * Math.Sin(lngDelta / 2) * Math.Sin(lngDelta / 2);
-        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-        return (int)Math.Round(EarthRadiusMeters * c);
-    }
-
-    private static double ToRadians(double degrees)
-    {
-        return degrees * Math.PI / 180;
-    }
-
-    private static RescuerListItem ToPublicListItem(ProfileDistance item)
+    private static RescuerListItem ToPublicListItem(ProfileDistance item, SiteOptions site)
     {
         var profile = item.Profile;
         return new RescuerListItem(
@@ -160,7 +135,7 @@ public static class RescuerEndpoints
             profile.Name,
             profile.AvatarUrl,
             profile.Campus,
-            Campuses.First(campus => campus.Code == profile.Campus).Name,
+            site.ResolveCampusName(profile.Campus),
             profile.Level,
             item.AvailabilityStatus,
             profile.QualificationStatus,
@@ -184,6 +159,7 @@ public static class RescuerEndpoints
         ISessionTokenService tokenService,
         IExperienceUserStore userStore,
         IUserAccountStatusService accountStatus,
+        SiteOptions site,
         CancellationToken ct)
     {
         var currentUser = await EndpointUsers.RequireActiveUserAsync(
@@ -196,19 +172,19 @@ public static class RescuerEndpoints
         if (profile is null) return Results.Json(
             ApiResponse.Fail(2006, "急救员不存在"), statusCode: 404);
 
-        return Results.Ok(ApiResponse.Ok(ToPublicDetail(profile)));
+        return Results.Ok(ApiResponse.Ok(ToPublicDetail(profile, site)));
     }
 
-    private static RescuerDetailResponse ToPublicDetail(ResponderProfileRecord p)
+    private static RescuerDetailResponse ToPublicDetail(ResponderProfileRecord p, SiteOptions site)
     {
         return new RescuerDetailResponse(
             p.Id,
             p.Name,
             p.AvatarUrl,
             p.Campus,
-            Campuses.First(campus => campus.Code == p.Campus).Name,
+            site.ResolveCampusName(p.Campus),
             p.Level,
-            ResolveAvailabilityStatus(p),
+            ResolveAvailabilityStatus(p, site),
             p.QualificationStatus,
             p.Phone,
             MaskPhone(p.Phone),
@@ -223,10 +199,6 @@ public static class RescuerEndpoints
             ? phone
             : $"{phone[..3]}****{phone[^4..]}";
     }
-
-    private sealed record CampusInfo(string Code, string Name, GeoPoint Point);
-
-    private readonly record struct GeoPoint(double Lat, double Lng);
 
     private sealed record ProfileDistance(
         ResponderProfileRecord Profile,

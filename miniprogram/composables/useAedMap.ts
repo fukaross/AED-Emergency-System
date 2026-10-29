@@ -3,7 +3,10 @@ import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { onShow, onHide } from '@dcloudio/uni-app'
 import { useAedStore } from '@/store/aed'
 import type { AedItem } from '@/types/aed'
-import { getCurrentLocation, shouldSkipInitialRealLocation } from '@/services/geo-service'
+import {
+  getCurrentLocation,
+  SYNTHETIC_LOCATION_NOTICE,
+} from '@/services/geo-service'
 import {
   aedListToMarkers,
   createActiveMarker,
@@ -16,23 +19,15 @@ import {
   type MapMarker,
   type MapPolyline,
 } from '@/services/map-service'
-import { MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/utils/constants'
-import {
-  APP_ENV,
-  AUTO_LOCATE_ON_INIT,
-  USE_MOCK,
-  USE_REAL_LOCATION,
-} from '@/utils/runtime-env'
-
-const INITIAL_LOCATION_TIP =
-  '预览模式首次进入不自动定位，点击“重新定位”获取当前位置'
+import { MAP_CENTER } from '@/config/site-config'
+import { DEFAULT_MAP_ZOOM } from '@/utils/constants'
 
 export function useAedMap() {
   const aedStore = useAedStore()
 
   const mapCenter = ref<{ latitude: number; longitude: number }>({
-    latitude: MAP_CENTER.latitude,
-    longitude: MAP_CENTER.longitude,
+    latitude: MAP_CENTER.lat,
+    longitude: MAP_CENTER.lng,
   })
   const mapZoom = ref(DEFAULT_MAP_ZOOM)
   const baseMarkers = ref<MapMarker[]>([])
@@ -193,35 +188,24 @@ export function useAedMap() {
 
   async function useInitialFallbackLocation(): Promise<void> {
     hasRealLocation.value = false
-    locationError.value = INITIAL_LOCATION_TIP
-    await refreshAed({ lat: MAP_CENTER.latitude, lng: MAP_CENTER.longitude })
+    locationError.value = SYNTHETIC_LOCATION_NOTICE
+    await refreshAed({ lat: MAP_CENTER.lat, lng: MAP_CENTER.lng })
     applyPendingFocus()
   }
 
-  /** 初始化：定位 + 加载 AED */
+  /** 初始化：定位 + 加载 AED；演示档使用合成位置并给出可见标识 */
   async function init(): Promise<void> {
-    if (
-      shouldSkipInitialRealLocation(
-        APP_ENV,
-        USE_MOCK,
-        USE_REAL_LOCATION,
-        AUTO_LOCATE_ON_INIT,
-      )
-    ) {
-      await useInitialFallbackLocation()
-      return
-    }
-
     isLocating.value = true
     const loc = await getCurrentLocation({ mode: 'auto' })
     isLocating.value = false
     hasRealLocation.value = loc.showSystemLocation
 
-    if (loc.isDefault && loc.errorMessage) {
-      locationError.value = loc.errorMessage
-    } else {
-      locationError.value = null
+    if (loc.isSynthetic) {
+      await useInitialFallbackLocation()
+      return
     }
+
+    locationError.value = loc.isDefault ? (loc.errorMessage ?? null) : null
     await refreshAed(loc.point)
     applyPendingFocus()
   }

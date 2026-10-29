@@ -192,7 +192,7 @@ public sealed class AdminUserIdentityApiTests
             college,
             className = "急救 1 班",
             studentId,
-            phone = "REDACTED",
+            phone = "13800138000",
             status = "active"
         };
     }
@@ -206,7 +206,7 @@ public sealed class AdminUserIdentityApiTests
             college = "教育学院",
             className = "急救 1 班",
             studentId,
-            phone = "REDACTED",
+            phone = "13800138000",
             note = "绑定校园身份"
         };
     }
@@ -217,7 +217,7 @@ public sealed class AdminUserIdentityApiTests
         {
             name = "张三",
             idNumberLast6 = "100011",
-            phone = "REDACTED",
+            phone = "13800138000",
             certificateNo = "CERT20260001",
             note = "认领已有急救员档案"
         };
@@ -257,7 +257,7 @@ public sealed class AdminUserIdentityApiTests
         {
             var temp = new ProviderTempData();
             await temp.WriteValidDataAsync();
-            await temp.WriteUserJsonAsync(OpenId, "REDACTED", UserToken);
+            await temp.WriteUserJsonAsync(OpenId, "13800138000", UserToken);
             if (boundResponder) await temp.WriteBoundResponderJsonAsync(OpenId);
             await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
             return new Fixture(temp, new AdminTestApplication(temp.Root, SqliteConfig(temp)));

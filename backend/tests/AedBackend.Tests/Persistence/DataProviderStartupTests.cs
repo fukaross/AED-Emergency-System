@@ -32,7 +32,7 @@ public sealed class DataProviderStartupTests
     {
         using var temp = new ProviderTempData();
         await temp.WriteMinimalJsonAsync();
-        await temp.WriteUserJsonAsync("openid-old", "REDACTED", "old-token");
+        await temp.WriteUserJsonAsync("openid-old", "13800138000", "old-token");
         await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
         await DropPhase7ColumnsAndTableAsync(temp.DbPath);
 
@@ -57,7 +57,7 @@ public sealed class DataProviderStartupTests
         await AssertTableExistsAsync(temp.DbPath, "responder_claim_applications");
         await AssertColumnExistsAsync(temp.DbPath, "school_binding_applications", "SchoolProfileId");
         await AssertColumnExistsAsync(temp.DbPath, "responder_claim_applications", "ResponderProfileId");
-        Assert.Equal("REDACTED", await ReadPhoneAsync(temp.DbPath, "openid-old"));
+        Assert.Equal("13800138000", await ReadPhoneAsync(temp.DbPath, "openid-old"));
     }
 
     [Fact]
@@ -84,8 +84,9 @@ public sealed class DataProviderStartupTests
         await AssertIndexExistsAsync(temp.DbPath, "uk_rescue_message_seq");
     }
 
+    /** 启动升级不再插入内置设备种子：已迁移 SQLite 保持迁移结果不变。 */
     [Fact]
-    public async Task SqliteProvider_AppendsMissingAedSeedDevicesWithoutOverwritingExistingRows()
+    public async Task SqliteProvider_DoesNotInsertSeedAedDevicesOnStartup()
     {
         using var temp = new ProviderTempData();
         await temp.WriteValidDataAsync();
@@ -100,11 +101,8 @@ public sealed class DataProviderStartupTests
         var response = await client.GetAsync("/health");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(59, await ReadAedCountAsync(temp.DbPath));
+        Assert.Equal(1, await ReadAedCountAsync(temp.DbPath));
         Assert.Equal("addr", await ReadAedFieldAsync(temp.DbPath, "AED-01", "Address"));
-        Assert.Equal("online", await ReadAedFieldAsync(temp.DbPath, "AED-25", "Status"));
-        Assert.Equal("/static/images/aed-placeholder.png", await ReadAedFieldAsync(temp.DbPath, "AED-25", "Image"));
-        Assert.DoesNotContain(" ", await ReadAedFieldAsync(temp.DbPath, "AED-25", "Address"));
     }
 
     [Fact]

@@ -16,7 +16,7 @@
       </el-col>
       <el-col :xs="24" :sm="12">
         <el-form-item label="设备名称" prop="name">
-          <el-input v-model="form.name" placeholder="如：REDACTED" />
+          <el-input v-model="form.name" placeholder="如：图书馆一层大厅" />
         </el-form-item>
       </el-col>
     </el-row>
@@ -63,7 +63,7 @@
     </el-row>
 
     <el-form-item label="详细地址">
-      <el-input v-model="form.address" placeholder="如：REDACTEDREDACTED" />
+      <el-input v-model="form.address" :placeholder="addressPlaceholder" />
     </el-form-item>
 
     <el-form-item label="设备图片">
@@ -114,6 +114,7 @@ import type { FormInstance, FormRules, UploadRequestOptions, UploadRawFile } fro
 import { ElMessage } from 'element-plus'
 import mapPicker from '@/components/map-picker.vue'
 import type { DeviceForm } from '../use-device-detail'
+import { DEFAULT_CAMPUS, siteConfig } from '@/config/site-config'
 
 defineProps<{
   form: DeviceForm
@@ -122,6 +123,8 @@ defineProps<{
 }>()
 
 const formRef = ref<FormInstance>()
+/** 地址示例来自共享配置（机构名 + 第一个校区），建筑名保持中性，不写死旧机构名/旧校区设备名。 */
+const addressPlaceholder = `如：${siteConfig.organizationName}${DEFAULT_CAMPUS.name}·图书馆一层大厅`
 
 function beforeUpload(file: UploadRawFile) {
   const isImage = file.type.startsWith('image/')

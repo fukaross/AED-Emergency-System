@@ -57,7 +57,7 @@ public sealed class HelpPublishConcurrencyApiTests : AdminApiTestBase
         var user = new ExperienceUserRecord(
             "openid-1",
             null,
-            "REDACTED",
+            "13800138000",
             null,
             null,
             null,

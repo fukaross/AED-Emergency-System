@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using AedBackend.Core.DTOs.User;
 using AedBackend.Core.Models.Responder;
+using AedBackend.Infrastructure.Site;
 
 namespace AedBackend.Api.Endpoints;
 
@@ -14,7 +15,8 @@ internal static class UserArchiveMapping
     public static ArchiveListResponse ToListResponse(
         IReadOnlyList<ResponderProfileRecord> profiles,
         string openId,
-        UserArchiveEndpoints.ArchiveQuery query)
+        UserArchiveEndpoints.ArchiveQuery query,
+        SiteOptions site)
     {
         var activeProfiles = profiles.Where(IsActive).ToArray();
         var self = activeProfiles.FirstOrDefault(item => item.BoundOpenId == openId);
@@ -23,13 +25,13 @@ internal static class UserArchiveMapping
         var paged = filtered.Skip((query.SafePage - 1) * query.SafePageSize).Take(query.SafePageSize);
 
         return new ArchiveListResponse(
-            paged.Select(ToListItem).ToArray(),
+            paged.Select(item => ToListItem(item, site)).ToArray(),
             filtered.Length,
             query.SafePage,
             query.SafePageSize,
             Math.Max(1, (int)Math.Ceiling(filtered.Length / (double)query.SafePageSize)),
             true,
-            self is null ? null : ToListItem(self));
+            self is null ? null : ToListItem(self, site));
     }
 
     public static ArchiveDetailResponse ToDetail(ResponderProfileRecord profile)
@@ -55,7 +57,7 @@ internal static class UserArchiveMapping
         return filtered.OrderBy(item => item.Name, StringComparer.Ordinal);
     }
 
-    private static ArchiveListItem ToListItem(ResponderProfileRecord profile)
+    private static ArchiveListItem ToListItem(ResponderProfileRecord profile, SiteOptions site)
     {
         var certExpiry = ResolveCertExpiry(profile.IssueDate);
         return new ArchiveListItem(
@@ -63,7 +65,7 @@ internal static class UserArchiveMapping
             profile.Name,
             MaskPhone(profile.Phone),
             profile.Level,
-            ResolveCollege(profile),
+            ResolveCollege(profile, site),
             certExpiry,
             IsExpired(certExpiry),
             null);
@@ -140,15 +142,12 @@ internal static class UserArchiveMapping
                 null));
     }
 
-    private static string ResolveCollege(ResponderProfileRecord profile)
+    /** 机构/校区显示名来自共享站点配置；不保留旧校区显示名分支。 */
+    private static string ResolveCollege(ResponderProfileRecord profile, SiteOptions site)
     {
-        if (!string.IsNullOrWhiteSpace(profile.WorkUnit)) return profile.WorkUnit;
-        return profile.Campus switch
-        {
-            "guilinyang" => "REDACTED校区",
-            "fucheng" => "府城校区",
-            _ => profile.Campus
-        };
+        return !string.IsNullOrWhiteSpace(profile.WorkUnit)
+            ? profile.WorkUnit
+            : site.ResolveCampusName(profile.Campus);
     }
 
     private static string ResolveCertExpiry(string? issueDate)

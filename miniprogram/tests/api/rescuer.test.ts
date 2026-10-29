@@ -34,35 +34,35 @@ describe('rescuer api backend switch', () => {
 
   it('uses real nearby rescuer endpoint when rescuer backend is ready', async () => {
     const response = {
-      campus: 'guilinyang',
-      campusName: 'REDACTED校区',
+      campus: 'east',
+      campusName: '东区',
       viewerCampusDistance: 0,
       autoOfflineRadius: 30000,
       items: [],
     }
     requestMocks.get.mockResolvedValueOnce(response)
 
-    const result = await fetchNearbyRescuers({ lat: 19.97, lng: 110.51 })
+    const result = await fetchNearbyRescuers({ lat: 31.23, lng: 121.47 })
 
     expect(result).toBe(response)
     expect(requestMocks.get).toHaveBeenCalledWith(
       '/api/rescuers/nearby',
-      { lat: 19.97, lng: 110.51 },
+      { lat: 31.23, lng: 121.47 },
     )
     expect(rescuerMock.queryMockNearbyRescuers).not.toHaveBeenCalled()
   })
 
   it('uses real rescuer detail endpoint when rescuer backend is ready', async () => {
     const response = {
-      id: 'rescuer-001',
-      name: 'REDACTED',
+      id: 'rescuer-DEMO-RSP-001',
+      name: '演示乙（急救员·东区）',
       avatarUrl: 'https://api.example.test/uploads/rescuer/avatar.jpg',
-      campus: 'guilinyang',
-      campusName: 'REDACTED校区',
+      campus: 'east',
+      campusName: '东区',
       level: 'trainee',
       availabilityStatus: 'online',
       qualificationStatus: 'active',
-      phone: 'REDACTED',
+      phone: '13900000001',
       phoneMasked: '139****0001',
       certificateNoMasked: 'TEST****0001',
       workUnit: null,
@@ -70,10 +70,10 @@ describe('rescuer api backend switch', () => {
     }
     requestMocks.get.mockResolvedValueOnce(response)
 
-    const result = await fetchRescuerDetail('rescuer-001')
+    const result = await fetchRescuerDetail('rescuer-DEMO-RSP-001')
 
     expect(result.avatarUrl).toBe(response.avatarUrl)
-    expect(requestMocks.get).toHaveBeenCalledWith('/api/rescuers/rescuer-001')
+    expect(requestMocks.get).toHaveBeenCalledWith('/api/rescuers/rescuer-DEMO-RSP-001')
     expect(rescuerMock.getMockRescuerDetail).not.toHaveBeenCalled()
   })
 })

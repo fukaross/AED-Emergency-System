@@ -19,7 +19,7 @@ public sealed class AdminCompatibilityApiTests : AdminApiTestBase
     [Fact]
     public async Task DevWeChatEndpoints_AcceptLegacyKeyAndAdminSession()
     {
-        SeedExperienceUsers(("openid-1", "REDACTED"));
+        SeedExperienceUsers(("openid-1", "13800138000"));
 
         UseLegacyKey();
         Assert.Equal(HttpStatusCode.OK, (await Client.GetAsync("/api/dev/wechat/experience-users")).StatusCode);

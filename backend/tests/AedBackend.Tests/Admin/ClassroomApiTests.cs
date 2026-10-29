@@ -9,8 +9,12 @@ namespace AedBackend.Tests.Admin;
 
 public sealed class ClassroomApiTests : AdminApiTestBase
 {
+    /**
+     * JSON 回滚源缺文件时不再内置旧部署统计数字，返回空横幅；
+     * 统计内容由 Admin 写入后立即可读。
+     */
     [Fact]
-    public async Task GetKnowledgeSummary_ReturnsSeededStats()
+    public async Task GetKnowledgeSummary_ReflectsStoredData()
     {
         var response = await Client.GetAsync("/api/knowledge/summary");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -18,9 +22,26 @@ public sealed class ClassroomApiTests : AdminApiTestBase
         var body = await ReadAsync<ApiResponse<KnowledgeSummaryResponse>>(response);
         Assert.Equal(0, body.Code);
         Assert.NotNull(body.Data);
-        Assert.Equal(4, body.Data.Items.Count);
-        Assert.Contains(body.Data.Items, i => i.Key == "aed_count" && Math.Abs(i.Value - 24) < 0.01);
-        Assert.Contains(body.Data.Items, i => i.Key == "trained_people");
+        Assert.Empty(body.Data.Items);
+
+        UseAdminKey(await BootstrapAndLoginAsync());
+        var update = await Client.PutAsJsonAsync("/api/admin/knowledge-summary", new
+        {
+            items = new[]
+            {
+                new { key = "aed_count", title = "AED 数量", value = 10.0, sortOrder = 1 },
+                new { key = "trained_people", title = "培训人数", value = 128.0, sortOrder = 2 },
+                new { key = "certified_people", title = "取证人数", value = 46.0, sortOrder = 3 },
+                new { key = "coverage_rate", title = "覆盖率(%)", value = 32.5, sortOrder = 4 }
+            }
+        });
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+
+        var refreshed = await Client.GetAsync("/api/knowledge/summary");
+        var refreshedBody = await ReadAsync<ApiResponse<KnowledgeSummaryResponse>>(refreshed);
+        Assert.Equal(4, refreshedBody.Data!.Items.Count);
+        Assert.Contains(refreshedBody.Data.Items, i => i.Key == "aed_count" && Math.Abs(i.Value - 10) < 0.01);
+        Assert.Contains(refreshedBody.Data.Items, i => i.Key == "trained_people");
     }
 
     [Fact]

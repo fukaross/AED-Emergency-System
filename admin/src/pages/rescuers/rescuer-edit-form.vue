@@ -53,8 +53,18 @@
           <el-col :span="12">
             <el-form-item label="校区">
               <el-select :model-value="modelValue.campus" style="width: 100%" @update:model-value="set('campus', $event)">
-                <el-option label="REDACTED" value="guilinyang" />
-                <el-option label="府城" value="fucheng" />
+                <el-option
+                  v-for="campus in siteConfig.campuses"
+                  :key="campus.code"
+                  :label="campus.name"
+                  :value="campus.code"
+                />
+                <el-option
+                  v-if="unknownCampusCode"
+                  :label="campusName(modelValue.campus)"
+                  :value="modelValue.campus"
+                  disabled
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -134,13 +144,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import type { UploadRequestOptions, UploadRawFile } from 'element-plus'
 import type { RescuerForm } from './use-rescuer-form'
 import rescuerAssessmentForm from './rescuer-assessment-form.vue'
 import { validateIdNumber } from '@/utils/id-number'
+import { campusName, isKnownCampus, siteConfig } from '@/config/site-config'
 
 const props = defineProps<{
   modelValue: RescuerForm
@@ -153,6 +164,14 @@ const emit = defineEmits<{
 }>()
 
 const idNumberError = ref('')
+
+/**
+ * 后端返回的校区 code 若不在 config/site.json 中，下拉明确显示“未知校区「code」”，
+ * 避免 Element Plus 在没有匹配项时静默显示原始值或回落到第一项。
+ */
+const unknownCampusCode = computed(
+  () => props.modelValue.campus !== '' && !isKnownCampus(props.modelValue.campus),
+)
 
 function set<K extends keyof RescuerForm>(key: K, value: RescuerForm[K]) {
   if (key === 'idNumber') idNumberError.value = ''

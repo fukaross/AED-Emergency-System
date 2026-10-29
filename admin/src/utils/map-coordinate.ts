@@ -1,4 +1,10 @@
-export const ADMIN_MAP_CENTER = { lat: 19.976547, lng: 110.513460 }
+import { siteConfig } from '@/config/site-config'
+
+/** 无效坐标时的兜底视图中心，同样来自共享站点配置，不维护第二份坐标。 */
+export const ADMIN_MAP_CENTER = {
+  lat: siteConfig.mapCenter.latitude,
+  lng: siteConfig.mapCenter.longitude,
+}
 export const DEFAULT_ZOOM = 17
 
 export function lngLatToPoint(lnglat: [number, number]): { lat: number; lng: number } {

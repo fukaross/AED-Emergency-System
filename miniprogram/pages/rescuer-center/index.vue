@@ -111,6 +111,7 @@ import { useAuthStore } from '@/store/auth'
 import { useRescuerStore } from '@/store/rescuer'
 import { getCurrentLocation } from '@/services/geo-service'
 import { auditCallResponder, auditViewContact } from '@/api/audit'
+import { dialPhone } from '@/utils/dial'
 import AppTabBar from '@/components/app-tab-bar/index.vue'
 import RescuerDetailModal from './components/rescuer-detail-modal.vue'
 import RescuerEmptyState from './components/rescuer-empty-state.vue'
@@ -218,9 +219,8 @@ function getNameById(rescuerId: string): string {
 
 function makeCall(phone: string, rescuerId: string) {
   auditCallResponder(rescuerId)
-  uni.makePhoneCall({
-    phoneNumber: phone,
-    fail: () => {
+  dialPhone(phone, {
+    onFail: () => {
       uni.showModal({
         title: '无法直接拨打',
         content: `请手动拨打: ${phone}`,
@@ -239,7 +239,7 @@ function makeCall(phone: string, rescuerId: string) {
 }
 
 function call120() {
-  uni.makePhoneCall({ phoneNumber: '120' })
+  dialPhone('120')
 }
 
 function goGuide() {

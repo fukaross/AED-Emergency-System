@@ -26,7 +26,7 @@ public sealed class UserProfileResponderSyncApiTests
             name = "  王小明  ",
             avatarUrl = "/uploads/avatar/a.jpg",
             gender = "male",
-            phone = "REDACTED"
+            phone = "13900139000"
         });
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
 
@@ -36,7 +36,7 @@ public sealed class UserProfileResponderSyncApiTests
 
         Assert.Equal("王小明", data.GetProperty("name").GetString());
         Assert.Equal("/uploads/avatar/a.jpg", data.GetProperty("avatarUrl").GetString());
-        Assert.Equal("REDACTED", data.GetProperty("phone").GetString());
+        Assert.Equal("13900139000", data.GetProperty("phone").GetString());
         Assert.NotEqual("male", data.GetProperty("gender").GetString());
     }
 
@@ -65,7 +65,7 @@ public sealed class UserProfileResponderSyncApiTests
         var data = (await ReadAsync<ApiResponse<JsonElement>>(detail)).Data;
         Assert.Equal("档案旧名", data.GetProperty("name").GetString());
         Assert.Equal("/uploads/avatar/old.jpg", data.GetProperty("avatarUrl").GetString());
-        Assert.Equal("REDACTED", data.GetProperty("phone").GetString());
+        Assert.Equal("13800138000", data.GetProperty("phone").GetString());
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class UserProfileResponderSyncApiTests
         var update = await fixture.Client.PutAsJsonAsync("/api/user/profile", new
         {
             name = "未绑定用户",
-            phone = "REDACTED"
+            phone = "13900139000"
         });
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
 
@@ -96,7 +96,7 @@ public sealed class UserProfileResponderSyncApiTests
             "active",
             OpenId);
         responder.AvatarUrl = "/uploads/avatar/old.jpg";
-        responder.Phone = "REDACTED";
+        responder.Phone = "13800138000";
         return responder;
     }
 
@@ -124,7 +124,7 @@ public sealed class UserProfileResponderSyncApiTests
         {
             var temp = new ProviderTempData();
             await temp.WriteValidDataAsync();
-            await temp.WriteUserJsonAsync(OpenId, "REDACTED", UserToken);
+            await temp.WriteUserJsonAsync(OpenId, "13800138000", UserToken);
             await temp.WriteResponderJsonAsync(responders);
             await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
             return new Fixture(temp, new AdminTestApplication(temp.Root, SqliteConfig(temp)));

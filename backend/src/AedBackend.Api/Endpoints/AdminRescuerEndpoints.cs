@@ -6,6 +6,7 @@ using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.WeChat;
 using AedBackend.Core.Validators;
+using AedBackend.Infrastructure.Site;
 
 namespace AedBackend.Api.Endpoints;
 
@@ -14,7 +15,6 @@ internal static class AdminRescuerEndpoints
     private const int DefaultPage = 1;
     private const int DefaultPageSize = 20;
 
-    private static readonly IReadOnlySet<string> ValidCampuses = new HashSet<string> { "guilinyang", "fucheng" };
     private static readonly IReadOnlySet<string> ValidLevels = new HashSet<string> { "honor", "trainee", "official", "core" };
     private static readonly IReadOnlySet<string> ValidStatuses = new HashSet<string> { "active", "inactive" };
     private static readonly IReadOnlySet<string> ValidAssessmentResults = new HashSet<string> { "合格", "不合格", "未考核" };
@@ -98,6 +98,7 @@ internal static class AdminRescuerEndpoints
         IExperienceUserStore users,
         IAdminAuthorizationService authorization,
         IAdminAuditLogStore auditLogStore,
+        SiteOptions site,
         CancellationToken ct)
     {
         var auth = await RequireAdminAsync(context, authorization, ct);
@@ -107,14 +108,14 @@ internal static class AdminRescuerEndpoints
         if (existing is null)
             return EndpointFailures.JsonFailure(ErrorCodes.RescuerNotFound, "急救员不存在", 404);
 
-        var validationError = ValidateUpdateFields(body);
+        var validationError = ValidateUpdateFields(body, site);
         if (validationError is not null) return validationError;
 
         var target = AdminRescuerUpdateMapper.Resolve(body, existing);
 
         if (string.IsNullOrWhiteSpace(target.Name))
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "姓名不能为空", 400);
-        if (!ValidCampuses.Contains(target.Campus))
+        if (site.FindCampus(target.Campus) is null)
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, $"校区不支持: {target.Campus}", 400);
         if (target.Level is not null && !ValidLevels.Contains(target.Level))
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, $"等级不支持: {target.Level}", 400);
@@ -135,12 +136,12 @@ internal static class AdminRescuerEndpoints
         return Results.Ok(ApiResponse.Ok(AdminRescuerMapper.ToDetail(result, boundUserName)));
     }
 
-    private static IResult? ValidateUpdateFields(UpdateRescuerRequest body)
+    private static IResult? ValidateUpdateFields(UpdateRescuerRequest body, SiteOptions site)
     {
         if (body.HasName && string.IsNullOrWhiteSpace(body.Name))
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, "姓名不能为空", 400);
 
-        if (body.HasCampus && !ValidCampuses.Contains(body.Campus ?? string.Empty))
+        if (body.HasCampus && site.FindCampus(body.Campus) is null)
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, $"校区不支持: {body.Campus}", 400);
 
         if (body.HasLevel && !string.IsNullOrWhiteSpace(body.Level)

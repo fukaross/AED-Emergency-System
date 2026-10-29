@@ -11,6 +11,11 @@ public sealed class AdminAedApiTests : AdminApiTestBase
     [Fact]
     public async Task ListDevices_RequiresAdminSessionAndRejectsLegacyKey()
     {
+        SeedDevices(
+            ("AED-DEMO-01", "东区-演示点一", "online", null),
+            ("AED-DEMO-02", "东区-演示点二", "offline", "演示离线：维护中"),
+            ("AED-DEMO-03", "西区-演示点三", "offline", "演示离线：电池待换"));
+
         Assert.Equal(HttpStatusCode.Unauthorized, (await Client.GetAsync("/api/admin/aed-devices")).StatusCode);
 
         UseLegacyKey();
@@ -21,7 +26,7 @@ public sealed class AdminAedApiTests : AdminApiTestBase
         var data = (await ReadAsync<ApiResponse<JsonElement>>(response)).Data;
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.True(data.GetProperty("total").GetInt32() >= 2);
+        Assert.Equal(2, data.GetProperty("total").GetInt32());
         Assert.All(data.GetProperty("items").EnumerateArray(), item =>
             Assert.Equal("offline", item.GetProperty("status").GetString()));
     }
@@ -99,8 +104,8 @@ public sealed class AdminAedApiTests : AdminApiTestBase
         return new
         {
             name = "测试 AED API",
-            lat = 19.9701,
-            lng = 110.5101,
+            lat = 31.2459,
+            lng = 121.5061,
             image = "/uploads/device/test.webp",
             address = "测试楼一层",
             status,

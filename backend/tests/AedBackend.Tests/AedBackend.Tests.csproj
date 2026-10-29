@@ -25,4 +25,18 @@
     <ProjectReference Include="..\..\src\AedBackend.Core\AedBackend.Core.csproj" />
   </ItemGroup>
 
+  <!-- 与 Api 项目相同的只读产物：站点配置/演示角色/演示数据，供集成测试按真实运行时路径读取。 -->
+  <ItemGroup>
+    <Content Include="..\..\..\config\site.json"
+             Link="config\site.json"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\demo\roles.json"
+             Link="config\demo-roles.json"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\demo\data\*.json"
+             Link="config\demo-data\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+
 </Project>

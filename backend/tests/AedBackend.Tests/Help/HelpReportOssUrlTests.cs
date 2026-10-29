@@ -13,18 +13,18 @@ public sealed class HelpReportOssUrlTests
     {
         using var temp = new ProviderTempData();
         await temp.WriteValidDataAsync();
-        await temp.WriteUserJsonAsync("openid-1", "REDACTED", "token-1");
+        await temp.WriteUserJsonAsync("openid-1", "13800138000", "token-1");
         await temp.WriteBoundResponderJsonAsync("openid-1");
         using var app = new AdminTestApplication(temp.Root, new Dictionary<string, string?>
         {
-            ["Upload:Oss:PublicBaseUrl"] = "REDACTED"
+            ["Upload:Oss:PublicBaseUrl"] = "https://oss.example.test"
         });
         using var client = app.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "token-1");
 
         var response = await client.PostAsJsonAsync("/api/help/help-01/report", new
         {
-            images = new[] { "REDACTED/uploads/report/a.jpg" },
+            images = new[] { "https://oss.example.test/uploads/report/a.jpg" },
             recordText = "现场处理完毕",
             isFalseAlarm = false
         });

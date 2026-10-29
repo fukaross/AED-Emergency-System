@@ -7,16 +7,20 @@ import {
   getDisplayCenter,
 } from './map-coordinate'
 
+// 合成坐标：与共享站点配置无关的任意合法点，用于纯坐标转换/校验断言。
+const SAMPLE_LNG = 121.501
+const SAMPLE_LAT = 31.244
+
 describe('map-coordinate', () => {
   describe('lngLatToPoint', () => {
     it('converts [lng, lat] to { lat, lng }', () => {
-      expect(lngLatToPoint([110.513, 19.977])).toEqual({ lat: 19.977, lng: 110.513 })
+      expect(lngLatToPoint([SAMPLE_LNG, SAMPLE_LAT])).toEqual({ lat: SAMPLE_LAT, lng: SAMPLE_LNG })
     })
   })
 
   describe('pointToLngLat', () => {
     it('converts { lat, lng } to [lng, lat]', () => {
-      expect(pointToLngLat(19.977, 110.513)).toEqual([110.513, 19.977])
+      expect(pointToLngLat(SAMPLE_LAT, SAMPLE_LNG)).toEqual([SAMPLE_LNG, SAMPLE_LAT])
     })
   })
 
@@ -40,13 +44,13 @@ describe('map-coordinate', () => {
     })
 
     it('returns true for valid coordinates', () => {
-      expect(isValidCoordinate(19.977, 110.513)).toBe(true)
+      expect(isValidCoordinate(SAMPLE_LAT, SAMPLE_LNG)).toBe(true)
     })
   })
 
   describe('getDisplayCenter', () => {
     it('returns actual coordinates when valid', () => {
-      expect(getDisplayCenter(19.977, 110.513)).toEqual([110.513, 19.977])
+      expect(getDisplayCenter(SAMPLE_LAT, SAMPLE_LNG)).toEqual([SAMPLE_LNG, SAMPLE_LAT])
     })
 
     it('returns ADMIN_MAP_CENTER for 0/0', () => {

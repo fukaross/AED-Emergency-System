@@ -4,6 +4,7 @@ using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.Rescue;
 using AedBackend.Core.Services.WeChat;
+using AedBackend.Infrastructure.Demo;
 using AedBackend.Infrastructure.Upload;
 using AedBackend.Infrastructure.WeChat;
 using Microsoft.AspNetCore.Mvc;
@@ -54,6 +55,9 @@ internal sealed class PublishHelpEndpointRequest
 
     [FromServices]
     public IWeChatSubscribeMessageSender Sender { get; init; } = default!;
+
+    [FromServices]
+    public IOptions<DemoOptions> DemoOptions { get; init; } = default!;
 }
 
 internal sealed class ListHelpEndpointRequest : IUserHelpEndpointRequest

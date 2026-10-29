@@ -18,7 +18,7 @@ function buildView(overrides: Partial<RescueView> = {}): RescueView {
   return {
     helpId: 'help-1',
     helpStatus: 'responding',
-    sos: { lat: 19.97, lng: 110.51, address: '测试点' },
+    sos: { lat: 31.23, lng: 121.47, address: '测试点' },
     respondersCount: 1,
     participants: [{
       participantId: 'participant-1',
@@ -27,8 +27,8 @@ function buildView(overrides: Partial<RescueView> = {}): RescueView {
       arrived: false,
       signal: 'ok',
       location: {
-        lat: 19.98,
-        lng: 110.52,
+        lat: 31.24,
+        lng: 121.48,
         reportedAt: new Date(SERVER_NOW).toISOString(),
       },
     }],

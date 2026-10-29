@@ -215,7 +215,7 @@ public sealed class JsonHelpRequestStoreTests
                   "createdAt": "{{DateTimeOffset.UtcNow:O}}",
                   "closedAt": null,
                   "closeNote": null,
-                  "requesterPhone": "REDACTED",
+                  "requesterPhone": "13800138000",
                   "images": [],
                   "responders": [],
                   "timeline": [],

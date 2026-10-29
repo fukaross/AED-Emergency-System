@@ -59,24 +59,24 @@ describe('user archive api', () => {
   })
 
   it('uses real archive detail endpoint', async () => {
-    const response = { id: 'rescuer-001', certificateRecords: [] }
+    const response = { id: 'rescuer-DEMO-RSP-001', certificateRecords: [] }
     requestMocks.get.mockResolvedValueOnce(response)
 
-    const result = await fetchArchiveDetail('rescuer-001')
+    const result = await fetchArchiveDetail('rescuer-DEMO-RSP-001')
 
     expect(result).toBe(response)
-    expect(requestMocks.get).toHaveBeenCalledWith('/api/user/archives/rescuer-001')
+    expect(requestMocks.get).toHaveBeenCalledWith('/api/user/archives/rescuer-DEMO-RSP-001')
   })
 
   it('uses real archive phone endpoint with purpose', async () => {
-    const response = { phone: 'REDACTED' }
+    const response = { phone: '13000000009' }
     requestMocks.get.mockResolvedValueOnce(response)
 
-    const result = await fetchArchivePhone('rescuer-001', 'emergency')
+    const result = await fetchArchivePhone('rescuer-DEMO-RSP-001', 'emergency')
 
     expect(result).toBe(response)
     expect(requestMocks.get).toHaveBeenCalledWith(
-      '/api/user/archives/rescuer-001/phone',
+      '/api/user/archives/rescuer-DEMO-RSP-001/phone',
       { purpose: 'emergency' },
     )
   })

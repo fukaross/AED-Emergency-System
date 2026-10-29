@@ -8,8 +8,9 @@ namespace AedBackend.Tests.Help;
 
 public sealed class JsonAedDeviceStoreTests
 {
+    /** JSON provider 已移除真实设备种子：缺文件时返回空集合且不写盘。 */
     [Fact]
-    public async Task GetAllAsync_ReturnsDefaultDevices_WhenFileMissing()
+    public async Task GetAllAsync_ReturnsEmptyAndDoesNotWriteFile_WhenFileMissing()
     {
         var path = CreateTempFilePath();
         var store = CreateStore(path);
@@ -18,11 +19,8 @@ public sealed class JsonAedDeviceStoreTests
         {
             var devices = await store.GetAllAsync(CancellationToken.None);
 
-            Assert.Equal(59, devices.Count);
-            Assert.Contains(devices, d => d.Id == "AED-25" && d.Name == "海大AED_1");
-            Assert.Contains(devices, d => d.Id == "AED-59" && d.Name == "海大AED_35");
-            Assert.All(devices.Where(d => d.Id.CompareTo("AED-25", StringComparison.Ordinal) >= 0), device =>
-                Assert.Equal("online", device.Status));
+            Assert.Empty(devices);
+            Assert.False(File.Exists(path));
         }
         finally
         {
@@ -325,14 +323,14 @@ public sealed class JsonAedDeviceStoreTests
         {
             Id = id,
             Name = name,
-            Lat = 19.97,
-            Lng = 110.51,
+            Lat = 31.245,
+            Lng = 121.505,
             Status = status,
             StatusNote = statusNote,
-            Address = $"REDACTED{name}",
+            Address = $"示范园区{name}（合成点位）",
             LastMaintenance = "2026-03-15",
             NextMaintenance = "2026-09-15",
-            Maintainer = "待分配"
+            Maintainer = "演示维护组"
         };
     }
 }

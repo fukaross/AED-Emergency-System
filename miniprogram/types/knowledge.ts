@@ -1,10 +1,6 @@
 // 急救课堂统计相关的类型
-
-export type KnowledgeStatKey =
-  | 'aed_count'
-  | 'trained_people'
-  | 'certified_people'
-  | 'coverage_rate'
+// 统计项 key 由后端/管理端维护（demo 数据含 4 类），客户端不做封闭枚举，避免新增统计项即报错。
+export type KnowledgeStatKey = string
 
 export interface KnowledgeStatItem {
   readonly key: KnowledgeStatKey

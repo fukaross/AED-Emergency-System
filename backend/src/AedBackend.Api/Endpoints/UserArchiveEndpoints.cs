@@ -6,6 +6,7 @@ using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.WeChat;
 using AedBackend.Infrastructure.Persistence;
+using AedBackend.Infrastructure.Site;
 using Microsoft.Extensions.Options;
 
 namespace AedBackend.Api.Endpoints;
@@ -27,6 +28,7 @@ internal static class UserArchiveEndpoints
         IUserAccountStatusService accountStatus,
         IResponderStore responders,
         IOptions<DataOptions> dataOptions,
+        SiteOptions site,
         [AsParameters] ArchiveQuery query,
         CancellationToken ct)
     {
@@ -42,7 +44,7 @@ internal static class UserArchiveEndpoints
 
         var profiles = await responders.GetAllAsync(ct);
         return Results.Ok(ApiResponse.Ok(UserArchiveMapping.ToListResponse(
-            profiles, current.User!.OpenId, query)));
+            profiles, current.User!.OpenId, query, site)));
     }
 
     private static async Task<IResult> GetArchiveAsync(

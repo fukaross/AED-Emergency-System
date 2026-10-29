@@ -2,9 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
 vi.mock('@/utils/runtime-env', () => ({
-  API_BASE_URL: 'REDACTED',
+  API_BASE_URL: 'https://api.demo.invalid',
   APP_ENV: 'test',
-  IS_PLACEHOLDER_API_BASE_URL: false,
   RESTORE_AUTH_SESSION: false,
   USER_BACKEND_READY: false,
   USE_MOCK: true,
@@ -44,6 +43,7 @@ vi.mock('@/api/rescue-session', () => ({
   fetchRescueSession: vi.fn(),
   joinRescueSession: vi.fn(),
   postRescueMessage: vi.fn(),
+  postRescueImageMessage: vi.fn(),
   postRescueStatusEvent: vi.fn(),
   reportRescueLocation: vi.fn(),
 }))
@@ -86,7 +86,7 @@ describe('auth store', () => {
       primaryRole: 'student',
       certified: false,
     })
-    expect(userStore.userInfo?.name).not.toBe('REDACTED')
+    expect(userStore.userInfo?.name).not.toBe('演示乙（急救员·东区）')
   })
 
   it('does not expose the previous account sessions after logout and account switch', async () => {
@@ -166,10 +166,10 @@ describe('auth store', () => {
       type: 'general',
       address: '账号 A 地址',
       content: '',
-      lat: 19.97,
-      lng: 110.51,
+      lat: 31.23,
+      lng: 121.47,
       images: [],
-      requesterPhone: 'REDACTED',
+      requesterPhone: '13800000000',
       responders: [],
       estimatedArrivalTime: '',
       reports: [],
@@ -234,7 +234,7 @@ function buildRescueSnapshot(): RescueSessionSnapshot {
     helpId: 'help-a',
     requestNo: 'REQ-A',
     helpStatus: 'responding',
-    sos: { lat: 19.97, lng: 110.51, address: '账号 A 地址' },
+    sos: { lat: 31.23, lng: 121.47, address: '账号 A 地址' },
     me: { openId: 'user-a', takenAed: false, arrived: false, lastReadSeq: 0 },
     participants: [],
     messages: [],

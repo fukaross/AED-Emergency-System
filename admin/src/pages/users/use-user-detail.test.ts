@@ -28,7 +28,7 @@ function buildDetail(overrides: Partial<AdminUserDetail> = {}): AdminUserDetail 
     openId: 'openid-1',
     name: '测试用户',
     avatarUrl: null,
-    phone: 'REDACTED',
+    phone: '13812345678',
     primaryRole: 'student',
     accountStatus: 'active',
     responderStatus: null,

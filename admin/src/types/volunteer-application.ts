@@ -59,7 +59,8 @@ export interface AdminVolunteerApplicationListResponse {
 }
 
 export interface ApproveVolunteerApplicationPayload {
-  campus: 'guilinyang' | 'fucheng'
+  /** 校区 code 来自 config/site.json 的 campuses[]，后端按同一配置校验。 */
+  campus: string
   lat: number
   lng: number
   reviewNote?: string | null

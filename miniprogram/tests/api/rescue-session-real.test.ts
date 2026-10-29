@@ -8,12 +8,11 @@ const requestMocks = vi.hoisted(() => ({
 
 vi.mock('@/utils/runtime-env', () => ({
   APP_ENV: 'production',
-  API_BASE_URL: 'REDACTED',
+  API_BASE_URL: 'https://api.demo.invalid',
   SESSION_BACKEND_READY: true,
   USER_BACKEND_READY: true,
   USE_MOCK: false,
   USE_REAL_WECHAT_FLOW: true,
-  shouldWarnPlaceholderApiBaseUrl: () => false,
 }))
 
 vi.mock('@/services/request', () => requestMocks)
@@ -78,10 +77,10 @@ describe('rescue-session api (real face)', () => {
 
   it('reports location with PUT', async () => {
     requestMocks.put.mockResolvedValueOnce({})
-    await reportRescueLocation('h1', { lat: 19.9, lng: 110.5 })
+    await reportRescueLocation('h1', { lat: 31.23, lng: 121.47 })
     expect(requestMocks.put).toHaveBeenCalledWith('/api/help/h1/session/location', {
-      lat: 19.9,
-      lng: 110.5,
+      lat: 31.23,
+      lng: 121.47,
     })
   })
 

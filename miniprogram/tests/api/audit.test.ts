@@ -48,7 +48,7 @@ describe('audit api', () => {
       {
         eventType: 'rescuer',
         eventName: 'rescuer.view_contact',
-        targetId: 'rescuer-001',
+        targetId: 'rescuer-DEMO-RSP-001',
       },
     ])
 
@@ -60,7 +60,7 @@ describe('audit api', () => {
           expect.objectContaining({
             eventType: 'rescuer',
             eventName: 'rescuer.view_contact',
-            targetId: 'rescuer-001',
+            targetId: 'rescuer-DEMO-RSP-001',
             userId: 'user-001',
             timestamp: expect.any(String),
             clientInfo: {

@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import type { AmapMap, AmapMarker, AmapGeocoder, AmapAutoComplete, AmapPlaceSearch, AmapLngLat, AutocompleteTip, AMapModule } from '@/types/amap'
 import { loadAmap } from '@/utils/amap-loader'
 import { getDisplayCenter, DEFAULT_ZOOM } from '@/utils/map-coordinate'
+import { siteConfig } from '@/config/site-config'
 
 interface SearchService {
   autocomplete: AmapAutoComplete | null
@@ -41,8 +42,8 @@ export function useMapPicker() {
 
       mapInstance.add(markerInstance)
       geocoder = new AMapMod.Geocoder()
-      searchService.autocomplete = new AMapMod.AutoComplete({ city: '海口' })
-      searchService.placeSearch = new AMapMod.PlaceSearch({ city: '海口', pageSize: 10 })
+      searchService.autocomplete = new AMapMod.AutoComplete({ city: siteConfig.searchCity })
+      searchService.placeSearch = new AMapMod.PlaceSearch({ city: siteConfig.searchCity, pageSize: 10 })
 
       if (!disabled) {
         mapInstance.on('click', (e: { lnglat: AmapLngLat }) => {

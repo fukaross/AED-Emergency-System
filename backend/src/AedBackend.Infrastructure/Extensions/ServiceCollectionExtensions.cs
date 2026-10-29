@@ -8,12 +8,14 @@ using AedBackend.Core.Services.Volunteer;
 using AedBackend.Core.Services.User;
 using AedBackend.Core.Services.Rescue;
 using AedBackend.Infrastructure.Admin;
+using AedBackend.Infrastructure.Demo;
 using AedBackend.Infrastructure.Help;
 using AedBackend.Infrastructure.Knowledge;
 using AedBackend.Infrastructure.Course;
 using AedBackend.Infrastructure.Persistence;
 using AedBackend.Infrastructure.Persistence.Sqlite;
 using AedBackend.Infrastructure.Rescue;
+using AedBackend.Infrastructure.Site;
 using AedBackend.Infrastructure.Upload;
 using AedBackend.Infrastructure.Volunteer;
 using AedBackend.Infrastructure.WeChat;
@@ -27,6 +29,13 @@ namespace AedBackend.Infrastructure.Extensions;
 
 public static class ServiceCollectionExtensions
 {
+    /** 共享站点配置（CONTRACT-001）：启动即读取并校验 AppContext.BaseDirectory/config/site.json。 */
+    public static IServiceCollection AddSiteConfiguration(this IServiceCollection services)
+    {
+        services.AddSingleton(SiteConfigurationLoader.LoadDefault());
+        return services;
+    }
+
     public static IServiceCollection AddWeChatInfrastructure(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -39,6 +48,8 @@ public static class ServiceCollectionExtensions
         services.PostConfigure<DataOptions>(options => options.ApplyEnvironmentAliases(configuration));
         services.Configure<UploadOptions>(configuration.GetSection(UploadOptions.SectionName));
         services.PostConfigure<UploadOptions>(options => options.ApplyEnvironmentAliases(configuration));
+        services.Configure<DemoOptions>(configuration.GetSection(DemoOptions.SectionName));
+        services.AddSingleton<DemoRoleCatalog>();
         services.AddOptions<RescueOptions>()
             .Bind(configuration.GetSection(RescueOptions.SectionName))
             .Validate(
@@ -55,10 +66,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAdminUserService>(provider => provider.GetRequiredService<AdminUserService>());
         services.AddSingleton<IUserAccountStatusService>(provider => provider.GetRequiredService<AdminUserService>());
         services.AddSingleton<IPasswordHasher<AdminUserRecord>, PasswordHasher<AdminUserRecord>>();
-        services.AddHttpClient<IWeChatLoginClient, WeChatLoginClient>();
+        services.AddHttpClient<WeChatLoginClient>();
+        services.AddTransient<IWeChatLoginClient, DemoAwareWeChatLoginClient>();
         services.AddHttpClient<IWeChatPhoneNumberClient, WeChatPhoneNumberClient>();
         services.AddHttpClient<WeChatAccessTokenClient>();
-        services.AddHttpClient<IWeChatSubscribeMessageSender, WeChatSubscribeMessageSender>();
+        services.AddHttpClient<WeChatSubscribeMessageSender>();
+        services.AddTransient<IWeChatSubscribeMessageSender, DemoAwareSubscribeMessageSender>();
 
         return services;
     }

@@ -1,0 +1,88 @@
+{
+  "users": [
+    {
+      "openId": "demo-openid-requester",
+      "unionId": null,
+      "phone": "13000000001",
+      "name": "演示甲（求助人）",
+      "avatarUrl": "/static/images/avatar-default.png",
+      "gender": "female",
+      "sessionTokenHash": "",
+      "createdAt": "2026-09-01T09:00:00+08:00",
+      "lastLoginAt": "2026-10-20T10:00:00+08:00",
+      "subscriptions": {}
+    },
+    {
+      "openId": "demo-openid-rescuer-east",
+      "unionId": null,
+      "phone": "13000000002",
+      "name": "演示乙（急救员·东区）",
+      "avatarUrl": "/static/images/avatar-default.png",
+      "gender": "male",
+      "sessionTokenHash": "",
+      "createdAt": "2026-09-01T09:00:00+08:00",
+      "lastLoginAt": "2026-10-20T10:00:00+08:00",
+      "subscriptions": {}
+    },
+    {
+      "openId": "demo-openid-unqualified",
+      "unionId": null,
+      "phone": "13000000003",
+      "name": "演示丙（待认证）",
+      "avatarUrl": "/static/images/avatar-default.png",
+      "gender": "female",
+      "sessionTokenHash": "",
+      "createdAt": "2026-09-01T09:00:00+08:00",
+      "lastLoginAt": "2026-10-20T10:00:00+08:00",
+      "subscriptions": {}
+    },
+    {
+      "openId": "demo-openid-disabled",
+      "unionId": null,
+      "phone": "13000000004",
+      "name": "演示丁（禁用账号）",
+      "avatarUrl": "/static/images/avatar-default.png",
+      "gender": "male",
+      "sessionTokenHash": "",
+      "createdAt": "2026-09-01T09:00:00+08:00",
+      "lastLoginAt": "2026-10-20T10:00:00+08:00",
+      "subscriptions": {}
+    },
+    {
+      "openId": "demo-openid-rescuer-west",
+      "unionId": null,
+      "phone": "13000000005",
+      "name": "演示戊（急救员·西区）",
+      "avatarUrl": "/static/images/avatar-default.png",
+      "gender": "female",
+      "sessionTokenHash": "",
+      "createdAt": "2026-09-01T09:00:00+08:00",
+      "lastLoginAt": "2026-10-20T10:00:00+08:00",
+      "subscriptions": {}
+    },
+    {
+      "openId": "demo-openid-rescuer-far",
+      "unionId": null,
+      "phone": "13000000006",
+      "name": "演示己（急救员·远区）",
+      "avatarUrl": "/static/images/avatar-default.png",
+      "gender": "male",
+      "sessionTokenHash": "",
+      "createdAt": "2026-09-01T09:00:00+08:00",
+      "lastLoginAt": "2026-10-20T10:00:00+08:00",
+      "subscriptions": {}
+    },
+    {
+      "openId": "demo-openid-rescuer-edge",
+      "unionId": null,
+      "phone": "13000000007",
+      "name": "演示庚（急救员·边界）",
+      "avatarUrl": "/static/images/avatar-default.png",
+      "gender": "female",
+      "sessionTokenHash": "",
+      "createdAt": "2026-09-01T09:00:00+08:00",
+      "lastLoginAt": "2026-10-20T10:00:00+08:00",
+      "subscriptions": {}
+    }
+  ]
+}

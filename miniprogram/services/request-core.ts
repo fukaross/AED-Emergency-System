@@ -5,12 +5,7 @@ import {
   isAuthSessionCurrent, type AuthSessionContext,
 } from '@/services/auth-session'
 import { canRefreshAuth, getRefreshAuthenticationRejection, refreshAuthSession } from '@/services/auth-refresh'
-import {
-  BASE_URL,
-  PLACEHOLDER_API_BASE_URL_MESSAGE,
-  isPlaceholderApiBaseUrl,
-  warnPlaceholderApiBaseUrlOnce,
-} from '@/services/request-config'
+import { BASE_URL } from '@/services/request-config'
 import { handleErrorCode, handleSessionAuthenticationRejection } from '@/services/request-errors'
 import { logNetworkFailure, logRequest, logResponse } from '@/services/request-logging'
 import { createApiError, extractApiResponse } from '@/services/request-response'
@@ -220,15 +215,6 @@ function handleStaleAuthenticationRejection<T>(context: ResponseContext<T>): voi
   }
 }
 
-function rejectPlaceholderRequest(skipErrorHandler: boolean): Promise<never> {
-  warnPlaceholderApiBaseUrlOnce()
-  if (!skipErrorHandler) {
-    uni.showToast({ title: '接口地址未配置', icon: 'none' })
-  }
-
-  return Promise.reject(new Error(PLACEHOLDER_API_BASE_URL_MESSAGE))
-}
-
 function sendUniRequest<T>(context: UniRequestContext): Promise<T> {
   const { auth, fullUrl, headers, options } = context
   const {
@@ -286,10 +272,6 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
   const fullUrl = `${BASE_URL}${url}`
   const headers = buildHeaders(header, auth.token)
   logRequest(method, url)
-
-  if (isPlaceholderApiBaseUrl()) {
-    return rejectPlaceholderRequest(skipErrorHandler)
-  }
 
   return sendUniRequest<T>({
     options: { ...options, method, data, skipAuthRefresh, skipErrorHandler, timeout },

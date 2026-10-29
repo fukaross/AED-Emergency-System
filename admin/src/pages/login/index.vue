@@ -6,8 +6,8 @@
         <div class="logo-box">
           <div class="red-logo-block" />
         </div>
-        <h2 class="main-title">AED 管理端</h2>
-        <p class="subtitle">REDACTED AED 急救管理系统</p>
+        <h2 class="main-title">{{ siteConfig.adminTitle }}</h2>
+        <p class="subtitle">{{ siteConfig.organizationName }} · {{ siteConfig.appTitle }}</p>
       </div>
 
       <!-- Info Alert for Bootstrap Mode -->
@@ -93,7 +93,7 @@
     </div>
 
     <div class="footer-copyright">
-      REDACTED AED 急救系统
+      {{ siteConfig.organizationName }} · {{ siteConfig.adminTitle }}
     </div>
   </div>
 </template>
@@ -112,6 +112,7 @@ import {
   isNetworkApiError,
 } from '@/api/client'
 import { logApiError } from '@/utils/safe-api-error'
+import { siteConfig } from '@/config/site-config'
 
 const router = useRouter()
 const store = useAdminStore()

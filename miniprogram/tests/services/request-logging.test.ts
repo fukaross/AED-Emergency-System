@@ -38,14 +38,14 @@ describe('request development logging', () => {
         data: {
           code: 0,
           message: 'ok',
-          data: { reportedAt: '2026-07-18T10:00:00.000Z', lat: 19.97, lng: 110.51 },
+          data: { reportedAt: '2026-07-18T10:00:00.000Z', lat: 31.23, lng: 121.47 },
         },
       })),
     })
 
     await put('/api/help/h1/session/location?debug=secret', {
-      lat: 19.97,
-      lng: 110.51,
+      lat: 31.23,
+      lng: 121.47,
     })
 
     expect(log).toHaveBeenCalledWith('[Request] PUT /api/help/h1/session/location')
@@ -53,8 +53,8 @@ describe('request development logging', () => {
       '[Response] /api/help/h1/session/location status=200 code=0',
     )
     const serialized = JSON.stringify(log.mock.calls)
-    expect(serialized).not.toContain('19.97')
-    expect(serialized).not.toContain('110.51')
+    expect(serialized).not.toContain('31.23')
+    expect(serialized).not.toContain('121.47')
     expect(serialized).not.toContain('secret')
     expect(serialized).not.toContain('reportedAt')
   })

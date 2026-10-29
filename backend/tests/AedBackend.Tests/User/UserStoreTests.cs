@@ -23,7 +23,7 @@ public sealed class UserStoreTests
                 PatchValue<string?>.Present("张三"),
                 PatchValue<string?>.Present("/uploads/avatar/a.jpg"),
                 PatchValue<string?>.Present("female"),
-                PatchValue<string?>.Present("REDACTED")),
+                PatchValue<string?>.Present("13900139000")),
             CancellationToken.None);
         await users.UpdateProfileAsync(
             "openid-store",
@@ -38,7 +38,7 @@ public sealed class UserStoreTests
         Assert.Equal("张三", current.Name);
         Assert.Null(current.AvatarUrl);
         Assert.Equal("female", current.Gender);
-        Assert.Equal("REDACTED", current.Phone);
+        Assert.Equal("13900139000", current.Phone);
     }
 
     [Fact]
@@ -98,20 +98,20 @@ public sealed class UserStoreTests
             Name = "王小明",
             Gender = "male",
             BirthDate = "2000-01-01",
-            Phone = "REDACTED",
+            Phone = "13800138000",
             Email = "user@example.com",
             PoliticalStatus = "群众",
             Education = "本科",
             Occupation = "学生",
             ProfessionalTitle = "无",
             EmergencyContactName = "李老师",
-            EmergencyContactPhone = "REDACTED",
+            EmergencyContactPhone = "13900139000",
             QualificationImages = [image],
             VolunteerCertificateImages = [image],
-            IdNumber = "REDACTED",
+            IdNumber = "990000199001010017",
             IdCardFront = image,
             IdCardBack = image,
-            HomeAddress = "海南省海口市",
+            HomeAddress = "演示市演示区",
             PersonalResume = "参加过校园急救培训",
             JoinReason = reason,
             CommitmentAccepted = true
@@ -136,7 +136,7 @@ public sealed class UserStoreTests
         {
             var temp = new ProviderTempData();
             await temp.WriteMinimalJsonAsync();
-            await temp.WriteUserJsonAsync("openid-store", "REDACTED", "store-token");
+            await temp.WriteUserJsonAsync("openid-store", "13800138000", "store-token");
             await new JsonToSqliteMigrator().RunAsync(temp.Root, temp.DbPath, CancellationToken.None);
             var app = new AdminTestApplication(temp.Root, new Dictionary<string, string?>
             {

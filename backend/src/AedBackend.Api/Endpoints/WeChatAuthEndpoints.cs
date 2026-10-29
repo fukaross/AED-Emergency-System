@@ -5,6 +5,7 @@ using AedBackend.Core.DTOs.WeChat;
 using AedBackend.Core.Models.WeChat;
 using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.WeChat;
+using AedBackend.Infrastructure.Demo;
 using AedBackend.Infrastructure.WeChat;
 using Microsoft.Extensions.Options;
 
@@ -38,13 +39,14 @@ public static class WeChatAuthEndpoints
     private static async Task<IResult> LoginAsync(
         WeChatLoginRequest request,
         IOptions<WeChatOptions> options,
+        IOptions<DemoOptions> demoOptions,
         IWeChatLoginClient loginClient,
         ISessionTokenService tokenService,
         IExperienceUserStore store,
         IUserAccountStatusService accountStatus,
         CancellationToken cancellationToken)
     {
-        var validationError = ValidateLoginRequest(request, options.Value);
+        var validationError = ValidateLoginRequest(request, options.Value, demoOptions.Value.Enabled);
         if (validationError is not null)
         {
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, validationError, 400);
@@ -122,6 +124,7 @@ public static class WeChatAuthEndpoints
         HttpRequest httpRequest,
         BindWeChatPhoneRequest request,
         IOptions<WeChatOptions> options,
+        IOptions<DemoOptions> demoOptions,
         IWeChatPhoneNumberClient phoneClient,
         ISessionTokenService tokenService,
         IExperienceUserStore store,
@@ -133,6 +136,15 @@ public static class WeChatAuthEndpoints
             new ActiveUserDependencies(tokenService, store, accountStatus),
             cancellationToken);
         if (current.Failure is not null) return current.Failure;
+
+        // 演示手机号只来自 demo/roles.json 的固定角色，不开放任意号码绑定/修改入口。
+        if (demoOptions.Value.Enabled)
+        {
+            return EndpointFailures.JsonFailure(
+                ErrorCodes.Forbidden,
+                "演示模式手机号来自固定演示角色，不支持绑定或修改",
+                403);
+        }
 
         var validationError = ValidatePhoneRequest(request, options.Value);
         if (validationError is not null)
@@ -170,11 +182,18 @@ public static class WeChatAuthEndpoints
         return Results.Ok(ApiResponse.Ok(response));
     }
 
+    /**
+     * 演示模式使用固定 code → 角色映射，由 IWeChatLoginClient 的演示适配器处理，
+     * 因此不要求真实 AppId/AppSecret；真实模式仍必须在进入登录客户端前检查凭据，
+     * 缺失时给明确配置错误而不是自动切 Mock。
+     */
     private static string? ValidateLoginRequest(
         WeChatLoginRequest request,
-        WeChatOptions options)
+        WeChatOptions options,
+        bool demoEnabled)
     {
-        if (string.IsNullOrWhiteSpace(options.AppId) || string.IsNullOrWhiteSpace(options.AppSecret))
+        if (!demoEnabled
+            && (string.IsNullOrWhiteSpace(options.AppId) || string.IsNullOrWhiteSpace(options.AppSecret)))
         {
             return "缺少 WeChat:AppId 或 WeChat:AppSecret 配置";
         }

@@ -94,17 +94,22 @@
 
       <el-dialog v-model="approveDialogVisible" title="审核通过" width="520px">
         <div class="approve-help">
-          坐标格式按地图常见复制顺序填写：经度 lng 在前、纬度 lat 在后，例如 110.52,19.98
+          坐标格式按地图常见复制顺序填写：经度 lng 在前、纬度 lat 在后，例如 {{ campusPointExample }}
         </div>
         <label class="approve-label">
           <span>校区</span>
           <el-select v-model="approveForm.campus" class="approve-field" @change="handleCampusChange">
-            <el-option v-for="(item, value) in CAMPUS_POINTS" :key="value" :label="item.label" :value="value" />
+            <el-option
+              v-for="campus in siteConfig.campuses"
+              :key="campus.code"
+              :label="campus.name"
+              :value="campus.code"
+            />
           </el-select>
         </label>
         <div class="coordinate-grid">
           <label class="approve-label">
-            <span>经度 lng（例：110.52）</span>
+            <span>经度 lng（例：{{ defaultCampusPoint.longitude }}）</span>
             <el-input-number
               v-model="approveForm.lng"
               class="approve-field"
@@ -115,7 +120,7 @@
             />
           </label>
           <label class="approve-label">
-            <span>纬度 lat（例：19.98）</span>
+            <span>纬度 lat（例：{{ defaultCampusPoint.latitude }}）</span>
             <el-input-number
               v-model="approveForm.lat"
               class="approve-field"
@@ -155,15 +160,14 @@ import {
 } from '@/api/volunteer-applications'
 import { getApiErrorMessage } from '@/api/client'
 import type { AdminVolunteerApplicationDetail } from '@/types/volunteer-application'
+import { DEFAULT_CAMPUS, findCampus, siteConfig } from '@/config/site-config'
 
-const CAMPUS_POINTS = {
-  guilinyang: { label: 'REDACTED校区', lat: REDACTED, lng: REDACTED },
-  fucheng: { label: '府城校区', lat: REDACTED, lng: REDACTED },
-} as const
-type CampusCode = keyof typeof CAMPUS_POINTS
+/** 审核通过弹窗的默认坐标来自配置的第一个校区。 */
+const defaultCampusPoint = DEFAULT_CAMPUS.center
+const campusPointExample = `${defaultCampusPoint.longitude},${defaultCampusPoint.latitude}`
 
 interface ApproveForm {
-  campus: CampusCode
+  campus: string
   lat: number
   lng: number
   reviewNote: string
@@ -177,9 +181,9 @@ const actionLoading = ref(false)
 const detail = ref<AdminVolunteerApplicationDetail | null>(null)
 const approveDialogVisible = ref(false)
 const approveForm = reactive<ApproveForm>({
-  campus: 'guilinyang',
-  lat: CAMPUS_POINTS.guilinyang.lat,
-  lng: CAMPUS_POINTS.guilinyang.lng,
+  campus: DEFAULT_CAMPUS.code,
+  lat: defaultCampusPoint.latitude,
+  lng: defaultCampusPoint.longitude,
   reviewNote: '',
 })
 const imageGroups = computed(() => {
@@ -253,14 +257,20 @@ function goBack() { router.push('/volunteer-applications') }
 function goRescuer(rescuerId: string) { router.push(`/rescuers/${rescuerId}`) }
 function formatTime(value: string) { return new Date(value).toLocaleString('zh-CN', { hour12: false }) }
 function genderLabel(value: string) { return value === 'female' ? '女' : value === 'male' ? '男' : '未知' }
-function handleCampusChange(value: CampusCode) {
-  approveForm.lat = CAMPUS_POINTS[value].lat
-  approveForm.lng = CAMPUS_POINTS[value].lng
+function handleCampusChange(value: string) {
+  const campus = findCampus(value)
+  if (!campus) {
+    // 下拉只列出配置中的校区；外部带入未知 code 时明确提示，不沿用上一个校区的坐标。
+    ElMessage.error(`未知校区「${value}」，请检查 config/site.json`)
+    return
+  }
+  approveForm.lat = campus.center.latitude
+  approveForm.lng = campus.center.longitude
 }
 function resetApproveForm() {
-  approveForm.campus = 'guilinyang'
-  approveForm.lat = CAMPUS_POINTS.guilinyang.lat
-  approveForm.lng = CAMPUS_POINTS.guilinyang.lng
+  approveForm.campus = DEFAULT_CAMPUS.code
+  approveForm.lat = defaultCampusPoint.latitude
+  approveForm.lng = defaultCampusPoint.longitude
   approveForm.reviewNote = ''
 }
 function toNullableReviewNote(value: string) {

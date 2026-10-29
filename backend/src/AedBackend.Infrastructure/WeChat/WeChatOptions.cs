@@ -20,7 +20,9 @@ public sealed class WeChatOptions
     public string CoursesFilePath { get; set; } = "data/courses.json";
     public string QuickActionsFilePath { get; set; } = "data/quick-actions.json";
     public string RescueSessionsFilePath { get; set; } = "data/rescue-sessions.json";
-    public string PublicBaseUrl { get; set; } = "REDACTED";
+
+    /** 本机/自建部署的公开回链前缀；不再内置任何现网域名，缺失时由调用方明确报错。 */
+    public string PublicBaseUrl { get; set; } = string.Empty;
 
     public void ApplyEnvironmentAliases(IConfiguration configuration)
     {

@@ -30,7 +30,7 @@ export function buildSnapshot(helpId: string): RescueSessionSnapshot {
     helpId,
     requestNo: helpId,
     helpStatus: 'responding',
-    sos: { lat: 19.97, lng: 110.51, address: '测试点' },
+    sos: { lat: 31.23, lng: 121.47, address: '测试点' },
     me: { openId: 'rescuer-a', takenAed: false, arrived: false, lastReadSeq: 0 },
     participants: [{
       openId: 'rescuer-a',
@@ -40,8 +40,8 @@ export function buildSnapshot(helpId: string): RescueSessionSnapshot {
       arrived: false,
       signal: 'ok',
       location: {
-        lat: 19.971,
-        lng: 110.511,
+        lat: 31.2319,
+        lng: 121.4753,
         reportedAt: '2026-07-17T10:00:00.000Z',
       },
     }],

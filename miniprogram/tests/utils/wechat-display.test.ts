@@ -18,6 +18,6 @@ describe('wechat display name', () => {
   it('only replaces blank or base wechat names', () => {
     expect(shouldUseWeChatDisplayName('')).toBe(true)
     expect(shouldUseWeChatDisplayName('微信用户')).toBe(true)
-    expect(shouldUseWeChatDisplayName('REDACTED')).toBe(false)
+    expect(shouldUseWeChatDisplayName('演示乙（急救员·东区）')).toBe(false)
   })
 })

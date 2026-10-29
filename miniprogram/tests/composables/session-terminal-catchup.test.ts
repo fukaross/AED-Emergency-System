@@ -9,6 +9,7 @@ const apiMocks = vi.hoisted(() => ({
   joinRescueSession: vi.fn(),
   fetchRescueSession: vi.fn(),
   postRescueMessage: vi.fn(),
+  postRescueImageMessage: vi.fn(),
   postRescueStatusEvent: vi.fn(),
   reportRescueLocation: vi.fn(),
   fetchMineRescueSessions: vi.fn(),

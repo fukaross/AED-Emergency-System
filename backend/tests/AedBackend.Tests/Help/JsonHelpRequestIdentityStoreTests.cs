@@ -59,7 +59,7 @@ public sealed class JsonHelpRequestIdentityStoreTests
         Content = "有人晕倒需要协助",
         Type = "help_hand",
         CreatedAt = DateTimeOffset.UtcNow,
-        RequesterPhone = "REDACTED",
+        RequesterPhone = "13800138000",
         Timeline = [new HelpTimelineRecord(
             HelpStatuses.Published,
             DateTimeOffset.UtcNow,

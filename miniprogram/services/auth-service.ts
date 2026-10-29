@@ -8,7 +8,9 @@ import {
 import { AUTH_LOGIN_PATH } from '@/services/request-config'
 import type { LoginResponse } from '@/types/common'
 import { loadMockUserProfile } from '@/mock/user'
+import { getActiveDemoRole, findDemoUser } from '@/mock/demo-role'
 import {
+  IS_LOCAL_DEMO,
   RESTORE_AUTH_SESSION,
   USE_MOCK,
   USE_REAL_WECHAT_FLOW,
@@ -32,7 +34,7 @@ interface WeChatPhoneResponse {
   readonly phone: string
 }
 
-/** 微信登录并获取 Token */
+/** 登录：mock 走本地演示身份；local-demo 用固定演示 code 请求真实后端；wechat 走 wx.login */
 export async function wxLogin(): Promise<LoginResponse> {
   if (shouldUseMockAuth()) {
     const userInfo = loadMockUserProfile()
@@ -51,12 +53,31 @@ export async function wxLogin(): Promise<LoginResponse> {
     return result
   }
 
-  const { code } = await uni.login({ provider: 'weixin' })
-  const result = toLoginResponse(
-    await post<WeChatLoginResponse>(AUTH_LOGIN_PATH, { code }),
-  )
+  const code = IS_LOCAL_DEMO
+    ? resolveLocalDemoLoginCode()
+    : (await uni.login({ provider: 'weixin' })).code
+  const response = await post<WeChatLoginResponse>(AUTH_LOGIN_PATH, { code })
 
-  return result
+  return toLoginResponse(response)
+}
+
+/**
+ * local-demo 的登录 code 只来自 demo/roles.json 的固定角色。
+ * 未知 code 必须显式报错，不能静默用默认角色或任意 openId 登录。
+ */
+function resolveLocalDemoLoginCode(): string {
+  try {
+    return getActiveDemoRole().loginCode
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '演示角色配置无效'
+    console.error('[Auth] 演示登录失败', message)
+    uni.showModal({
+      title: '演示角色无效',
+      content: message,
+      showCancel: false,
+    })
+    throw error
+  }
 }
 
 export async function bindWeChatPhone(code: string): Promise<WeChatPhoneResponse> {
@@ -126,11 +147,20 @@ function toLoginResponse(response: WeChatLoginResponse): LoginResponse {
     expiresIn: response.expiresIn ?? DEFAULT_EXPIRES_IN,
     userInfo: {
       id: response.openId,
-      name: buildWeChatDisplayName(response.openId),
+      name: resolveLoginDisplayName(response.openId),
       avatarUrl: '',
       isNewUser: response.isNewUser,
     },
   }
+}
+
+/** local-demo 使用 demo 角色展示名；真实微信档继续用脱敏 openId 昵称。 */
+function resolveLoginDisplayName(openId: string): string {
+  if (IS_LOCAL_DEMO) {
+    const demoUser = findDemoUser(openId)
+    if (demoUser) return demoUser.name
+  }
+  return buildWeChatDisplayName(openId)
 }
 
 function shouldUseMockAuth(): boolean {

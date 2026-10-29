@@ -11,7 +11,7 @@ import {
 
 describe('maskPhone', () => {
   it('masks middle 4 digits of 11-digit phone', () => {
-    expect(maskPhone('REDACTED')).toBe('135****5678')
+    expect(maskPhone('13512345678')).toBe('135****5678')
   })
 
   it('returns original if too short', () => {
@@ -25,7 +25,7 @@ describe('maskPhone', () => {
 
 describe('maskIdNumber', () => {
   it('masks middle digits of id number', () => {
-    expect(maskIdNumber('REDACTED')).toBe('469027******3456')
+    expect(maskIdNumber('469027200410123456')).toBe('469027******3456')
   })
 
   it('returns original if too short', () => {

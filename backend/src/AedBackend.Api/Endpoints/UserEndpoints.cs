@@ -10,6 +10,7 @@ using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.User;
 using AedBackend.Core.Services.Volunteer;
 using AedBackend.Core.Services.WeChat;
+using AedBackend.Infrastructure.Demo;
 using AedBackend.Infrastructure.Persistence;
 using Microsoft.Extensions.Options;
 
@@ -68,6 +69,7 @@ internal static partial class UserEndpoints
         IUserAccountStatusService accountStatus,
         IResponderStore responders,
         IOptions<DataOptions> dataOptions,
+        IOptions<DemoOptions> demoOptions,
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
@@ -77,6 +79,15 @@ internal static partial class UserEndpoints
         var patchResult = CreatePatch(body);
         if (patchResult.Error is not null)
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, patchResult.Error, 400);
+
+        // 演示手机号只来自固定演示角色，不开放任意号码修改入口。
+        if (demoOptions.Value.Enabled && patchResult.Patch.Phone.HasValue)
+        {
+            return EndpointFailures.JsonFailure(
+                ErrorCodes.Forbidden,
+                "演示模式手机号来自固定演示角色，不支持修改",
+                403);
+        }
 
         try
         {

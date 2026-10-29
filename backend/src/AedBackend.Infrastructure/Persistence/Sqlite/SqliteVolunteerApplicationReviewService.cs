@@ -158,14 +158,15 @@ internal sealed class SqliteVolunteerApplicationReviewService : IVolunteerApplic
         };
     }
 
+    /** 志愿者申请审批通过后生成的中性档案编号前缀（旧机构编号前缀已移除）。 */
     private static async Task<string> GenerateResponderIdAsync(AedDbContext db, CancellationToken ct)
     {
         var ids = await db.ResponderProfiles.Select(item => item.Id).ToArrayAsync(ct);
-        var max = ids.Where(id => id.StartsWith("JZR-", StringComparison.OrdinalIgnoreCase))
+        var max = ids.Where(id => id.StartsWith("ARC-", StringComparison.OrdinalIgnoreCase))
             .Select(id => int.TryParse(id.AsSpan(4), out var n) ? n : 0)
             .DefaultIfEmpty(0)
             .Max();
-        return $"JZR-{max + 1:D5}";
+        return $"ARC-{max + 1:D5}";
     }
 
     private static AdminAuditLogEntity CreateAudit(

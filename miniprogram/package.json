@@ -1,14 +1,17 @@
 {
-  "name": "aed-miniprogram",
+  "name": "aed-emergency-miniprogram",
   "version": "0.1.0",
+  "license": "GPL-3.0-only",
   "private": true,
-  "description": "REDACTED",
+  "description": "AED 急救协作小程序（迁移模板，演示数据均为合成数据）",
   "scripts": {
     "dev:h5": "cross-env UNI_INPUT_DIR=. uni",
-    "dev:mp-weixin": "cross-env UNI_INPUT_DIR=. uni -p mp-weixin",
+    "dev:mp-weixin": "pnpm sync:demo && cross-env UNI_INPUT_DIR=. uni -p mp-weixin",
     "build:h5": "cross-env UNI_INPUT_DIR=. uni build",
-    "build:mp-weixin": "cross-env UNI_INPUT_DIR=. uni build -p mp-weixin && pnpm sync:static",
-    "build:mp-weixin:preview": "cross-env UNI_INPUT_DIR=. uni build -p mp-weixin --mode preview && pnpm sync:static",
+    "build:mp-weixin": "pnpm sync:demo && cross-env UNI_INPUT_DIR=. uni build -p mp-weixin && pnpm sync:static && node scripts/write-build-metadata.mjs production",
+    "build:mp-weixin:preview": "pnpm sync:demo && cross-env UNI_INPUT_DIR=. uni build -p mp-weixin --mode preview && pnpm sync:static && node scripts/write-build-metadata.mjs preview",
+    "sync:demo": "node scripts/sync-demo-data.mjs",
+    "assets:generate": "node scripts/generate-demo-assets.mjs",
     "sync:static": "node scripts/sync-static.mjs",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint . --ext .vue,.ts,.js --max-warnings 0",
@@ -54,8 +57,9 @@
     "vue-tsc": "^3.2.7"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": "^22.13.0 || >=24.0.0",
     "pnpm": ">=10"
   },
   "packageManager": "pnpm@10.17.1+sha512.17c560fca4867ae9473a3899ad84a88334914f379be46d455cbf92e5cf4b39d34985d452d2583baf19967fa76cb5c17bc9e245529d0b98745721aa7200ecaf7a"
 }
+

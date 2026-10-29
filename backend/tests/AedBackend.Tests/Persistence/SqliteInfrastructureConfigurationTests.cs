@@ -131,9 +131,9 @@ public sealed class SqliteInfrastructureConfigurationTests
                 Content, Type, Status, CreatedAt, RequesterPhone)
             VALUES
                 ('help-01', 'HELP-01', 'duplicate-user', 'miniapp', 1, 2,
-                 'addr', 'content', 'medical', 'published', '2026-07-18T00:00:00Z', 'REDACTED'),
+                 'addr', 'content', 'medical', 'published', '2026-07-18T00:00:00Z', '13800138000'),
                 ('help-02', 'HELP-02', 'duplicate-user', 'miniapp', 1, 2,
-                 'addr', 'content', 'medical', 'responding', '2026-07-18T00:00:00Z', 'REDACTED');
+                 'addr', 'content', 'medical', 'responding', '2026-07-18T00:00:00Z', '13800138000');
             """;
         await command.ExecuteNonQueryAsync();
     }

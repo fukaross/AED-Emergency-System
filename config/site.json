@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "site": {
+    "organizationName": "示范园区",
+    "appTitle": "AED 急救协作",
+    "adminTitle": "AED 管理端",
+    "coordinateSystem": "gcj02",
+    "map": {
+      "center": {
+        "latitude": 31.2315,
+        "longitude": 121.4785
+      },
+      "searchCity": "上海"
+    },
+    "campuses": [
+      {
+        "code": "east",
+        "name": "东区",
+        "center": {
+          "latitude": 31.245,
+          "longitude": 121.505
+        }
+      },
+      {
+        "code": "west",
+        "name": "西区",
+        "center": {
+          "latitude": 31.218,
+          "longitude": 121.452
+        }
+      }
+    ],
+    "serviceRadiusKm": 30,
+    "rescuePhone": ""
+  }
+}

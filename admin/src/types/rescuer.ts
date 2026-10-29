@@ -3,7 +3,8 @@ export interface AdminRescuerItem {
   recordId: string
   name: string
   avatarUrl: string
-  campus: 'guilinyang' | 'fucheng'
+  /** 校区 code 来自 config/site.json 的 campuses[]，由后端按同一配置校验，不是源码枚举。 */
+  campus: string
   level: 'honor' | 'trainee' | 'official' | 'core' | null
   qualificationStatus: 'active' | 'inactive'
   lat: number

@@ -6,6 +6,10 @@ using Microsoft.Extensions.Options;
 
 namespace AedBackend.Infrastructure.Help;
 
+/**
+ * JSON provider 仅作为只读/回滚数据源：设备来自既有 JSON 文件，不再内置真实设备种子。
+ * 文件缺失时返回空集合且不写盘；完整演示数据由 SQLite + init-demo-data 提供。
+ */
 public sealed class JsonAedDeviceStore : IAedDeviceStore
 {
     private const double EarthRadiusMeters = 6371000;
@@ -56,17 +60,7 @@ public sealed class JsonAedDeviceStore : IAedDeviceStore
         await fileLock.WaitAsync(cancellationToken);
         try
         {
-            if (!File.Exists(filePath))
-            {
-                await WriteDevicesAsync(AedDeviceSeedData.Devices, cancellationToken);
-                return AedDeviceSeedData.Devices;
-            }
-
-            await using var stream = File.OpenRead(filePath);
-            return await JsonSerializer.DeserializeAsync<IReadOnlyList<AedDeviceRecord>>(
-                stream,
-                JsonOptions,
-                cancellationToken) ?? [];
+            return await LoadUnsafeAsync(cancellationToken);
         }
         finally
         {
@@ -222,10 +216,7 @@ public sealed class JsonAedDeviceStore : IAedDeviceStore
     private async Task<IReadOnlyList<AedDeviceRecord>> LoadUnsafeAsync(
         CancellationToken cancellationToken)
     {
-        if (!File.Exists(filePath))
-        {
-            return AedDeviceSeedData.Devices;
-        }
+        if (!File.Exists(filePath)) return [];
 
         await using var stream = File.OpenRead(filePath);
         return await JsonSerializer.DeserializeAsync<IReadOnlyList<AedDeviceRecord>>(

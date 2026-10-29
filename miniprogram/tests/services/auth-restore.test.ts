@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/utils/runtime-env', () => ({
-  API_BASE_URL: 'REDACTED',
-  IS_PLACEHOLDER_API_BASE_URL: false,
+  API_BASE_URL: 'https://api.demo.invalid',
   RESTORE_AUTH_SESSION: true,
   SESSION_BACKEND_READY: false,
   USER_BACKEND_READY: false,
   USE_MOCK: false,
   USE_REAL_WECHAT_FLOW: true,
-  shouldWarnPlaceholderApiBaseUrl: vi.fn(() => false),
 }))
 
 const storage = new Map<string, unknown>()

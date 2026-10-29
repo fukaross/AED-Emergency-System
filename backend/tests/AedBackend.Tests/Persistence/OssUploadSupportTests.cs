@@ -5,7 +5,7 @@ namespace AedBackend.Tests.Persistence;
 
 public sealed class OssUploadSupportTests
 {
-    private const string PublicBaseUrl = "REDACTED";
+    private const string PublicBaseUrl = "https://oss.example.test";
 
     [Fact]
     public void BuildUrl_KeepsObjectKeyPrefixInPublicUrl()
@@ -23,9 +23,9 @@ public sealed class OssUploadSupportTests
     public void RewriteText_PreservesQueryAndFragmentWithoutAddingThemToObjectKey()
     {
         var rewriter = new UploadUrlRewriter(
-            "REDACTED",
+            "https://legacy.example.test",
             PublicBaseUrl);
-        var source = "REDACTED/uploads/classroom/a.jpg?x-oss-process=image/resize#cover";
+        var source = "https://legacy.example.test/uploads/classroom/a.jpg?x-oss-process=image/resize#cover";
 
         var result = rewriter.RewriteText($"<img src=\"{source}\">");
 

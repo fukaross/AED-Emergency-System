@@ -5,8 +5,8 @@ namespace AedBackend.Tests.Persistence;
 
 public sealed class UploadsToOssMigratorTests
 {
-    private const string OldBase = "REDACTED";
-    private const string NewBase = "REDACTED";
+    private const string OldBase = "https://legacy.example.test";
+    private const string NewBase = "https://oss.example.test";
 
     [Fact]
     public async Task RunAsync_DryRunScansReferencesWithoutUploadingOrUpdating()

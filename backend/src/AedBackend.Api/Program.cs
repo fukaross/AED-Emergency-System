@@ -6,21 +6,27 @@ using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Help;
 using AedBackend.Core.Services.Rescue;
 using AedBackend.Core.Services.WeChat;
+using AedBackend.Infrastructure.Demo;
 using AedBackend.Infrastructure.Extensions;
 using AedBackend.Infrastructure.Persistence;
+using AedBackend.Infrastructure.Upload;
 using AedBackend.Infrastructure.WeChat;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 
+var demoInitExitCode = await InitDemoDataCli.TryRunAsync(args, CancellationToken.None);
+if (demoInitExitCode >= 0) return demoInitExitCode;
 var cliExitCode = await JsonToSqliteCli.TryRunAsync(args, CancellationToken.None);
 if (cliExitCode >= 0) return cliExitCode;
 cliExitCode = await UploadsToOssCli.TryRunAsync(args, CancellationToken.None);
 if (cliExitCode >= 0) return cliExitCode;
 
 var builder = WebApplication.CreateBuilder(args);
+DevelopmentLocalSecrets.Apply(builder, args);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSiteConfiguration();
 builder.Services.AddWeChatInfrastructure(builder.Configuration);
 builder.Services.AddSingleton<RescueSessionLifecycleCoordinator>();
 builder.Services.AddSingleton(services => new RescueAuthorizationDependencies
@@ -52,6 +58,7 @@ if (builder.Configuration.GetValue<bool>("Rescue:PresenceMonitorEnabled", true))
 }
 
 var app = builder.Build();
+ValidateDemoMode(app);
 await RuntimeDataInitializer.EnsureReadyAsync(app.Services, CancellationToken.None);
 
 if (app.Environment.IsDevelopment())
@@ -105,5 +112,24 @@ app.MapAdminEndpoints();
 app.Run();
 
 return 0;
+
+/**
+ * CONTRACT-003 启动门禁：Demo 只在 Development + Demo:Enabled=true + 仅回环监听
+ * （且本地上传、本机回链、SQLite 数据源）时可用；不满足即启动失败。
+ */
+static void ValidateDemoMode(WebApplication app)
+{
+    var demo = app.Services.GetRequiredService<IOptions<DemoOptions>>().Value;
+    if (!demo.Enabled) return;
+
+    DemoModeGuard.ValidateStartup(
+        app.Configuration,
+        app.Environment,
+        demo,
+        app.Services.GetRequiredService<IOptions<DataOptions>>().Value,
+        app.Services.GetRequiredService<IOptions<UploadOptions>>().Value,
+        app.Services.GetRequiredService<IOptions<WeChatOptions>>().Value,
+        app.Services.GetRequiredService<DemoRoleCatalog>());
+}
 
 public partial class Program;

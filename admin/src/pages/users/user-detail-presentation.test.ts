@@ -33,7 +33,7 @@ describe('user detail presentation', () => {
     expect(getInitials('小明')).toBe('小')
     expect(getInitials('')).toBe('U')
     expect(truncateOpenId('1234567890123456')).toBe('123456...123456')
-    expect(maskPhone('REDACTED')).toBe('138****5678')
+    expect(maskPhone('13812345678')).toBe('138****5678')
     expect(maskPhone(null)).toBe('—')
     expect(maskCertNo('1234567890')).toBe('12345678****')
   })

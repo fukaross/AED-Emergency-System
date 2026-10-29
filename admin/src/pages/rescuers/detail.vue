@@ -46,6 +46,7 @@ import { getApiErrorMessage } from '@/api/client'
 import { validateIdNumber } from '@/utils/id-number'
 import type { AdminRescuerDetail } from '@/types/rescuer'
 import type { RescuerForm } from './use-rescuer-form'
+import { DEFAULT_CAMPUS } from '@/config/site-config'
 
 const route = useRoute()
 const router = useRouter()
@@ -58,7 +59,8 @@ const ids = computed(() => route.params.id as string)
 
 const form = ref<RescuerForm>({
   name: '', avatarUrl: '', phone: '',
-  campus: 'guilinyang', level: null, qualificationStatus: 'active',
+  // 新增/加载前的默认值来自配置的第一个校区（新增校区只改 config/site.json）
+  campus: DEFAULT_CAMPUS.code, level: null, qualificationStatus: 'active',
   lat: 0, lng: 0,
   certificateNo: null, issuingAuthority: null, issueDate: null, workUnit: null,
   skillCpr: false, skillAed: false, skillStb: false,

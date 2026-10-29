@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
@@ -11,20 +12,24 @@ internal sealed class AdminTestApplication : WebApplicationFactory<Program>
     private readonly string dataRoot;
     private readonly IReadOnlyDictionary<string, string?> extraConfiguration;
     private readonly Action<IServiceCollection>? configureServices;
+    private readonly string environmentName;
 
     public AdminTestApplication(
         string dataRoot,
         IReadOnlyDictionary<string, string?>? extraConfiguration = null,
-        Action<IServiceCollection>? configureServices = null)
+        Action<IServiceCollection>? configureServices = null,
+        string environmentName = "Development")
     {
         this.dataRoot = dataRoot;
         this.extraConfiguration = extraConfiguration ?? new Dictionary<string, string?>();
         this.configureServices = configureServices;
+        this.environmentName = environmentName;
     }
 
     /** 测试宿主移除 Windows EventLog，避免非管理员环境把真实端点异常遮蔽为日志权限错误。 */
-    protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseEnvironment(environmentName);
         builder.ConfigureServices(services =>
         {
             services.AddLogging(logging =>
@@ -40,6 +45,7 @@ internal sealed class AdminTestApplication : WebApplicationFactory<Program>
             {
                 ["AED_PUSH_ADMIN_KEY"] = AdminApiTestBase.LegacyAdminKey,
                 ["AED_ADMIN_SESSION_HASH_SECRET"] = "test-session-secret-value",
+                ["WeChat:PublicBaseUrl"] = "http://127.0.0.1:5150",
                 ["WeChat:ExperienceUsersFilePath"] = Path.Combine(dataRoot, "wechat-experience-users.json"),
                 ["WeChat:HelpRequestsFilePath"] = Path.Combine(dataRoot, "help-requests.json"),
                 ["WeChat:AedDevicesFilePath"] = Path.Combine(dataRoot, "aed-devices.json"),

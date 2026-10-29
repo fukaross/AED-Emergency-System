@@ -1,0 +1,188 @@
+# AED 急救协作模板 — CI（三端：miniprogram / admin / backend）
+#
+# 说明：
+# - 仓库布局为三端并列；不再有旧 `app/` 工作目录假设。
+# - 安装一律 `pnpm install --frozen-lockfile`，锁文件按目录缓存，不自动升级依赖。
+# - 首次提交（无 HEAD~1）不会失败：commitlint 先探测父提交是否存在。
+# - `contract:validate` 使用 `npx --yes @redocly/cli lint`，需要网络下载 CLI；
+#   在 CI 中显式预热缓存，避免首次下载超时（本地曾出现 EIDLETIMEOUT）。
+# - 未在本仓托管平台上实际运行过；本地只验证了 YAML 可解析与等价命令可执行。
+# - 脱敏扫描器需要私有规则 `_agent-team/private/sensitive-rules.json`（不入仓），
+#   因此不在 CI 中运行；发布前由维护者工作区执行。
+
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'miniprogram/**'
+      - 'admin/**'
+      - 'backend/**'
+      - 'config/**'
+      - 'demo/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'miniprogram/**'
+      - 'admin/**'
+      - 'backend/**'
+      - 'config/**'
+      - 'demo/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  commitlint:
+    name: commitlint (小新仓首次提交安全)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: miniprogram
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: miniprogram/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      # 首次提交没有 HEAD~1：探测父提交，不存在则跳过并明确输出原因。
+      - name: Commitlint (range 可用时)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git rev-parse --verify -q HEAD >/dev/null && git rev-parse --verify -q 'HEAD^' >/dev/null; then
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              FROM="${{ github.event.pull_request.base.sha }}"
+            else
+              FROM="$(git rev-parse HEAD^)"
+            fi
+            echo "commitlint range: $FROM..HEAD"
+            pnpm exec commitlint --from "$FROM" --to HEAD
+          else
+            echo "跳过 commitlint：当前仓库还没有可用的父提交（首次提交或浅克隆）。"
+          fi
+
+  miniprogram:
+    name: miniprogram（typecheck/lint/test/contract/build）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: miniprogram
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: miniprogram/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 预热 OpenAPI CLI（contract:validate 依赖 npx 下载）
+        run: npx --yes @redocly/cli@latest --version
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: TypeCheck
+        run: pnpm typecheck
+
+      - name: OpenAPI contract validate
+        run: pnpm contract:validate
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build (mp-weixin)
+        run: pnpm build:mp-weixin
+
+      - name: Upload mp-weixin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mp-weixin-dist
+          path: miniprogram/dist/build/mp-weixin
+          if-no-files-found: error
+
+  admin:
+    name: admin（lint/test/typecheck/build）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: admin/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      # build 已包含 vue-tsc 与 node tsconfig 两套类型检查，不再重复 typecheck
+      - name: Build (输出到 backend/src/AedBackend.Api/wwwroot/admin)
+        run: pnpm build
+
+      - name: Upload admin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-wwwroot
+          path: backend/src/AedBackend.Api/wwwroot/admin
+          if-no-files-found: error
+
+  backend:
+    name: backend（build/test/format）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore AedBackend.sln
+
+      - name: Build
+        run: dotnet build AedBackend.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test AedBackend.sln --no-build --configuration Release
+
+      - name: Format verify
+        run: dotnet format AedBackend.sln --verify-no-changes --no-restore

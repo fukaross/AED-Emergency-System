@@ -102,7 +102,7 @@ public sealed class RescueSessionLifecycleBackfillTests
         Status = HelpStatuses.Closed,
         CreatedAt = ClosedAt.AddMinutes(-5),
         ClosedAt = ClosedAt,
-        RequesterPhone = "REDACTED"
+        RequesterPhone = "13800138000"
     };
 
     private static RescueSessionRecord LegacySession() => new()

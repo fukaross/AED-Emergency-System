@@ -1,0 +1,74 @@
+{
+  "profiles": {
+    "demo-openid-requester": {
+      "openId": "demo-openid-requester",
+      "primaryRole": "student",
+      "accountStatus": "active",
+      "responderStatus": null,
+      "certified": false,
+      "level": null,
+      "adminRemark": "合成演示资料（demo-v1）",
+      "updatedAt": "2026-10-20T10:00:00+08:00"
+    },
+    "demo-openid-rescuer-east": {
+      "openId": "demo-openid-rescuer-east",
+      "primaryRole": "teacher",
+      "accountStatus": "active",
+      "responderStatus": "active",
+      "certified": true,
+      "level": "official",
+      "adminRemark": "合成演示资料（demo-v1）",
+      "updatedAt": "2026-10-20T10:00:00+08:00"
+    },
+    "demo-openid-unqualified": {
+      "openId": "demo-openid-unqualified",
+      "primaryRole": "student",
+      "accountStatus": "active",
+      "responderStatus": "inactive",
+      "certified": false,
+      "level": "trainee",
+      "adminRemark": "合成演示资料（demo-v1）：资格已过期，仅用于负向验收",
+      "updatedAt": "2026-10-20T10:00:00+08:00"
+    },
+    "demo-openid-disabled": {
+      "openId": "demo-openid-disabled",
+      "primaryRole": "staff",
+      "accountStatus": "disabled",
+      "responderStatus": "active",
+      "certified": true,
+      "level": "core",
+      "adminRemark": "合成演示资料（demo-v1）：账号禁用负向样本",
+      "updatedAt": "2026-10-20T10:00:00+08:00"
+    },
+    "demo-openid-rescuer-west": {
+      "openId": "demo-openid-rescuer-west",
+      "primaryRole": "student",
+      "accountStatus": "active",
+      "responderStatus": "active",
+      "certified": true,
+      "level": "official",
+      "adminRemark": "合成演示资料（demo-v1）",
+      "updatedAt": "2026-10-20T10:00:00+08:00"
+    },
+    "demo-openid-rescuer-far": {
+      "openId": "demo-openid-rescuer-far",
+      "primaryRole": "student",
+      "accountStatus": "active",
+      "responderStatus": "active",
+      "certified": true,
+      "level": "trainee",
+      "adminRemark": "合成演示资料（demo-v1）：超出服务半径自动离线样本",
+      "updatedAt": "2026-10-20T10:00:00+08:00"
+    },
+    "demo-openid-rescuer-edge": {
+      "openId": "demo-openid-rescuer-edge",
+      "primaryRole": "student",
+      "accountStatus": "active",
+      "responderStatus": "active",
+      "certified": true,
+      "level": "official",
+      "adminRemark": "合成演示资料（demo-v1）：服务半径边界样本",
+      "updatedAt": "2026-10-20T10:00:00+08:00"
+    }
+  }
+}

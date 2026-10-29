@@ -4,9 +4,11 @@ import type { AdminRescueParticipant, RescueSos } from '@/types/rescue-session'
 import { loadAmap } from '@/utils/amap-loader'
 import { participantMarkerMeta, SOS_MARKER_META, type RescueMarkerMeta } from '@/utils/rescue-session'
 import type { ParticipantColor } from '@/utils/rescue-session-color'
+import { siteConfig } from '@/config/site-config'
 
 const SOS_MARKER_KEY = '__sos__'
-const DEFAULT_CENTER: [number, number] = [110.51346, 19.976547]
+/** 无 SOS 坐标时的默认视野中心，来自 config/site.json 的 map.center。 */
+const DEFAULT_CENTER: [number, number] = [siteConfig.mapCenter.longitude, siteConfig.mapCenter.latitude]
 const DEFAULT_ZOOM = 15
 
 interface MarkerTarget {

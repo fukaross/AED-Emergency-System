@@ -5,6 +5,7 @@ using AedBackend.Core.Models.Volunteer;
 using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.Volunteer;
 using AedBackend.Infrastructure.Persistence;
+using AedBackend.Infrastructure.Site;
 using Microsoft.Extensions.Options;
 
 namespace AedBackend.Api.Endpoints;
@@ -13,8 +14,6 @@ internal static class AdminVolunteerApplicationEndpoints
 {
     private static readonly IReadOnlySet<string> ValidStatuses =
         new HashSet<string> { "all", "submitted", "approved", "rejected" };
-    private static readonly IReadOnlySet<string> ValidCampuses =
-        new HashSet<string> { "guilinyang", "fucheng" };
 
     public static RouteGroupBuilder MapAdminVolunteerApplicationEndpoints(
         this RouteGroupBuilder group)
@@ -83,13 +82,14 @@ internal static class AdminVolunteerApplicationEndpoints
         IVolunteerApplicationReviewService reviewer,
         IAdminAuthorizationService authorization,
         IOptions<DataOptions> dataOptions,
+        SiteOptions site,
         CancellationToken ct)
     {
         if (!dataOptions.Value.UseSqlite()) return FeatureRequiresSqlite();
         var auth = await RequireAdminAsync(context, authorization, ct);
         if (!auth.Succeeded) return AdminEndpointHelpers.AuthorizationFailure(auth);
 
-        var validation = ValidateApprove(body);
+        var validation = ValidateApprove(body, site);
         if (validation is not null)
             return EndpointFailures.JsonFailure(ErrorCodes.ParameterInvalid, validation, 400);
 
@@ -165,9 +165,9 @@ internal static class AdminVolunteerApplicationEndpoints
         return (new AdminVolunteerApplicationQuery(safePage, safePageSize, status, keyword), null);
     }
 
-    private static string? ValidateApprove(ApproveVolunteerApplicationRequest body)
+    private static string? ValidateApprove(ApproveVolunteerApplicationRequest body, SiteOptions site)
     {
-        if (string.IsNullOrWhiteSpace(body.Campus) || !ValidCampuses.Contains(body.Campus))
+        if (string.IsNullOrWhiteSpace(body.Campus) || site.FindCampus(body.Campus) is null)
             return $"校区不支持: {body.Campus}";
         if (body.Lat is null or < -90 or > 90) return "lat 不合法";
         if (body.Lng is null or < -180 or > 180) return "lng 不合法";

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "dataVersion": "demo-v1",
+  "generatedAt": "2026-10-26T00:00:00+08:00",
+  "description": "独立合成的本地演示角色注册表。登录 code 只用于 CONTRACT-003 的 local-demo 受限适配，真实模式不得接受这些 code。",
+  "demoRoles": [
+    {
+      "role": "requester",
+      "loginCode": "demo-requester",
+      "openId": "demo-openid-requester",
+      "displayName": "演示甲（求助人）",
+      "campus": "east",
+      "primaryRole": "student",
+      "accountStatus": "active",
+      "responderProfileId": null,
+      "qualificationStatus": null,
+      "expectedCertifiedResponder": false,
+      "schoolBinding": {
+        "personType": "student",
+        "name": "演示甲",
+        "college": "演示学院",
+        "className": "演示 2024 级 1 班",
+        "studentId": "DEMO-STU-0001",
+        "staffId": null,
+        "phone": "13000000001",
+        "note": "合成演示绑定（demo-v1），非真实学籍"
+      }
+    },
+    {
+      "role": "active-rescuer",
+      "loginCode": "demo-rescuer",
+      "openId": "demo-openid-rescuer-east",
+      "displayName": "演示乙（急救员·东区）",
+      "campus": "east",
+      "primaryRole": "teacher",
+      "accountStatus": "active",
+      "responderProfileId": "DEMO-RSP-001",
+      "qualificationStatus": "active",
+      "expectedCertifiedResponder": true,
+      "schoolBinding": {
+        "personType": "teacher",
+        "name": "演示乙",
+        "college": "演示学院",
+        "className": null,
+        "studentId": null,
+        "staffId": "DEMO-TEA-0001",
+        "phone": "13000000002",
+        "note": "合成演示绑定（demo-v1），非真实教职"
+      }
+    },
+    {
+      "role": "unqualified",
+      "loginCode": "demo-unqualified",
+      "openId": "demo-openid-unqualified",
+      "displayName": "演示丙（待认证）",
+      "campus": "east",
+      "primaryRole": "student",
+      "accountStatus": "active",
+      "responderProfileId": "DEMO-RSP-002",
+      "qualificationStatus": "inactive",
+      "expectedCertifiedResponder": false,
+      "schoolBinding": {
+        "personType": "student",
+        "name": "演示丙",
+        "college": "演示学院",
+        "className": "演示 2023 级 2 班",
+        "studentId": "DEMO-STU-0002",
+        "staffId": null,
+        "phone": "13000000003",
+        "note": "合成演示绑定（demo-v1），非真实学籍"
+      }
+    }
+  ],
+  "negativeSamples": [
+    {
+      "id": "disabled-account",
+      "openId": "demo-openid-disabled",
+      "responderProfileId": "DEMO-RSP-003",
+      "accountStatus": "disabled",
+      "expected": {
+        "httpStatus": 403,
+        "code": 1018,
+        "reason": "账号已禁用优先于急救员资格判断"
+      }
+    }
+  ]
+}

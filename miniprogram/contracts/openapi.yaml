@@ -3,15 +3,15 @@ info:
   title: AED 急救小程序 API
   version: '1.1.0'
   description: |
-    REDACTED AED 急救小程序后端接口契约
-    来源：CLAUDE.md §8 + BackEnd.md v1.2
+    AED 急救小程序后端接口契约（开源迁移模板）。
+    站点名称、标题、校区与地图参数由目标仓 config/site.json 提供，不在本契约中固化。
   license:
-    name: Proprietary
-    url: https://www.qtnu.edu.cn
+    name: GNU General Public License v3.0 only
+    url: https://www.gnu.org/licenses/gpl-3.0.html
 
 servers:
-  - url: REDACTED
-    description: 生产环境
+  - url: http://127.0.0.1:5150
+    description: 本地后端（回环地址，演示与开发默认；部署地址由使用方自行填写）
 
 paths:
   /api/aed/nearby:
@@ -2944,7 +2944,10 @@ components:
 
     CampusCode:
       type: string
-      enum: [guilinyang, fucheng]
+      description: |
+        校区代码（动态字符串，不是封闭枚举）。取值由 config/site.json 的
+        site.campuses[].code 校验；新增或改名校区只需改站点配置与演示数据，无需改动本契约。
+        未知 code 按既有参数错误返回，不静默回退到任意默认校区。
 
     RescuerAvailabilityStatus:
       type: string
@@ -5938,3 +5941,5 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/AdminRescueSessionDetail'
+
+

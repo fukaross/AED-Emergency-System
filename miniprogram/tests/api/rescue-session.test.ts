@@ -10,7 +10,6 @@ vi.mock('@/utils/runtime-env', () => ({
   USE_MOCK: true,
   USE_REAL_LOCATION: false,
   USE_REAL_WECHAT_FLOW: false,
-  shouldWarnPlaceholderApiBaseUrl: () => false,
 }))
 
 vi.stubGlobal('uni', {
@@ -42,7 +41,7 @@ describe('rescue-session api (mock face)', () => {
     const snapshot = await joinRescueSession('test-help-x')
 
     expect(snapshot.helpStatus).toBe('responding')
-    expect(snapshot.me.openId).toBe('user-mock-001')
+    expect(snapshot.me.openId).toBe('demo-openid-rescuer-east')
     expect(snapshot.participants).toHaveLength(1)
     expect(snapshot.messages).toHaveLength(1)
     expect(snapshot.messages[0].eventType).toBe('joined')
@@ -95,11 +94,13 @@ describe('rescue-session api (mock face)', () => {
 
   it('reports the latest location and exposes it in the snapshot', async () => {
     await joinRescueSession('test-help-x')
-    await reportRescueLocation('test-help-x', { lat: 19.9745, lng: 110.5175 })
+    await reportRescueLocation('test-help-x', { lat: 31.2315, lng: 121.4785 })
 
     const snapshot = await fetchRescueSession('test-help-x')
-    const me = snapshot.participants.find((item) => item.openId === 'user-mock-001')
-    expect(me?.location?.lat).toBeCloseTo(19.9745, 4)
+    const me = snapshot.participants.find(
+      (item) => item.openId === 'demo-openid-rescuer-east',
+    )
+    expect(me?.location?.lat).toBeCloseTo(31.2315, 4)
     expect(me?.signal).toBe('ok')
   })
 

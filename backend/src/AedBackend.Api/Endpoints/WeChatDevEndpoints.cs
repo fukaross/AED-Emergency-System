@@ -4,6 +4,7 @@ using AedBackend.Core.DTOs.WeChat;
 using AedBackend.Core.Models.WeChat;
 using AedBackend.Core.Services.Admin;
 using AedBackend.Core.Services.WeChat;
+using AedBackend.Infrastructure.Demo;
 using AedBackend.Infrastructure.WeChat;
 using Microsoft.Extensions.Options;
 
@@ -50,6 +51,8 @@ public static class WeChatDevEndpoints
         HttpRequest httpRequest,
         SendSubscribeMessageRequest request,
         IOptions<WeChatOptions> options,
+        IOptions<DemoOptions> demoOptions,
+        IHostEnvironment environment,
         IAdminAuthorizationService authorization,
         IWeChatSubscribeMessageSender sender,
         CancellationToken cancellationToken)
@@ -60,6 +63,9 @@ public static class WeChatDevEndpoints
         {
             return authFailure;
         }
+
+        var externalSendFailure = RejectExternalSend(environment, demoOptions.Value);
+        if (externalSendFailure is not null) return externalSendFailure;
 
         var validationError = ValidateRequest(request, settings);
         if (validationError is not null)
@@ -76,6 +82,8 @@ public static class WeChatDevEndpoints
         HttpRequest httpRequest,
         BroadcastSubscribeMessageRequest request,
         IOptions<WeChatOptions> options,
+        IOptions<DemoOptions> demoOptions,
+        IHostEnvironment environment,
         IAdminAuthorizationService authorization,
         IExperienceUserStore store,
         IWeChatSubscribeMessageSender sender,
@@ -87,6 +95,9 @@ public static class WeChatDevEndpoints
         {
             return authFailure;
         }
+
+        var externalSendFailure = RejectExternalSend(environment, demoOptions.Value);
+        if (externalSendFailure is not null) return externalSendFailure;
 
         var validationError = ValidateBroadcastRequest(request, settings);
         if (validationError is not null)
@@ -113,6 +124,28 @@ public static class WeChatDevEndpoints
             request.Headers.UserAgent.ToString(),
             cancellationToken);
         return result.Succeeded ? null : AdminEndpointHelpers.AuthorizationFailure(result);
+    }
+
+    /**
+     * dev 发送路由用于真实订阅消息外发：演示模式与非生产环境一律明确拒绝，
+     * 不把调试路由当成离线登录/假发送通道。
+     */
+    private static IResult? RejectExternalSend(IHostEnvironment environment, DemoOptions demoOptions)
+    {
+        if (demoOptions.Enabled)
+        {
+            return EndpointFailures.JsonFailure(
+                ErrorCodes.Forbidden,
+                "演示模式禁止真实微信订阅消息发送（演示通知只记录未发送状态）",
+                409);
+        }
+
+        return environment.IsProduction()
+            ? null
+            : EndpointFailures.JsonFailure(
+                ErrorCodes.Forbidden,
+                "非生产环境禁止真实微信订阅消息外发；请仅在 Production 配置真实微信凭据后使用",
+                409);
     }
 
     private static string? ValidateRequest(SendSubscribeMessageRequest request, WeChatOptions options)

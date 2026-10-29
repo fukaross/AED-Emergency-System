@@ -1,4 +1,6 @@
-// 错误码、地图、上传等全局常量 —— 页面里别硬编码数字
+// 错误码、上传等全局常量 —— 页面里别硬编码数字。
+// 站点相关内容（机构名、标题、校区、地图中心、检索城市、服务半径、热线）
+// 一律来自 config/site.json，见 config/site-config.ts，本文件不再保存站点常量。
 
 // 错误码
 export const ERROR_CODES = {
@@ -57,33 +59,10 @@ export const ERROR_MESSAGES: Record<number, string> = {
   [ERROR_CODES.INTERNAL_ERROR]: '服务器内部错误，请稍后重试',
 }
 
-// 地图相关
-export const MAP_CENTER = {
-  latitude: 19.976547,
-  longitude: 110.51346,
-} as const
-
+// 地图缩放
 export const DEFAULT_MAP_ZOOM = 16
 export const MIN_MAP_ZOOM = 12
 export const MAX_MAP_ZOOM = 20
-
-export const DEFAULT_SEARCH_RADIUS = 3000
-
-export const CAMPUS_CENTERS = {
-  guilinyang: {
-    name: 'REDACTED校区',
-    lat: REDACTED,
-    lng: REDACTED,
-  },
-  fucheng: {
-    name: '府城校区',
-    lat: REDACTED,
-    lng: REDACTED,
-  },
-} as const
-
-// 急救员超出校区此半径自动离线（米）
-export const RESCUER_AUTO_OFFLINE_RADIUS_METERS = 30000
 
 // 急救员单次手动离线最长时间（小时）
 export const RESCUER_MAX_MANUAL_OFFLINE_HOURS = 10
@@ -105,10 +84,6 @@ export const MAX_UPLOAD_SIZE = Number(
 export const ALLOWED_IMAGE_TYPES = ['jpg', 'jpeg', 'png', 'webp'] as const
 export const MAX_HELP_IMAGES = 3
 export const MAX_REPORT_IMAGES = 3
-
-// 校方急救热线
-export const SCHOOL_EMERGENCY_PHONE =
-  import.meta.env.VITE_SCHOOL_EMERGENCY_PHONE || 'REDACTED'
 
 // 急救报警订阅消息模板 ID
 export const WECHAT_ALERT_TEMPLATE_ID =

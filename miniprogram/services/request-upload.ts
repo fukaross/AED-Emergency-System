@@ -10,12 +10,7 @@ import {
   getRefreshAuthenticationRejection,
   refreshAuthSession,
 } from '@/services/auth-refresh'
-import {
-  BASE_URL,
-  PLACEHOLDER_API_BASE_URL_MESSAGE,
-  isPlaceholderApiBaseUrl,
-  warnPlaceholderApiBaseUrlOnce,
-} from '@/services/request-config'
+import { BASE_URL } from '@/services/request-config'
 import {
   handleAuthenticationRejection,
   handleErrorCode,
@@ -197,11 +192,6 @@ function uploadFileInternal(
       thumbnail: filePath,
       fileId,
     })
-  }
-
-  if (isPlaceholderApiBaseUrl()) {
-    warnPlaceholderApiBaseUrlOnce()
-    return Promise.reject(new Error(PLACEHOLDER_API_BASE_URL_MESSAGE))
   }
 
   return new Promise((resolve, reject) => {

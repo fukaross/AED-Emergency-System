@@ -15,8 +15,18 @@
             @change="handleFilterChange"
           >
             <el-option label="全部" value="" />
-            <el-option label="REDACTED" value="guilinyang" />
-            <el-option label="府城" value="fucheng" />
+            <el-option
+              v-for="campus in siteConfig.campuses"
+              :key="campus.code"
+              :label="campus.name"
+              :value="campus.code"
+            />
+            <el-option
+              v-if="unknownFilterCampus"
+              :label="campusName(filterCampus)"
+              :value="filterCampus"
+              disabled
+            />
           </el-select>
           <el-select
             v-model="filterLevel"
@@ -68,7 +78,7 @@
             <el-table-column prop="name" label="姓名" width="90" />
             <el-table-column label="校区" width="80">
               <template #default="{ row }">
-                <span>{{ row.campus === 'fucheng' ? '府城' : 'REDACTED' }}</span>
+                <span>{{ campusName(row.campus) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="等级" width="110">
@@ -117,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -128,6 +138,7 @@ import { getRescuers } from '@/api/rescuers'
 import { getApiErrorMessage } from '@/api/client'
 import { createRequestSequencer } from '@/utils/request-sequencer'
 import type { AdminRescuerItem } from '@/types/rescuer'
+import { campusName, isKnownCampus, siteConfig } from '@/config/site-config'
 
 const LEVEL_LABELS: Record<string, string> = {
   honor: '荣誉急救员',
@@ -153,6 +164,10 @@ const filterCampus = ref<string>('')
 const filterLevel = ref<string>('')
 const filterStatus = ref<string>('')
 const searchKeyword = ref<string>('')
+/** URL 里带了未配置的校区 code 时，过滤项明确显示为未知校区，而不是静默回落。 */
+const unknownFilterCampus = computed(
+  () => filterCampus.value !== '' && !isKnownCampus(filterCampus.value),
+)
 
 const pollTimer = ref<ReturnType<typeof setInterval> | null>(null)
 const sequencer = createRequestSequencer()

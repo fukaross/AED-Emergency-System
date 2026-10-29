@@ -21,25 +21,25 @@ describe('rescuer store', () => {
 
   it('loads detail silently without mutating modal state', async () => {
     vi.mocked(fetchRescuerDetail).mockResolvedValue({
-      id: 'rescuer-001',
-      name: '周雪',
+      id: 'rescuer-DEMO-RSP-001',
+      name: '演示乙（急救员·东区）',
       avatarUrl: '/static/images/avatar-default.png',
-      campus: 'guilinyang',
-      campusName: 'REDACTED校区',
+      campus: 'east',
+      campusName: '东区',
       level: 'core',
       availabilityStatus: 'online',
       qualificationStatus: 'active',
-      phone: 'REDACTED',
+      phone: '13512346789',
       phoneMasked: '135****6789',
-      certificateNoMasked: '4600****0138',
-      workUnit: '教育学院',
+      certificateNoMasked: 'DEMO****2601',
+      workUnit: '演示学院',
       skills: { cpr: true, aed: true, stb: true },
     })
 
     const store = useRescuerStore()
-    const detail = await store.loadRescuerDetail('rescuer-001')
+    const detail = await store.loadRescuerDetail('rescuer-DEMO-RSP-001')
 
-    expect(detail.phone).toBe('REDACTED')
+    expect(detail.phone).toBe('13512346789')
     expect(store.showDetail).toBe(false)
     expect(store.currentDetail).toBeNull()
   })
@@ -47,18 +47,18 @@ describe('rescuer store', () => {
   it('keeps detail during close animation until cleared', () => {
     const store = useRescuerStore()
     const detail = {
-      id: 'rescuer-001',
-      name: '周雪',
+      id: 'rescuer-DEMO-RSP-001',
+      name: '演示乙（急救员·东区）',
       avatarUrl: '/static/images/avatar-default.png',
-      campus: 'guilinyang',
-      campusName: 'REDACTED校区',
+      campus: 'east',
+      campusName: '东区',
       level: 'core',
       availabilityStatus: 'online',
       qualificationStatus: 'active',
-      phone: 'REDACTED',
+      phone: '13512346789',
       phoneMasked: '135****6789',
-      certificateNoMasked: '4600****0138',
-      workUnit: '教育学院',
+      certificateNoMasked: 'DEMO****2601',
+      workUnit: '演示学院',
       skills: { cpr: true, aed: true, stb: true },
     }
     store.currentDetail = detail
@@ -79,7 +79,7 @@ describe('rescuer store', () => {
 
     const store = useRescuerStore()
 
-    await expect(store.loadNearbyRescuers(19.97, 110.51)).rejects.toThrow('network')
+    await expect(store.loadNearbyRescuers(31.23, 121.47)).rejects.toThrow('network')
     expect(store.loadError).toBe('加载急救员失败，请稍后重试')
   })
 })

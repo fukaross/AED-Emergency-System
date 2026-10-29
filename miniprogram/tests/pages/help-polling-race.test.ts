@@ -37,7 +37,7 @@ function buildView(id: string): RescueView {
   return {
     helpId: id,
     helpStatus: 'responding',
-    sos: { lat: 19.97, lng: 110.51, address: '测试点' },
+    sos: { lat: 31.23, lng: 121.47, address: '测试点' },
     respondersCount: 0,
     participants: [],
     events: [],

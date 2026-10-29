@@ -9,7 +9,7 @@ public sealed class AdminDashboardApiTests : AdminApiTestBase
     [Fact]
     public async Task Dashboard_ReturnsCountsAndRecentLogSummary()
     {
-        SeedExperienceUsers(("openid-1", "REDACTED"), ("openid-2", "REDACTED"));
+        SeedExperienceUsers(("openid-1", "13800138000"), ("openid-2", "13900139000"));
         SeedHelpRequests(
             Help("help-1", HelpStatuses.PendingReview),
             Help("help-2", HelpStatuses.Published) with { CreatedAt = DateTimeOffset.UtcNow });
@@ -30,7 +30,7 @@ public sealed class AdminDashboardApiTests : AdminApiTestBase
     [Fact]
     public async Task Dashboard_ReturnsChartSeries()
     {
-        SeedExperienceUsers(("openid-1", "REDACTED"), ("openid-2", "REDACTED"));
+        SeedExperienceUsers(("openid-1", "13800138000"), ("openid-2", "13900139000"));
         // r3 无发证日期，应被急救员增长聚合显式跳过
         SeedResponders(("r1", "2023-05-01"), ("r2", "2024-06-01"), ("r3", null));
         var today = DateTimeOffset.UtcNow;

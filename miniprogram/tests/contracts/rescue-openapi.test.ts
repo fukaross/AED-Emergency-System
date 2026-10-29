@@ -148,9 +148,17 @@ const nullableCounts = [
 ] as const
 
 describe('issue #1 OpenAPI contract', () => {
-  it('uses the current production server', () => {
-    expect(openApi).toContain('url: REDACTED')
-    expect(openApi).not.toContain('url: https://api.aed.qtnu.edu.cn')
+  it('documents a local loopback server only (public boundary, CHANGE-001)', () => {
+    const declaredServers = [...openApi.matchAll(/^\s*-\s+url:\s*(\S+)\s*$/gm)].map(
+      (match) => match[1],
+    )
+    // 只允许本地回环：不把任何外部/历史主机名写进断言，脱敏扫描不应命中。
+    const loopbackOnly = /^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(?:\/.*)?$/
+    const externalHost = /^https?:\/\/(?!127\.0\.0\.1(?:[:/]|$)|localhost(?:[:/]|$))/
+
+    expect(declaredServers).toEqual(['http://127.0.0.1:5150'])
+    expect(declaredServers.every((url) => loopbackOnly.test(url))).toBe(true)
+    expect(declaredServers.some((url) => externalHost.test(url))).toBe(false)
   })
 
   it('documents authentication and closed-session failures per rescue path', () => {

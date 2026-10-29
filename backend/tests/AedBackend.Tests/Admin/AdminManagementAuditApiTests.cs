@@ -114,7 +114,7 @@ public sealed class AdminManagementAuditApiTests : AdminApiTestBase
     [Fact]
     public async Task AuditLogs_FilterAndMetadataExcludeSensitiveValues()
     {
-        SeedExperienceUsers(("openid-1", "REDACTED"));
+        SeedExperienceUsers(("openid-1", "13800138000"));
         UseAdminKey(await BootstrapAndLoginAsync());
 
         await CreateAdminAsync("operator");
@@ -133,7 +133,7 @@ public sealed class AdminManagementAuditApiTests : AdminApiTestBase
         Assert.DoesNotContain("responderStatus", metadata);
         Assert.DoesNotContain("level", metadata);
         Assert.DoesNotContain("Password123", metadata);
-        Assert.DoesNotContain("REDACTED", metadata);
+        Assert.DoesNotContain("13800138000", metadata);
         Assert.DoesNotContain("legacy-test-key", metadata);
     }
 

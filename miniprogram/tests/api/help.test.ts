@@ -10,15 +10,13 @@ const requestMocks = vi.hoisted(() => ({
 
 vi.mock('@/utils/runtime-env', () => ({
   APP_ENV: 'production',
-  API_BASE_URL: 'REDACTED',
-  IS_PLACEHOLDER_API_BASE_URL: false,
+  API_BASE_URL: 'https://api.demo.invalid',
   RESTORE_AUTH_SESSION: false,
   USE_REAL_LOCATION: false,
   USE_LOCAL_HELP_READ_MODEL: true,
   USER_BACKEND_READY: false,
   USE_MOCK: false,
   USE_REAL_WECHAT_FLOW: true,
-  shouldWarnPlaceholderApiBaseUrl: () => false,
 }))
 
 vi.mock('@/services/request', () => requestMocks)
@@ -36,9 +34,9 @@ vi.stubGlobal('uni', {
 import { fetchHelpList, publishHelp } from '@/api/help'
 
 const publishPayload: PublishHelpPayload = {
-  lat: 19.9743,
-  lng: 110.5178,
-  address: 'REDACTED校区教学楼A',
+  lat: 31.2315,
+  lng: 121.4785,
+  address: '东区教学楼A',
   content: '需要帮助',
   type: 'general',
   requestChannel: 'user',

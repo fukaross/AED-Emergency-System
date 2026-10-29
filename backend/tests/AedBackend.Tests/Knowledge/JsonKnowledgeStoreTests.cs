@@ -8,8 +8,9 @@ namespace AedBackend.Tests.Knowledge;
 
 public sealed class JsonKnowledgeStoreTests
 {
+    /** JSON provider 已移除旧部署统计种子：缺文件时返回空横幅且不写盘。 */
     [Fact]
-    public async Task GetSummaryAsync_ReturnsSeedData_WhenFileMissing()
+    public async Task GetSummaryAsync_ReturnsEmptySummary_WhenFileMissing()
     {
         var path = CreateTempFilePath();
         var store = CreateStore(path);
@@ -19,12 +20,9 @@ public sealed class JsonKnowledgeStoreTests
             var summary = await store.GetSummaryAsync(CancellationToken.None);
 
             Assert.NotNull(summary);
-            Assert.Equal(4, summary.Items.Count);
-            Assert.Contains(summary.Items, i => i.Key == "aed_count" && Math.Abs(i.Value - 24) < 0.01);
-            Assert.Contains(summary.Items, i => i.Key == "trained_people" && Math.Abs(i.Value - 6392) < 0.01);
-            Assert.Contains(summary.Items, i => i.Key == "certified_people" && Math.Abs(i.Value - 2592) < 0.01);
-            Assert.Contains(summary.Items, i => i.Key == "coverage_rate" && Math.Abs(i.Value - 52.6) < 0.01);
-            Assert.True(File.Exists(path));
+            Assert.Empty(summary.Items);
+            Assert.Equal(string.Empty, summary.UpdatedAt);
+            Assert.False(File.Exists(path));
         }
         finally
         {

@@ -19,7 +19,12 @@
         <view class="st-divider" />
         <view class="st-row st-row--link" @tap="handleAlertSubscribe">
           <text class="st-label">求助通知</text>
-          <text class="st-arrow">开启</text>
+          <text class="st-arrow">{{ alertSubscribeLabel }}</text>
+        </view>
+        <view class="st-divider" />
+        <view class="st-row">
+          <text class="st-label">运行档位</text>
+          <text class="st-sub">{{ MODE_LABEL }}</text>
         </view>
         <view class="st-divider" />
         <view class="st-row st-row--link" @tap="handleOpenLocationSetting">
@@ -92,8 +97,10 @@ import {
   TOKEN_EXPIRE_KEY,
   CURRENT_USER_ID_STORAGE_KEY,
 } from '@/utils/constants'
+import { IS_DEMO_MODE, MODE_LABEL } from '@/utils/runtime-env'
 
 const BACK_ICON = '/static/icons/ico-left-arrow.svg'
+const alertSubscribeLabel = IS_DEMO_MODE ? '演示不可用' : '开启'
 
 // 与 store/settings.ts STORAGE_PREFIX 同值，仅供本页缓存白名单过滤使用
 const SETTINGS_STORAGE_PREFIX = 'aed_settings_'
@@ -153,7 +160,8 @@ async function handleAlertSubscribe(): Promise<void> {
     })
   } catch (error) {
     console.warn('[Settings] 订阅授权失败', error)
-    uni.showToast({ title: '请开启通知', icon: 'none' })
+    const message = error instanceof Error ? error.message : '请开启通知'
+    uni.showToast({ title: message, icon: 'none' })
   }
 }
 

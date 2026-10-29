@@ -10,6 +10,7 @@ vi.mock('@/api/rescue-session', () => ({
   fetchRescueSession: vi.fn(),
   joinRescueSession: vi.fn(),
   postRescueMessage: vi.fn(),
+  postRescueImageMessage: vi.fn(),
   postRescueStatusEvent: vi.fn(),
   reportRescueLocation: vi.fn(),
 }))

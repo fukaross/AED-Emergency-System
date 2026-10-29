@@ -17,6 +17,22 @@
     <None Remove="data\**" />
   </ItemGroup>
 
+  <!-- CONTRACT-001/002：共享站点配置与合成演示数据以只读产物进入输出目录，源码仍是唯一真源。 -->
+  <ItemGroup>
+    <Content Include="..\..\..\config\site.json"
+             Link="config\site.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\..\demo\roles.json"
+             Link="config\demo-roles.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\..\demo\data\*.json"
+             Link="config\demo-data\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>

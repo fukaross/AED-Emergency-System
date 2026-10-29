@@ -83,7 +83,7 @@ internal sealed partial class ProviderTempData : IDisposable
         var records = users.Select(u => new ExperienceUserRecord(
             u.OpenId,
             null,
-            "REDACTED",
+            "13800138000",
             null,
             null,
             null,
@@ -116,7 +116,7 @@ internal sealed partial class ProviderTempData : IDisposable
         return SampleResponder() with
         {
             Id = id,
-            RecordId = $"JZR-{id}",
+            RecordId = $"ARC-{id}",
             Name = name,
             Level = level,
             QualificationStatus = status,
@@ -166,17 +166,17 @@ internal sealed partial class ProviderTempData : IDisposable
         return new ResponderProfileRecord
         {
             Id = "rescuer-001",
-            RecordId = "JZR-1",
-            Name = "张三",
-            Gender = "男",
+            RecordId = "FIXTURE-001",
+            Name = "演示档案甲",
+            Gender = "female",
             BirthDate = "2000-01-01",
-            Phone = "REDACTED",
-            IdNumber = "REDACTED",
+            Phone = "13800138000",
+            IdNumber = "990000199001010017",
             AvatarUrl = "/uploads/rescuer/a.jpg",
-            Campus = "guilinyang",
+            Campus = "east",
             QualificationStatus = "active",
-            CertificateNo = "CERT20260001",
-            CertificateNoMasked = "CERT****0001"
+            CertificateNo = "TESTCERT0001",
+            CertificateNoMasked = "TEST****0001"
         };
     }
 
@@ -205,7 +205,7 @@ internal sealed partial class ProviderTempData : IDisposable
         return new KnowledgeSummary
         {
             UpdatedAt = "2026-06-02T00:00:00Z",
-            Items = [new KnowledgeStatItem { Key = "aed_count", Title = "AED数量", Value = 24, SortOrder = 1 }]
+            Items = [new KnowledgeStatItem { Key = "aed_count", Title = "AED数量", Value = 10, SortOrder = 1 }]
         };
     }
 
@@ -232,7 +232,7 @@ internal sealed partial class ProviderTempData : IDisposable
             Address = "addr",
             Content = "content",
             CreatedAt = DateTimeOffset.UtcNow,
-            RequesterPhone = "REDACTED",
+            RequesterPhone = "13800138000",
             Images = ["/uploads/help/a.jpg"],
             Reports = [new HelpReportRecord("report-01", "openid-2", ["/uploads/report/a.jpg"], "ok", false, DateTimeOffset.UtcNow)],
             Timeline = [new HelpTimelineRecord("published", DateTimeOffset.UtcNow, null)]
