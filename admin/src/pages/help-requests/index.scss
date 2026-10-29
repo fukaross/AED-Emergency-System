@@ -1,0 +1,16 @@
+.page-content {
+  padding: 24px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
+}
+
+.filter-section {
+  padding-top: 16px;
+  background-color: #ffffff;
+}
+
+.data-table {
+  border-top: 1px solid #ebeef5;
+}

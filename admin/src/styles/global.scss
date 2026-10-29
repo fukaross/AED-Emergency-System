@@ -1,0 +1,259 @@
+@use './variables' as *;
+
+// Responsive Mixins
+@mixin mobile {
+  @media (max-width: ($breakpoint-mobile - 1px)) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media (min-width: $breakpoint-mobile) and (max-width: ($breakpoint-tablet - 1px)) {
+    @content;
+  }
+}
+
+@mixin mobile-tablet {
+  @media (max-width: ($breakpoint-tablet - 1px)) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: $breakpoint-tablet) {
+    @content;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background-color: $content-bg;
+  color: $text-primary;
+  -webkit-font-smoothing: antialiased;
+  // 等宽数字：数字变化时不跳动，更稳重
+  font-variant-numeric: tabular-nums;
+}
+
+// Layout main wrappers
+.admin-card {
+  background-color: $card-bg;
+  border-radius: $radius-card;
+  border: $card-border;
+  box-shadow: $card-shadow;
+  padding: $card-padding;
+  margin-bottom: $section-gap;
+
+  &.no-padding {
+    padding: 0;
+  }
+
+  .card-header-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: $text-primary;
+  }
+}
+
+// Standard header area inside cards
+.card-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+// Filter Bar Standard Layout
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 0 24px 16px;
+
+  .el-input, .el-select {
+    --el-component-size: 32px;
+  }
+
+  @include mobile {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 16px 16px;
+
+    .el-input, .el-select, .el-button {
+      width: 100% !important;
+    }
+  }
+}
+
+// Table responsive wrapper for mobile/tablet horizontal scroll
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  .el-table {
+    min-width: 600px;
+  }
+}
+
+// Table Style Custom Overrides
+.el-table {
+  --el-table-header-bg-color: #fafafa;
+  --el-table-row-hover-bg-color: #f5f7fa;
+  --el-table-border-color: #ebeef5;
+
+  th.el-table__cell {
+    background-color: #fafafa !important;
+    color: $text-secondary !important;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 14px 0 !important;
+  }
+
+  td.el-table__cell {
+    padding: 16px 0 !important;
+    color: $text-regular !important;
+    font-size: 14px;
+  }
+
+  .cell {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+  }
+}
+
+// Pagination Controls Wrapper
+.pagination-container {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid #ebeef5;
+
+  @include mobile {
+    justify-content: center;
+    padding: 12px 16px;
+  }
+}
+
+// Two Column Grid Layout (e.g., Detail views)
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: $section-gap;
+
+  @include mobile-tablet {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Description lists helpers
+.description-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 24px;
+
+  &.single-col {
+    grid-template-columns: 1fr;
+  }
+
+  @include mobile {
+    grid-template-columns: 1fr;
+    gap: 12px 16px;
+  }
+}
+
+.description-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .desc-label {
+    font-size: 13px;
+    color: $text-secondary;
+  }
+
+  .desc-value {
+    font-size: 14px;
+    color: $text-primary;
+    word-break: break-all;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+// General text-link helpers
+.text-link {
+  color: $color-primary;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 14px;
+
+  &:hover {
+    color: #73b8ff;
+  }
+}
+
+// Custom animations
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+// Responsive visibility utilities
+@include mobile {
+  .hide-on-mobile { display: none !important; }
+}
+
+@include tablet {
+  .hide-on-tablet { display: none !important; }
+}
+
+@include mobile-tablet {
+  .show-only-desktop { display: none !important; }
+}
+
+@include desktop {
+  .show-only-mobile { display: none !important; }
+}
+
+// Page padding responsive
+.page-content-padding {
+  padding: $page-padding;
+
+  @include mobile {
+    padding: 12px;
+  }
+}
+
+// Card responsive inner spacing
+@include mobile {
+  .admin-card {
+    padding: 16px;
+
+    &.no-padding {
+      padding: 0;
+    }
+  }
+
+  .card-header-bar {
+    padding: 12px 16px;
+  }
+
+  .pagination-container {
+    padding: 12px 16px;
+  }
+}

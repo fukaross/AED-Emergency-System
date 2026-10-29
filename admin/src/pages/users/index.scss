@@ -1,0 +1,56 @@
+.page-content {
+  padding: 24px;
+
+  @media (max-width: 767px) {
+    padding: 12px;
+  }
+}
+
+.filter-section {
+  padding-top: 16px;
+  background-color: #ffffff;
+}
+
+.data-table {
+  border-top: 1px solid #ebeef5;
+}
+
+.user-profile-cell {
+  display: flex;
+  align-items: center;
+}
+
+.user-avatar {
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #c0c4cc;
+  color: #ffffff;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.user-name {
+  font-size: 14px;
+  color: #303133;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-small {
+  border-radius: 3px;
+  font-size: 12px;
+  padding: 2px 8px;
+}

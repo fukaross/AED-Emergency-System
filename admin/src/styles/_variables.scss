@@ -1,0 +1,74 @@
+// Design Tokens Variables
+
+// Sidebar Theme
+$sidebar-bg: #1d2b3a;
+$sidebar-bg-hover: #243447;
+$sidebar-active-bg: #2b3f54;
+$sidebar-active-border: #409eff;
+$sidebar-text: #bfcbd9;
+$sidebar-text-hover: #e0e6ed;
+$sidebar-text-active: #ffffff;
+
+// Content Layout Theme
+$content-bg: #f6f8fa;
+$card-bg: #ffffff;
+$header-bg: #ffffff;
+$header-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+// 双层淡阴影：模拟柔和光源而非「贴纸感」，阴影色带极轻冷蓝调
+$card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+// hover：扩散更宽、颜色更淡，像卡片轻轻浮起
+$card-shadow-hover: 0 4px 6px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.08);
+// 细边框：以线框感替代重阴影，更现代
+$card-border: 1px solid #eef0f2;
+
+// Primary & Semantic colors
+$color-primary: #409eff;
+$color-primary-light: #ecf5ff;
+$color-success: #67c23a;
+$color-warning: #e6a23c;
+$color-danger: #f56c6c;
+$color-info: #909399;
+
+// Text Colors
+$text-primary: #303133;
+$text-regular: #606266;
+$text-secondary: #909399;
+$text-placeholder: #c0c4cc;
+
+// Layout & Spacings（做减法：加大留白与呼吸感）
+$page-padding: 24px;
+$card-padding: 24px 28px;
+$section-gap: 24px;
+$chart-gap: 24px;
+$table-row-height: 54px;
+$th-padding: 14px 24px;
+$td-padding: 16px 24px;
+
+// Sidebar Dimensions
+$sidebar-width-expanded: 220px;
+$sidebar-width-collapsed: 64px;
+$sidebar-transition: width 0.3s ease;
+
+// Responsive Breakpoints
+$breakpoint-mobile: 768px;
+$breakpoint-tablet: 1024px;
+$header-height: 60px;
+
+// Rounded corners
+$radius-card: 8px;
+$radius-btn: 4px;
+$radius-tag: 3px;
+$radius-input: 4px;
+
+// Font Size Scale（收敛到固定几档，避免字号乱用；高级感靠克制）
+$fs-sm: 12px;    // 辅助/副标题
+$fs-base: 13px;  // 标签/次要正文
+$fs-md: 14px;    // 正文
+$fs-lg: 18px;    // 区块标题/问候语（字重保持 400-500，不吼叫）
+$fs-num: 28px;   // KPI 主数字
+
+// Semantic accents for KPI / charts（克制：待审核用琥珀而非刺眼红）
+$accent-user: #409eff;       // 用户 = 蓝
+$accent-responder: #2bb47e;  // 急救员 = 翠绿
+$accent-pending: #e6a23c;    // 待审核 = 琥珀（提醒而不紧张）
+$accent-today: #17b3c4;      // 今日新增 = 青
