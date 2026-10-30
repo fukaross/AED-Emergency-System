@@ -35,7 +35,7 @@
 1. 在 `config/site.json` 的 `campuses` 数组追加一项（`code` 唯一）。
 2. 在 `demo/data/` 中给需要归属该校区的急救员档案/AED 设备补点位（`campus` 字段或按最近中心推导），
    并同步 `demo/tools/verify-demo.mjs` 的期望值（该脚本会校验距离性质）。
-3. 执行 `node demo/tools/verify-demo.mjs` 与 `python scripts/verify-sanitization.py --root .`。
+3. 执行 `node demo/tools/verify-demo.mjs`（脱敏扫描由维护者在本地执行，工具不随仓库发布）。
 4. **重新构建** `miniprogram` 与 `admin`，**重启**后端；不需要改任何校区枚举或后端校验清单。
 
 ## 3. 生效时机（不承诺热更新）

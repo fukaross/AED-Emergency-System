@@ -7,7 +7,7 @@
 # - `contract:validate` 使用 `npx --yes @redocly/cli lint`，需要网络下载 CLI；
 #   在 CI 中显式预热缓存，避免首次下载超时（本地曾出现 EIDLETIMEOUT）。
 # - 未在本仓托管平台上实际运行过；本地只验证了 YAML 可解析与等价命令可执行。
-# - 脱敏扫描器需要私有规则 `_agent-team/private/sensitive-rules.json`（不入仓），
+# - 脱敏扫描与公开边界检查需要维护者本地的私有规则文件（不入仓），
 #   因此不在 CI 中运行；发布前由维护者工作区执行。
 
 name: CI

@@ -9,21 +9,18 @@
 | OS | Windows 11（本仓只在 Windows PowerShell 7 下验证；其他平台未验证） |
 | .NET SDK | 10.0.103 |
 | Node.js / pnpm | 24.22.1 / 10.17.1 |
-| Python | 3.10.11（含 PyYAML 6.0.2，仅扫描器需要） |
+| Python | 3.10.11（含 PyYAML 6.0.2，仅维护者本地脱敏工具需要） |
 | 本地后端 | `http://127.0.0.1:5150`（launchSettings `http` profile） |
 
 ## 2. 脱敏与公开边界（AC-008 / TEST-008）
 
-```powershell
-python scripts/verify-sanitization.py --root .
-pwsh -File scripts/selftest-sanitization.ps1
-```
+> 脱敏扫描器、反例自检脚本与私有规则由维护者在本地工作区保留，不随本仓库发布；以下为本地执行结果。
 
 结果（2026-10-27 本机执行，Admin 重建后）：
 
 - 交付源码 **808** 个文件 + 实际构建产物 **82** 个文件（`backend/src/AedBackend.Api/wwwroot/admin`）= 890，
   其中文本 **876**、跳过二进制 13。
-- 允许清单 **148** 条精确例外（文件路径 + 字段 + 值 + 类别 + 合成来源），已登记移除的导出文件 5 个；
+- 本地允许清单 **148** 条精确例外（文件路径 + 字段 + 值 + 类别 + 合成来源），已登记移除的导出文件 5 个；
   本次豁免 **173** 处（含同一文件多行命中）。
 - **0 处违规 / 0 处边界或清单问题 → exit 0**。**16** 处 `WARN` 为“内部审计事件名”“引号内通用词”“回环地址掩码”，
   不计失败（非凭据/个人信息）。
@@ -32,7 +29,7 @@ pwsh -File scripts/selftest-sanitization.ps1
   `uploads/`、非样例 `.env`、本地秘密、`wwwroot/admin` 构建产物）与导出允许清单一致性。
 - 缺预期构建产物或扫描到 0 个文本文件 → 非零退出（已验证：删除构建产物时扫描器失败）。
 
-隔离反例自检（`scripts/selftest-sanitization.ps1`）：
+隔离反例自检（维护者本地脚本）：
 
 - 在系统临时目录创建样本：旧机构词元转写、合成假 AppSecret/OSS Key/私钥块、真实格式假身份证与假手机号。
 - 扫描器对样本 **exit 1**，逐行定位到样本文件（80–88 处命中，含 `credential-appsecret`、`personal-id-number`、
@@ -121,9 +118,7 @@ dotnet format backend/AedBackend.sln --verify-no-changes
 cd miniprogram; pnpm install --frozen-lockfile; pnpm typecheck; pnpm lint; pnpm test; pnpm contract:validate; pnpm build:mp-weixin; cd ..
 cd admin; pnpm install --frozen-lockfile; pnpm lint; pnpm test; pnpm build; cd ..
 
-# 脱敏三重门禁（Admin 构建产物必须存在）
-python scripts/verify-sanitization.py --root .
-pwsh -File scripts/selftest-sanitization.ps1
+# 脱敏检查由维护者在本地工作区执行（Admin 构建产物必须存在；工具与私有规则不随仓库发布）
 ```
 
 ## 8. 验收状态
@@ -190,7 +185,7 @@ pwsh -File scripts/selftest-sanitization.ps1
 
 | 检查 | 结果 |
 | --- | --- |
-| `python scripts/verify-sanitization.py --root .` | exit 0；808 个公开源码文件 + 82 个 Admin 构建产物，0 违规 |
+| 发布前脱敏扫描（维护者本地工具） | exit 0；808 个公开源码文件 + 82 个 Admin 构建产物，0 违规 |
 | `node demo/tools/verify-demo.mjs` | exit 0；423/423 |
 | 当前 `miniprogram/dist/build/mp-weixin/common/vendor.js` | 包含 local-demo 档位与 `127.0.0.1:5150` |
 | 现有后端程序的监听配置优先级 | 实跑确认 Kestrel 显式端点覆盖 urls；仅用回环随机端口，结束后停止进程 |
@@ -224,17 +219,13 @@ pwsh -File scripts/selftest-sanitization.ps1
 
 三端源码历史经 `git-filter-repo 2.47.0` 过滤后导入，分别保留小程序 75、后端 37、管理端 31 个提交。原 176 个提交中，33 个仅涉及被移除的内部资料、环境配置或敏感数据，过滤后无公开变更而移除。143 个保留提交的作者日期、提交者日期已逐一与源记录核对；两个合并节点连接三端历史，随后以当前模板作为整合快照。历史快照已移除配置、真实种子与未核查二进制，运行基线是当前模板。
 
-贡献者公开身份统一为 `fukaross`，提交邮箱暂用 `fukaross@local.invalid`。Agent 指令、工作目录、任务记录和私有规则仅通过本机 `.git/info/exclude` 排除；公开 `.gitignore` 保留依赖、构建、运行数据和本地环境文件规则。`git check-ignore -v` 已核对内部路径均由本地 exclude 命中。
+贡献者公开身份统一为 `fukaross <149389833+fukaross@users.noreply.github.com>`（GitHub 隐私邮箱，可关联账号贡献）。Agent 指令、工作目录、任务记录和私有规则仅通过本机 `.git/info/exclude` 排除；公开 `.gitignore` 保留依赖、构建、运行数据和本地环境文件规则。`git check-ignore -v` 已核对内部路径均由本地 exclude 命中。
 
-本轮定向验证：三份过滤历史的所有可达 Blob 与提交信息扫描均为 0 违规，身份元数据不含源个人邮箱；现有脱敏反例自检正确拒绝 3 个样本文件、定位 80 处命中并清理样本。当前交付集扫描通过（812 个源码文件、82 个 Admin 构建文件，0 违规；保留通用内部事件名等 16 处非阻断警告）。应用源码沿用现有模板，本轮未重跑三端全量构建和业务测试。
+本轮定向验证：三份过滤历史的所有可达 Blob 与提交信息扫描均为 0 违规，身份元数据不含源个人邮箱；现有脱敏反例自检正确拒绝 3 个样本文件、定位 80 处命中并清理样本。当前交付集扫描通过（808 个源码文件、82 个 Admin 构建文件，0 违规；保留通用内部事件名等 16 处非阻断警告）。应用源码沿用现有模板，本轮未重跑三端全量构建和业务测试。
 
-邮箱统一脚本为 `scripts/rewrite-git-identities.py`，需要已安装 `git-filter-repo`，也可用 `--filter-repo` 指定工具文件。脚本仅在新建裸仓库副本重写作者、提交者和标签作者，默认保留名字；已用 75 个提交的过滤副本实跑，提交数和贡献者名保留，源 HEAD 未变，输出邮箱全部替换。示例（在仓库根执行）：
+提交身份调整与脱敏工具链由维护者在本地工作区维护，不随本仓库发布。本地 `.git/info/exclude` 不随 Git 克隆传播，携带 Agent 本地资料时需同步本机排除规则。此次只整理本地 Git，远程发布授权与外部运行验证仍按 §10 的边界处理。
 
-```powershell
-python scripts/rewrite-git-identities.py --repo . --output ../aed-identities.git --email "<新的公开邮箱>"
-```
-
-检查副本后再决定发布；本地 `.git/info/exclude` 不随 Git 克隆传播，携带 Agent 本地资料时需同步本机排除规则。此次只整理本地 Git，远程发布授权与外部运行验证仍按 §10 的边界处理。
+2026-10-30 复核后进一步把维护者本地的脱敏与身份工具链移出公开历史和工作树，公开 `scripts/` 只保留一键配置与一键本地演示两个入口；提交身份统一为上述 GitHub 隐私邮箱。
 
 
 

@@ -35,7 +35,7 @@
 - 急救课堂：课程、关键步骤、统计摘要和阅读量计数。
 - 管理端：AED 设备、用户/身份审核、求助、课程、审计日志和会话监控。
 - 单一 `config/site.json` 驱动机构名称、地图中心、校区和服务半径。
-- 本地演示数据初始化、三角色切换、脱敏扫描和一键启动。
+- 本地演示数据初始化、三角色切换和一键启动。
 
 ## 目录结构
 
@@ -46,8 +46,8 @@ AED-Emergency-System/
 ├── miniprogram/                      # uni-app 微信小程序
 ├── admin/                            # Vue 3 + Vite 管理端
 ├── backend/                          # .NET 10 API、领域层、基础设施与测试
+├── scripts/setup-project.ps1        # 生成站点与本地环境配置
 ├── scripts/start-local-demo.ps1     # Windows PowerShell 一键本地演示
-├── scripts/verify-sanitization.py   # 发布前脱敏扫描器
 └── docs/                             # 架构、定制、验证记录
 ```
 
@@ -59,7 +59,6 @@ AED-Emergency-System/
 - .NET SDK `10.0.103` 或兼容的 .NET 10 SDK。
 - Node.js `22.13+` 或 `24+`。Node 18 和较早的 20.x 不满足当前锁定依赖要求。
 - pnpm `10+`。
-- Python `3.10+` 仅用于维护者脱敏扫描。
 
 ### 推荐：一键准备、启动和登录自检
 
@@ -196,9 +195,7 @@ pnpm --dir admin lint
 pnpm --dir admin test
 pnpm --dir admin build
 
-# 发布前脱敏门禁（维护者工作区需要私有规则文件）
-python scripts/verify-sanitization.py --root .
-pwsh -File scripts/selftest-sanitization.ps1
+# 发布前脱敏与公开边界检查由维护者在本地工作区完成（工具与私有规则不随仓库发布）
 ```
 
 当前轮次的真实命令、测试数量、失败输出和未验证边界统一记录在 [`docs/VERIFICATION.md`](docs/VERIFICATION.md)。不要用本 README 中的历史数量替代验证记录。
